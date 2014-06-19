@@ -5,7 +5,7 @@
 // places.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "GeometryTypes.h"
+#include "GeometryTypes.hpp"
 
 #include <CGAL/Random.h>
 #include <CGAL/Handle_hash_function.h>

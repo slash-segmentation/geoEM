@@ -1,4 +1,4 @@
-#include "MedialAxisTransform_IO.h"
+#include "MedialAxisTransform_IO.hpp"
 
 #include <iostream>
 #include <fstream>

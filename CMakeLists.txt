@@ -100,7 +100,7 @@ endif ()
 ###############################################################################
 if (USE_PRECOMPILED_HEADERS)
 	set(PCH PrecompiledHeader)
-	set(PCH_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${PCH}.h")
+	set(PCH_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${PCH}.hpp")
 	set(PCH_OUTDIR "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/${PCH}.dir")
 	make_directory(${PCH_OUTDIR})
 
@@ -117,7 +117,7 @@ if (USE_PRECOMPILED_HEADERS)
 	if (MSVC)
 		# TODO: debug vs release? (above with ${PROJECT_BINARY_DIR} and ${CMAKE_BUILD_TYPE})
 		# TODO: need /Zm136 ?
-		set(PCH_OUTPUT "${PCH_OUTDIR}/${PCH}.h.pch")
+		set(PCH_OUTPUT "${PCH_OUTDIR}/${PCH}.hpp.pch")
 
 		add_custom_command(
 			OUTPUT ${PCH_OUTPUT}
@@ -130,8 +130,8 @@ if (USE_PRECOMPILED_HEADERS)
 		set(STATIC_LIBRARY_FLAGS "${STATIC_LIBRARY_FLAGS} /Yu\"${PCH_SOURCE}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\"")
 
 	elseif (CMAKE_COMPILER_IS_GNUCXX)
-		set(PCH_OUT_H  "${PCH_OUTDIR}/${PCH}.h")
-		set(PCH_OUTPUT "${PCH_OUTDIR}/${PCH}.h.gch")
+		set(PCH_OUT_H  "${PCH_OUTDIR}/${PCH}.hpp")
+		set(PCH_OUTPUT "${PCH_OUTDIR}/${PCH}.hpp.gch")
 
 		add_custom_command(
 			OUTPUT ${PCH_OUTPUT}
@@ -151,15 +151,15 @@ endif (USE_PRECOMPILED_HEADERS)
 # Add static libraries to be compiled
 ###############################################################################
 
-add_library(GeometryTypes STATIC GeometryTypes.h Polyhedron_3.h Polygons_3.h Skeleton_3.h SkeletonGraph_3.h GeometryTypes.cpp)
-add_library(Utilities STATIC Flags.h Flags-MSVC.h Heap.h Iterators.h GeometryUtils.h GeometryUtils.cpp Progress.h Progress.cpp)
-add_library(IO STATIC IO.h IO.cpp TriangulatePolyhedron.h TriangulatePolyhedron.cpp)
-add_library(Intersection STATIC Intersection.h Intersection.cpp)
-add_library(MedialAxisTransform STATIC MedialAxisTransform.h MedialAxisTransform.cpp MedialAxisTransform_Types_MAT.h MedialAxisTransform_Types_Triangulation.h MedialAxisTransform_Init.cpp MedialAxisTransform_Types_Geodesic.h MedialAxisTransform_Geodesic.cpp MedialAxisTransform_IO.h MedialAxisTransform_IO.cpp)
-add_library(Skeleton STATIC Skeleton.h Skeleton.cpp Skeleton_Compute.cpp)
+add_library(GeometryTypes STATIC GeometryTypes.hpp Polyhedron_3.hpp Polygons_3.hpp Skeleton_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
+add_library(Utilities STATIC Flags.hpp Flags-MSVC.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Progress.hpp Progress.cpp)
+add_library(IO STATIC IO.hpp IO.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
+add_library(Intersection STATIC Intersection.hpp Intersection.cpp)
+add_library(MedialAxisTransform STATIC MedialAxisTransform.hpp MedialAxisTransform.cpp MedialAxisTransform_Types_MAT.hpp MedialAxisTransform_Types_Triangulation.hpp MedialAxisTransform_Init.cpp MedialAxisTransform_Types_Geodesic.hpp MedialAxisTransform_Geodesic.cpp MedialAxisTransform_IO.hpp MedialAxisTransform_IO.cpp)
+add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp Skeleton_Compute.cpp)
 set(MY_LIBRARIES IO Intersection MedialAxisTransform Skeleton GeometryTypes Utilities)
 if (CREATE_GUI)
-	add_library(Viewer STATIC Viewer.h Viewer.cpp GLRender.h GLRender.cpp glext.h PolygonSorter.h PolygonSorter.cpp)
+	add_library(Viewer STATIC Viewer.hpp Viewer.cpp GLRender.hpp GLRender.cpp glext.hpp PolygonSorter.hpp PolygonSorter.cpp)
 	list(APPEND MY_LIBRARIES Viewer)
 endif (CREATE_GUI)
 

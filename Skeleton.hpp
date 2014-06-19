@@ -1,7 +1,7 @@
 #pragma once
 
-#include "GeometryTypes.h"
-#include "MedialAxisTransform.h"
+#include "GeometryTypes.hpp"
+#include "MedialAxisTransform.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // This file declares many functions for creating and working with skeletons.

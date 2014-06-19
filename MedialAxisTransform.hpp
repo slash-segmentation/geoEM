@@ -1,8 +1,8 @@
 #pragma once
 
 #include <string>
-#include "GeometryTypes.h"
-#include "MedialAxisTransform_Types_MAT.h"
+#include "GeometryTypes.hpp"
+#include "MedialAxisTransform_Types_MAT.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Construct the medial axis of the polygon mesh.

@@ -1,6 +1,6 @@
-#include "IO.h"
-#include "TriangulatePolyhedron.h"
-#include "GeometryUtils.h"
+#include "IO.hpp"
+#include "TriangulatePolyhedron.hpp"
+#include "GeometryUtils.hpp"
 
 #include <CGAL/Polyhedron_incremental_builder_3.h>
 

@@ -1,10 +1,10 @@
-#include "Skeleton.h"
+#include "Skeleton.hpp"
 
 #include <queue>
 #include <vector>
 #include <utility>
-#include "Heap.h"
-#include "GeometryUtils.h"
+#include "Heap.hpp"
+#include "GeometryUtils.hpp"
 
 //// Debugging functions:
 //inline void print_facet(MAT::Facet_const_handle f)

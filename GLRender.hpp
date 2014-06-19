@@ -1,9 +1,9 @@
 #ifndef _GL_RENDER_
 #define _GL_RENDER_
 
-#include "GeometryTypes.h"
-#include "PolygonSorter.h"
-#include "Intersection.h"
+#include "GeometryTypes.hpp"
+#include "PolygonSorter.hpp"
+#include "Intersection.hpp"
 #include <qcolor.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

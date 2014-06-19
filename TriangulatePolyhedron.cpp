@@ -1,4 +1,4 @@
-#include "TriangulatePolyhedron.h"
+#include "TriangulatePolyhedron.hpp"
 
 #ifdef POLYHEDRON_USE_VECTOR
 // When the Polyhedron uses a vector we cannot use the undocumented triangulate_polyhedron function

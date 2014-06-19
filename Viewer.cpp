@@ -1,13 +1,13 @@
-#include "Viewer.h"
+#include "Viewer.hpp"
 
-#include "GeometryUtils.h"
+#include "GeometryUtils.hpp"
 
 #include <QKeyEvent>
 
 #include <CGAL/Min_sphere_d.h>
 #include <CGAL/Min_sphere_annulus_d_traits_3.h>
 
-#include "GLRender.h"
+#include "GLRender.hpp"
 
 QColor Viewer::DefaultPolyhedronFillColor(0, 128, 0, 64);
 QColor Viewer::DefaultPolyhedronEdgeColor(0, 0, 0);

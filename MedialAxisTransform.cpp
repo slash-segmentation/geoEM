@@ -1,6 +1,6 @@
-#include "MedialAxisTransform.h"
-#include "MedialAxisTransform_Types_Geodesic.h"
-#include "MedialAxisTransform_Types_Triangulation.h"
+#include "MedialAxisTransform.hpp"
+#include "MedialAxisTransform_Types_Geodesic.hpp"
+#include "MedialAxisTransform_Types_Triangulation.hpp"
 
 #include <iostream>
 #include <vector>

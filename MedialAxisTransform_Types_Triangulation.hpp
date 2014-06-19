@@ -1,7 +1,7 @@
 #pragma once
 
-#include "GeometryTypes.h"
-#include "MedialAxisTransform_Types_MAT.h"
+#include "GeometryTypes.hpp"
+#include "MedialAxisTransform_Types_MAT.hpp"
 
 #include <CGAL/Delaunay_triangulation_3.h>
 #include <CGAL/Triangulation_cell_base_with_circumcenter_3.h>

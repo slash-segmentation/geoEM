@@ -3,5 +3,5 @@
 // for the common geometry types.
 
 #define INSTANTIATE_GEOM_TYPES
-#include "GeometryTypes.h"
+#include "GeometryTypes.hpp"
 

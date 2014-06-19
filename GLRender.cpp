@@ -1,7 +1,7 @@
-#include "GLRender.h"
+#include "GLRender.hpp"
 
-#include "GeometryUtils.h"
-#include "PolygonSorter.h"
+#include "GeometryUtils.hpp"
+#include "PolygonSorter.hpp"
 
 ////////// Basics //////////
 #if defined(_WIN32)

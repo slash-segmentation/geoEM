@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GeometryTypes.h"
+#include "GeometryTypes.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Sorts a collection of polygons by their distance from a plane (defined by a point and orthogonal

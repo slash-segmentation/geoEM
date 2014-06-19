@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GeometryTypes.h"
+#include "GeometryTypes.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Triangulate the surface of a polyhedron, making sure that every facet is a triangle.

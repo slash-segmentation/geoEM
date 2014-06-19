@@ -1,9 +1,9 @@
 #pragma once
 
-#include "GeometryTypes.h"
-#include "Polygons_3.h"
-#include "MedialAxisTransform_Types_Geodesic.h"
-#include "Flags.h"
+#include "GeometryTypes.hpp"
+#include "Polygons_3.hpp"
+#include "MedialAxisTransform_Types_Geodesic.hpp"
+#include "Flags.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO: description

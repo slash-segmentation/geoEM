@@ -100,19 +100,19 @@ typedef CGAL::Triangle_3<Kernel>    Triangle3;
 DECLARE_TEMPLATE(CGAL::Plane_3<Kernel>)
 typedef CGAL::Plane_3<Kernel>       Plane3;
 
-#include "Polyhedron_3.h"
+#include "Polyhedron_3.hpp"
 //DECLARE_TEMPLATE(Polyhedron_3<Kernel>)
 typedef Polyhedron_3<Kernel>		Polyhedron3;
 
-#include "Polygons_3.h"
+#include "Polygons_3.hpp"
 DECLARE_TEMPLATE(Polygons_3<Kernel>)
 typedef Polygons_3<Kernel>			Polygons3;
 
-#include "Skeleton_3.h"
+#include "Skeleton_3.hpp"
 DECLARE_TEMPLATE(SKELETON_3(Kernel))
 typedef SKELETON_3(Kernel)			Skeleton3;
 
-#include "SkeletonGraph_3.h"
+#include "SkeletonGraph_3.hpp"
 DECLARE_TEMPLATE(SkeletonGraph_3<Kernel>)
 typedef SkeletonGraph_3<Kernel>		SkeletonGraph3;
 

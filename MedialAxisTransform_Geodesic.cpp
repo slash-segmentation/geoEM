@@ -1,7 +1,7 @@
-#include "MedialAxisTransform_Types_Geodesic.h"
+#include "MedialAxisTransform_Types_Geodesic.hpp"
 
-#include "Heap.h"
-#include "Progress.h"
+#include "Heap.hpp"
+#include "Progress.hpp"
 
 #include <iostream>
 #include <fstream>

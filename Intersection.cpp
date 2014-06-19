@@ -1,6 +1,6 @@
-#include "Intersection.h"
+#include "Intersection.hpp"
 
-#include "GeometryUtils.h"
+#include "GeometryUtils.hpp"
 
 #include <CGAL/Boolean_set_operations_2.h>
 

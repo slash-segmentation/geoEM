@@ -1,4 +1,4 @@
-#include "Progress.h"
+#include "Progress.hpp"
 
 #include <boost/chrono.hpp>
 

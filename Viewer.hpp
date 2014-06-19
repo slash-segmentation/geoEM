@@ -5,8 +5,8 @@
 // basic setup while the classes in gl_render actually handle the 3D rendering.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "GeometryTypes.h"
-#include "Intersection.h"
+#include "GeometryTypes.hpp"
+#include "Intersection.hpp"
 
 #include <QGLViewer/qglviewer.h>
 

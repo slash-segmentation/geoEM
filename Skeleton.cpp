@@ -1,6 +1,6 @@
-#include "Skeleton.h"
+#include "Skeleton.hpp"
 
-#include "GeometryUtils.h"
+#include "GeometryUtils.hpp"
 
 SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
 {

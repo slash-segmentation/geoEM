@@ -1,4 +1,4 @@
-#include "PolygonSorter.h"
+#include "PolygonSorter.hpp"
 
 #include <CGAL/Cartesian.h>
 #include <CGAL/Kd_tree.h>
@@ -7,7 +7,7 @@
 #include <CGAL/Incremental_neighbor_search.h>
 //#include <CGAL/Orthogonal_incremental_neighbor_search.h>
 
-#include "GeometryUtils.h"
+#include "GeometryUtils.hpp"
 
 ////static Kernel::FT distance(const Point3& p, const Plane3& h)
 ////{

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <string>
-#include "GeometryTypes.h"
-#include "MedialAxisTransform_Types_MAT.h"
+#include "GeometryTypes.hpp"
+#include "MedialAxisTransform_Types_MAT.hpp"
 
 // Load a MAT from a binary file
 MAT* load_mat(const std::string filename, Polyhedron3* mesh);

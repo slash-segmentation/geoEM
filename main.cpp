@@ -1,17 +1,17 @@
-#include "GeometryTypes.h"
+#include "GeometryTypes.hpp"
 
-#include "IO.h"
-#include "Intersection.h"
-#include "MedialAxisTransform.h"
-#include "MedialAxisTransform_IO.h"
-#include "Skeleton.h"
+#include "IO.hpp"
+#include "Intersection.hpp"
+#include "MedialAxisTransform.hpp"
+#include "MedialAxisTransform_IO.hpp"
+#include "Skeleton.hpp"
 
 #include <iostream>
 #include <string>
 #include <algorithm>
 #include <ctype.h>
 
-#include "Viewer.h"
+#include "Viewer.hpp"
 #include <QApplication>
 #include <CGAL/Qt/resources.h>
 #include <CGAL/auto_link/Qt4.h>

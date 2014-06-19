@@ -1,5 +1,5 @@
-#include "MedialAxisTransform_Types_Geodesic.h"
-#include "MedialAxisTransform_Types_Triangulation.h"
+#include "MedialAxisTransform_Types_Geodesic.hpp"
+#include "MedialAxisTransform_Types_Triangulation.hpp"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Building and annotating the triangulation and mesh.

@@ -2,7 +2,7 @@
 
 #include <assert.h>
 #include <vector>
-#include "Iterators.h"
+#include "Iterators.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // A skeleton is simply a graph with vertices and edges in which every vertex has a 3D point.

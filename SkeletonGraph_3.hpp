@@ -1,7 +1,7 @@
 #pragma once
 
-#include "GeometryTypes.h"
-#include "Iterators.h"
+#include "GeometryTypes.hpp"
+#include "Iterators.hpp"
 #include <list>
 #include <vector>
 

@@ -2,7 +2,7 @@
 
 #include <CGAL/circulator_bases.h>
 #include <vector>
-#include "Iterators.h"
+#include "Iterators.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Similar to Polyhedron_3 except it is really just a collection of planar-polygons that may share

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "GeometryTypes.h"
-#include "GeometryUtils.h"
+#include "GeometryTypes.hpp"
+#include "GeometryUtils.hpp"
 
 #include <limits>
 

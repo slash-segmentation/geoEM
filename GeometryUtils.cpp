@@ -1,9 +1,9 @@
-#include "GeometryUtils.h"
+#include "GeometryUtils.hpp"
 
 #include <vector>
 #include <set>
 
-#include "Progress.h"
+#include "Progress.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // These are the few basic geometry utility functions that were not one-liners.
