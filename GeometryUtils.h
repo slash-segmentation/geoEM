@@ -1,0 +1,185 @@
+#pragma once
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// These are basic geometry utility functions, most are simple one-liners that get used in many
+// places.
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include "GeometryTypes.h"
+
+#include <CGAL/Random.h>
+#include <CGAL/Handle_hash_function.h>
+
+#include <list>
+#include <unordered_map>
+#include <unordered_set>
+
+
+// Basic Utility Macros
+#ifndef ARRAYSIZE
+#define ARRAYSIZE(a) sizeof(a)/sizeof(a[0])
+#endif
+#define CONCATENATE_DETAIL(x, y) x##y
+#define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)
+#define MAKE_UNIQUE(x) CONCATENATE(x, __LINE__)
+
+
+// Easy sqrt (uses sqrt if available for the given numeric type, otherwise uses the double approximation of sqrt)
+template <class FT> inline double dbl_sqrt(const FT x) { return CGAL::sqrt(CGAL::to_double(x)); } // always a double-precision approximation of sqrt
+template <class FT> inline FT _ft_sqrt(const FT x, CGAL::Integral_domain_without_division_tag) { return Kernel::FT(dbl_sqrt(x)); }
+template <class FT> inline FT _ft_sqrt(const FT x, CGAL::Field_with_sqrt_tag) { return CGAL::sqrt(x); }
+template <class FT> inline FT ft_sqrt(const FT x) { return _ft_sqrt(x, typename CGAL::Algebraic_structure_traits<FT>::Algebraic_category()); }
+
+
+// Fast min and max of 2 or 3 numbers
+template <class FT> inline FT min2(const FT x, const FT y) { return x < y ? x : y; }
+template <class FT> inline FT max2(const FT x, const FT y) { return x > y ? x : y; }
+template <class FT> inline FT min3(const FT x, const FT y, const FT z) { return x < y ? (x < z ? x : z) : (y < z ? y : z); }
+template <class FT> inline FT max3(const FT x, const FT y, const FT z) { return x > y ? (x > z ? x : z) : (y > z ? y : z); }
+
+
+// Inter-convert vectors and directions (vector->direction is easy [just constructor] but provided for completion)
+template <class Kernel> inline CGAL::Direction_2<Kernel> to_direction(const CGAL::Vector_2<Kernel> &v) { return CGAL::Direction_2<Kernel>(v); }
+template <class Kernel> inline CGAL::Direction_3<Kernel> to_direction(const CGAL::Vector_3<Kernel> &v) { return CGAL::Direction_3<Kernel>(v); }
+template <class Kernel> inline CGAL::Vector_2<Kernel> to_vector(const CGAL::Direction_2<Kernel> &d) { return CGAL::Vector_2<Kernel>(d.dx(),d.dy(),d.dz()); }
+template <class Kernel> inline CGAL::Vector_3<Kernel> to_vector(const CGAL::Direction_3<Kernel> &d) { return CGAL::Vector_3<Kernel>(d.dx(),d.dy(),d.dz()); }
+
+
+// Normalize vectors and directions
+template <class Kernel> inline CGAL::Vector_2<Kernel> normalized(const CGAL::Vector_2<Kernel> &v) { typename Kernel::FT m = v.squared_length(); return m == 0 ? v : v / ft_sqrt(m); }
+template <class Kernel> inline CGAL::Vector_3<Kernel> normalized(const CGAL::Vector_3<Kernel> &v) { typename Kernel::FT m = v.squared_length(); return m == 0 ? v : v / ft_sqrt(m); }
+template <class Kernel> inline CGAL::Direction_2<Kernel> normalized(const CGAL::Direction_2<Kernel> &d) { return CGAL::Direction_2<Kernel>(normalized(to_vector(d))); }
+template <class Kernel> inline CGAL::Direction_3<Kernel> normalized(const CGAL::Direction_3<Kernel> &d) { return CGAL::Direction_3<Kernel>(normalized(to_vector(d))); }
+
+
+// Get the distance (not-squared) between two points (approximating to double always)
+template <class Kernel> inline double distance(const CGAL::Point_2<Kernel> p, const CGAL::Point_2<Kernel> q) { return dbl_sqrt(CGAL::squared_distance(p, q)); }
+template <class Kernel> inline double distance(const CGAL::Point_3<Kernel> p, const CGAL::Point_3<Kernel> q) { return dbl_sqrt(CGAL::squared_distance(p, q)); }
+
+
+// Project 3D shapes into 2D using a plane
+template <class Kernel> inline CGAL::Point_2<Kernel>    to_2d(const CGAL::Point_3<Kernel>& p,    const CGAL::Plane_3<Kernel>& h) { return h.to_2d(p); }
+template <class Kernel> inline CGAL::Segment_2<Kernel>  to_2d(const CGAL::Segment_3<Kernel>& s,  const CGAL::Plane_3<Kernel>& h) { return CGAL::Segment_2<Kernel>(h.to_2d(s.source()), h.to_2d(s.target())); }
+template <class Kernel> inline CGAL::Triangle_2<Kernel> to_2d(const CGAL::Triangle_3<Kernel>& t, const CGAL::Plane_3<Kernel>& h) { return CGAL::Triangle_2<Kernel>(h.to_2d(t[0]), h.to_2d(t[1]), h.to_2d(t[2])); }
+
+
+// Removing (nearly) collinear points
+// In all of these, cyclic means the first and last points are connected (and should be checked as well)
+// Nearly collinear points are determined if the squared area of the triangle made by 3 consecutive points is less than the threshold
+void remove_collinear_points(std::list<Point2>* pts, bool cyclic = true);
+void remove_collinear_points(std::list<Point3>* pts, bool cyclic = true);
+void remove_nearly_collinear_points(std::list<Point2>* pts, Kernel::FT threshold = Kernel::FT(0.5), bool cyclic = true);
+void remove_nearly_collinear_points(std::list<Point3>* pts, Kernel::FT threshold = Kernel::FT(0.5), bool cyclic = true);
+
+
+// Get vertex and facet indices from Polyhedron3 and Polygon3 data structures (for debugging) [note that if not POLYHEDRON_USE_VECTOR these are extremely slow for Polyhedron3s]
+template <class DS> inline size_t vertex_number  (const typename DS::Vertex_const_handle   v, const DS* ds) { return std::distance(ds->vertices_begin(),  v); }
+template <class DS> inline size_t facet_number   (const typename DS::Facet_const_handle    f, const DS* ds) { return std::distance(ds->facets_begin(),    f); }
+template <class DS> inline size_t halfedge_number(const typename DS::Halfedge_const_handle e, const DS* ds) { return std::distance(ds->halfedges_begin(), e); }
+
+
+// Get a string version of a point / vector identical to how the original CurveSk program did it (for debugging)
+inline std::string tostr(const Point3& p)  { std::stringstream s; s << p; return "( " + s.str() + " )"; }
+inline std::string tostr(const Vector3& v) { std::stringstream s; s << v; return "( " + s.str() + " )"; }
+
+
+// Cartesian converters
+//extern CGAL::Cartesian_converter<Kernel, EPEC_Kernel> main_to_exact;
+//extern CGAL::Cartesian_converter<Kernel, EPIC_Kernel> main_to_inexact;
+//extern CGAL::Cartesian_converter<EPEC_Kernel, Kernel> exact_to_main;
+//extern CGAL::Cartesian_converter<EPIC_Kernel, Kernel> inexact_to_main;
+//extern CGAL::Cartesian_converter<EPEC_Kernel, EPIC_Kernel> exact_to_inexact;
+//extern CGAL::Cartesian_converter<EPIC_Kernel, EPEC_Kernel> inexact_to_exact;
+
+
+// Handle lookup collections and geometric hash functions for unordered_map/unordered_set
+// Use handle_map and handle_set like "typedef handle_map<Handle_type, Value>::type my_handle_map;"
+template <typename H, typename T> using handle_map = std::unordered_map<H, T, CGAL::Handle_hash_function>;
+template <typename H>             using handle_set = std::unordered_set<H,    CGAL::Handle_hash_function>;
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
+namespace boost
+#else
+namespace CGAL
+#endif
+{
+inline size_t hash_value(const EPEC_Kernel::FT x) { std::size_t h = 0; boost::hash_combine(h, CGAL::to_double(x)); return h; }
+inline size_t hash_value(const Point2& p) { std::size_t h = 0; boost::hash_combine(h, p.x()); boost::hash_combine(h, p.y()); return h; }
+inline size_t hash_value(const Point3& p) { std::size_t h = 0; boost::hash_combine(h, p.x()); boost::hash_combine(h, p.y()); boost::hash_combine(h, p.z()); return h; }
+}
+
+
+// Bbox3 creation from points (significantly faster than adding the bboxes of each point)
+// There are specializations for 1, 2, and 3 points, and a general function that takes an iterator or points
+inline Bbox3 bbox3(const Point3& p) { return p.bbox(); }
+#define RETURN_BBOX3 return Bbox3(min_x, min_y, min_z, max_x, max_y, max_z)
+#define PT3_TO_DBL(P) P##x = CGAL::to_double(P.x()), P##y = CGAL::to_double(P.y()), P##z = CGAL::to_double(P.z())
+#define MIN_MAX_2(d) if (p##d > q##d) { min_##d = q##d; max_##d = p##d; } else { min_##d = p##d; max_##d = q##d; }
+inline Bbox3 bbox3(const Point3& p, const Point3& q) { double PT3_TO_DBL(p), PT3_TO_DBL(q), min_x, max_x, min_y, max_y, min_z, max_z; MIN_MAX_2(x); MIN_MAX_2(y); MIN_MAX_2(z); RETURN_BBOX3; }
+#undef MIN_MAX_2
+#define MIN_MAX_3(d) if (p##d < q##d) { if (p##d < r##d) { min_##d = p##d; max_##d = q##d < r##d ? r##d : q##d; } else { min_##d = r##d; max_##d = q##d; } } else if (p##d < r##d) { min_##d = q##d; max_##d = r##d; } else { min_##d = q##d < r##d ? q##d : r##d; max_##d = p##d; }
+inline Bbox3 bbox3(const Point3& p, const Point3& q, const Point3& r) { double PT3_TO_DBL(p), PT3_TO_DBL(q), PT3_TO_DBL(r), min_x, max_x, min_y, max_y, min_z, max_z; MIN_MAX_3(x); MIN_MAX_3(y); MIN_MAX_3(z); RETURN_BBOX3; }
+#undef MIN_MAX_3
+#undef PT3_TO_DBL
+#define PT3_TO_DBL(d) min_##d = CGAL::to_double(i->d()), max_##d = min_##d
+#define MIN_MAX_2(d) double d = CGAL::to_double(i->d()); if (d < min_##d) { min_##d = d; } else if (d > max_##d) { max_##d = d; }
+template <class InputIterator> inline Bbox3 bbox3_from_points(InputIterator i, InputIterator end) { if (i == end) { return Bbox3(); } double PT3_TO_DBL(x), PT3_TO_DBL(y), PT3_TO_DBL(z); while (++i != end) { MIN_MAX_2(x); MIN_MAX_2(y); MIN_MAX_2(z); } RETURN_BBOX3; }
+#undef MIN_MAX_2
+#undef PT3_TO_DBL
+#undef RETURN_BBOX3
+
+
+// Bbox Utilities
+inline bool is_inside(const Bbox2& out, const Bbox2& in) { return out.xmin() <= in.xmin() && out.ymin() <= in.ymin() && out.xmax() >= in.xmax() && out.ymax() >= in.ymax(); }
+inline bool is_inside(const Bbox3& out, const Bbox3& in) { return out.xmin() <= in.xmin() && out.ymin() <= in.ymin() && out.zmin() <= in.zmin() && out.xmax() >= in.xmax() && out.ymax() >= in.ymax() && out.zmax() >= in.zmax(); }
+inline bool is_inside(const Bbox2& out, const Point2& p) { return p.x() >= out.xmin() && p.x() <= out.xmax() && p.y() >= out.ymin() && p.y() <= out.ymax(); }
+inline bool is_inside(const Bbox3& out, const Point3& p) { return p.x() >= out.xmin() && p.x() <= out.xmax() && p.y() >= out.ymin() && p.y() <= out.ymax() && p.z() >= out.zmin() && p.z() <= out.zmax(); }
+inline double bbox_max_length(const Bbox3& bb) { return max3(bb.max(0)-bb.min(0), bb.max(1)-bb.min(1), bb.max(2)-bb.min(2)); }
+
+
+// Polyhedron part converters
+Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f);
+inline Plane3 facet_to_plane3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return Plane3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
+inline Triangle3 facet_to_triangle3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return Triangle3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
+inline Bbox3 facet_to_bbox3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return bbox3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
+inline Segment3 halfedge_to_segment3(Polyhedron3::Halfedge_const_handle he) { return Segment3(he->prev()->vertex()->point(), he->vertex()->point()); }
+
+
+// Polyhedron looping around a vertex/facet
+#define FOR_EDGES_AROUND_VERTEX(V, e) \
+	Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+	Polyhedron3::Halfedge_const_handle e = MAKE_UNIQUE(_he); \
+	for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), e = MAKE_UNIQUE(_he))
+#define FOR_FACETS_AROUND_VERTEX(V, f) \
+	Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+	Polyhedron3::Facet_const_handle f = MAKE_UNIQUE(_he)->facet(); \
+	for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), f = MAKE_UNIQUE(_he)->facet())
+#define FOR_VERTICES_AROUND_VERTEX(V, v) \
+	Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+	Polyhedron3::Vertex_const_handle v = MAKE_UNIQUE(_he)->prev()->vertex(); \
+	for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), v = MAKE_UNIQUE(_he)->prev()->vertex())
+#define FOR_EDGES_AROUND_FACET(F, e) \
+	Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+	Polyhedron3::Halfedge_const_handle e = MAKE_UNIQUE(_he); \
+	for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), e = MAKE_UNIQUE(_he))
+#define FOR_FACETS_AROUND_FACET(F, f) \
+	Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+	Polyhedron3::Facet_const_handle f = MAKE_UNIQUE(_he)->opposite()->facet(); \
+	for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), f = MAKE_UNIQUE(_he)->opposite()->facet())
+#define FOR_VERTICES_AROUND_FACET(F, v) \
+	Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+	Polyhedron3::Vertex_const_handle v = MAKE_UNIQUE(_he)->vertex(); \
+	for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), v = MAKE_UNIQUE(_he)->vertex())
+
+
+// Random constructs
+extern CGAL::Random Rand;
+inline Point3 random_point(const Bbox3& bbox) { return Point3(Rand.uniform_real(bbox.xmin(),bbox.xmax()),Rand.uniform_real(bbox.ymin(),bbox.ymax()),Rand.uniform_real(bbox.zmin(),bbox.zmax())); }
+inline Vector3 random_vector() { return Vector3(Rand.uniform_real(0.0,1.0),Rand.uniform_real(0.0,1.0),Rand.uniform_real(0.0,1.0)); }
+inline Vector3 random_nonnull_vector() { Vector3 v = random_vector(); while (v == CGAL::NULL_VECTOR) { v = random_vector(); } return v; }
+
+
+// Other utilities
+bool is_not_degenerate(const Polyhedron3* P);
+bool is_manifold(const Polyhedron3* P); // currently extremely slow
+bool point_in_polyhedron(const Point3& p, const FacetTree& tree);
+void print_tri_of_unit_cube(const Triangle3& t); // for debugging
