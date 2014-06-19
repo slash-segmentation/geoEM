@@ -105,7 +105,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _MSC_VER
-#include "Flags-MSVC.h"
+#include "Flags-MSVC.hpp"
 #else
 // Creates a name to use as a flag
 #define FLAG_NAME(NAME) FLAG_NAME_CORE(NAME) FLAG_NAME_INIT(NAME)
@@ -113,7 +113,7 @@
 	template <class BT_, class F_, BT_ V_> struct Flag_##NAME \
 	{ \
 		static_assert(V_ != 0, "No flag may have a value of 0 (use the special None flag for that)"); \
-		static constexpr const F_ NAME(std::integral_constant<BT_,V_>()); \
+		static constexpr const F_ NAME = F_(std::integral_constant<BT_,V_>()); \
 		protected: static constexpr const char* const _name = #NAME; \
 	};
 #define FLAG_NAME_INIT(NAME) \

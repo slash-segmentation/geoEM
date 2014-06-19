@@ -1,0 +1,21 @@
+# CMake Files
+CMakeCache.txt
+cmake_install.cmake
+CMakeFiles/
+
+# Linux Files
+Makefile
+*.a
+*~
+*.swp
+
+# Windows Files
+*.sln
+*.sdf
+*.vcxproj*
+ipch/
+Release/
+Debug/
+Win32/
+x64/
+

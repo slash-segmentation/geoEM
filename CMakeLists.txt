@@ -159,7 +159,7 @@ add_library(MedialAxisTransform STATIC MedialAxisTransform.hpp MedialAxisTransfo
 add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp Skeleton_Compute.cpp)
 set(MY_LIBRARIES IO Intersection MedialAxisTransform Skeleton GeometryTypes Utilities)
 if (CREATE_GUI)
-	add_library(Viewer STATIC Viewer.hpp Viewer.cpp GLRender.hpp GLRender.cpp glext.hpp PolygonSorter.hpp PolygonSorter.cpp)
+	add_library(Viewer STATIC Viewer.hpp Viewer.cpp GLRender.hpp GLRender.cpp glext.h PolygonSorter.hpp PolygonSorter.cpp)
 	list(APPEND MY_LIBRARIES Viewer)
 endif (CREATE_GUI)
 
