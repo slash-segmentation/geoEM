@@ -11,8 +11,8 @@
 
 namespace detail
 {
-	FLAGS(FacetFlags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
-	FLAGS(EdgeFlags, Skeleton, StableSkeleton, Visited);
+	FLAGS_DECL(FacetFlags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
+	FLAGS_DECL(EdgeFlags, Skeleton, StableSkeleton, Visited);
 }
 
 template<typename P3>

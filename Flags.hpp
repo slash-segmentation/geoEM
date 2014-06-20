@@ -429,15 +429,19 @@ namespace detail
 // BT is the base typename for the flags
 // N is the number of flags (== NUM_ARGS(__VA_ARGS__))
 // First stage of creation expands __VA_ARGS__ into all necessary forms
-#define FLAGS___CREATE(T, BT, N, ...) \
-	FLAGS___CREATE2(T, BT, N, \
+#define FLAGS___CREATE_DECL(T, BT, N, ...) \
+	FLAGS___CREATE2_DECL(T, BT, N, \
 		FLAGS___NVLIST(FLAGS___XNAME, T, FLAGS___COMMA, N, __VA_ARGS__), \
 		FLAGS___NVLIST(FLAGS___XVALUE, T, FLAGS___COMMA, N, __VA_ARGS__), \
-		FLAGS___NVLIST(FLAGS___XDECLARE, T, FLAGS___SEMICOLON, N, __VA_ARGS__), \
+		FLAGS___NVLIST(FLAGS___XDECLARE, T, FLAGS___SEMICOLON, N, __VA_ARGS__) \
+	)
+#define FLAGS___CREATE_DEFN(T, BT, N, ...) \
+	FLAGS___CREATE2_DEFN(T, BT, N, \
+		FLAGS___NVLIST(FLAGS___XNAME, T, FLAGS___COMMA, N, __VA_ARGS__), \
 		FLAGS___NVLIST(FLAGS___XDEFINE, T, FLAGS___SEMICOLON, N, __VA_ARGS__) \
 	)
 // Second stage no longer needs __VA_ARGS__
-#define FLAGS___CREATE2(T, BT, N, NAMES, VALS, DECS, DEFS) \
+#define FLAGS___CREATE2_DECL(T, BT, N, NAMES, VALS, DECS) \
 	class T : public ::detail::flags_base<BT, T, N / 2, VALS> \
 	{ \
 		typedef ::detail::flags_base<BT, T, N / 2, VALS> super_type; \
@@ -458,7 +462,8 @@ namespace detail
 		inline explicit T(base_type b) : super_type(b) { } \
 		inline type& operator=(const type& b) { _x = b._x; return *this; } \
 		DECS; \
-	}; \
+	};
+#define FLAGS___CREATE2_DEFN(T, BT, N, NAMES, DEFS) \
 	BOOST_CONSTEXPR const char* const T::_names [T::_count] \
 		FLAGS___INIT_IF_NO_CONSTEXPR(NAMES); \
 	DEFS
@@ -499,22 +504,40 @@ namespace detail
 #define FLAGS___ADDVAL30(M,N,...) N,(M>>29),FLAGS___EXPAND(FLAGS___ADDVAL29(M,__VA_ARGS__))
 #define FLAGS___ADDVAL31(M,N,...) N,(M>>30),FLAGS___EXPAND(FLAGS___ADDVAL30(M,__VA_ARGS__))
 #define FLAGS___ADDVAL32(M,N,...) N,(M>>31),FLAGS___EXPAND(FLAGS___ADDVAL31(M,__VA_ARGS__))
-
-
-////////// Create a set of flags with the given values //////////
-#define FLAGS_WITH_VALUES(TYPE_NAME, BASE_TYPE, ...) \
-	FLAGS___CREATE( \
-		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
-	)
-
-////////// Create a set of flags with default powers-of-two values //////////
-#define FLAGS(TYPE_NAME, ...) \
-	FLAGS_WITH_VALUES( \
+#define FLAGS___ADDVALS_AND_CREATE(X, TYPE_NAME, ...) \
+	FLAGS___EXPAND(X( \
 		TYPE_NAME, \
 		FLAGS___BASE_TYPE(__VA_ARGS__), \
-		FLAGS___ADDVAL( \
+		FLAGS___ADDVAL(\
 			FLAGS___POW2(__VA_ARGS__), \
 			FLAGS___NUM_ARGS(__VA_ARGS__), \
 			__VA_ARGS__ \
 		) \
+	))
+
+
+////////// Create a set of flags with the given values //////////
+#define FLAGS_WITH_VALUES(TYPE_NAME, BASE_TYPE, ...) \
+	FLAGS___CREATE_DECL( \
+		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
+	) \
+	FLAGS___CREATE_DEFN( \
+		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
 	)
+#define FLAGS_WITH_VALUES_DECL(TYPE_NAME, BASE_TYPE, ...) \
+	FLAGS___CREATE_DECL( \
+		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
+	)
+#define FLAGS_WITH_VALUES_DEFN(TYPE_NAME, BASE_TYPE, ...) \
+	FLAGS___CREATE_DEFN( \
+		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
+	)
+
+
+////////// Create a set of flags with default powers-of-two values //////////
+#define FLAGS(TYPE_NAME, ...) \
+	FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES, TYPE_NAME, __VA_ARGS__)
+#define FLAGS_DECL(TYPE_NAME, ...) \
+	FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES_DECL, TYPE_NAME, __VA_ARGS__)
+#define FLAGS_DEFN(TYPE_NAME, ...) \
+	FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES_DEFN, TYPE_NAME, __VA_ARGS__)

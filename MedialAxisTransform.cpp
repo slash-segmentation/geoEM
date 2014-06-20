@@ -10,6 +10,12 @@ template class MAT_Polygons_3_Facet<MAT>;
 template class CGAL::Triangulation_data_structure_3<TriVertex, TriCell>;
 template class CGAL::Delaunay_triangulation_3<Kernel, TDS>;
 
+namespace detail
+{
+	FLAGS_DEFN(FacetFlags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
+	FLAGS_DEFN(EdgeFlags, Skeleton, StableSkeleton, Visited);
+}
+
 void init(Triangulation& T, Polyhedron3* mesh);
 void cleanup(Polyhedron3* mesh);
 void compute_geodesic(Polyhedron3* mesh);
