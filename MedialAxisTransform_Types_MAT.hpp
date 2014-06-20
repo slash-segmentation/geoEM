@@ -11,14 +11,8 @@
 
 namespace detail
 {
-	// FLAG_NAME cannot easily/cleanly be used inside a class
-	FLAG_NAME(StableSkeleton);		// MAT Facet and Edge
-	FLAG_NAME(NotStableSkeleton);	// MAT Facet
-	FLAG_NAME(Boundary);			// MAT Facet
-	FLAG_NAME(Eaten);				// MAT Facet
-	FLAG_NAME(InHeap);				// MAT Facet
-	FLAG_NAME(Skeleton);			// MAT Edge
-	FLAG_NAME(Visited);				// MAT Edge
+	FLAGS(FacetFlags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
+	FLAGS(EdgeFlags, Skeleton, StableSkeleton, Visited);
 }
 
 template<typename P3>
@@ -27,7 +21,7 @@ class MAT_Polygons_3_Facet : public Polygons_3_Facet<P3>
 	friend P3;
 	typedef Polygons_3_Facet<P3> base;
 public:
-	typedef ::Flags<std::uint8_t, detail::Flag_StableSkeleton, detail::Flag_NotStableSkeleton, detail::Flag_Boundary, detail::Flag_Eaten, detail::Flag_InHeap>::WithDefaultValues Flags;
+	typedef detail::FacetFlags Flags;
 	Flags flags;
 private:
 //#ifdef DETAILED_SKELETON
@@ -118,7 +112,7 @@ class MAT_Polygons_3_Edge : public Polygons_3_Edge<P3>
 
 	double _flux;
 public:
-	typedef ::Flags<std::uint8_t, detail::Flag_Skeleton, detail::Flag_StableSkeleton, detail::Flag_Visited>::WithDefaultValues Flags;
+	typedef detail::EdgeFlags Flags;
 	Flags flags;
 	MAT_Polygons_3_Edge(typename base::Vertex_handle v, typename base::Facet_handle f) : Polygons_3_Edge<P3>(v, f), flags(0) { }
 	inline double flux() const { return this->_flux; }
