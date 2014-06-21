@@ -9,19 +9,13 @@
 // TODO: description
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace detail
-{
-	FLAGS_DECL(FacetFlags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
-	FLAGS_DECL(EdgeFlags, Skeleton, StableSkeleton, Visited);
-}
-
 template<typename P3>
 class MAT_Polygons_3_Facet : public Polygons_3_Facet<P3>
 {
 	friend P3;
 	typedef Polygons_3_Facet<P3> base;
 public:
-	typedef detail::FacetFlags Flags;
+	FLAGS_DECL(Flags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
 	Flags flags;
 private:
 //#ifdef DETAILED_SKELETON
@@ -112,7 +106,7 @@ class MAT_Polygons_3_Edge : public Polygons_3_Edge<P3>
 
 	double _flux;
 public:
-	typedef detail::EdgeFlags Flags;
+	FLAGS_DECL(Flags, Skeleton, StableSkeleton, Visited);
 	Flags flags;
 	MAT_Polygons_3_Edge(typename base::Vertex_handle v, typename base::Facet_handle f) : Polygons_3_Edge<P3>(v, f), flags(0) { }
 	inline double flux() const { return this->_flux; }
@@ -121,4 +115,3 @@ public:
 extern template class Polygons_3<Kernel, Polygons_3_Vertex, MAT_Polygons_3_Edge, MAT_Polygons_3_Facet>;
 extern template class MAT_Polygons_3_Facet<Polygons_3<Kernel, Polygons_3_Vertex, MAT_Polygons_3_Edge, MAT_Polygons_3_Facet>>;
 typedef Polygons_3<Kernel, Polygons_3_Vertex, MAT_Polygons_3_Edge, MAT_Polygons_3_Facet> MAT;
-
