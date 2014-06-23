@@ -109,7 +109,7 @@ if (USE_PRECOMPILED_HEADERS)
 		string(REPLACE "/" "\\" PCH_OUTDIR "${PCH_OUTDIR}")
 		set(PCH_OUTPUT "${PCH_OUTDIR}\\${PCH}.hpp.pch")
 		set(PCH_OUTOBJ "${PCH_OUTDIR}\\${PCH}.obj")
-		set(PCH_OUTPDB "${PCH_OUTDIR}\\${PCH}.vc$(PlatformToolsetVersion).pdb")
+		set(PCH_OUTPDB "${PCH_OUTDIR}\\vc$(PlatformToolsetVersion).pdb")
 
 		add_library(${PCH} OBJECT ${PCH}.hpp ${PCH}.cpp) # TODO: OBJECT here should NOT produde a .lib but it does
 		set_source_files_properties(${PCH}.cpp PROPERTIES COMPILE_FLAGS "/Yc\"${PCH_SOURCE}\" /Fd\"${PCH_OUTPDB}\" /Fo\"${PCH_OUTOBJ}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\" /Zm140")

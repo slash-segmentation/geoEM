@@ -19,8 +19,10 @@ Makefile
 *.filters
 *.vcxproj*
 ipch/
-Release/
 Debug/
+RelWithDebInfo/
+MinSizeRel/
+Release/
 Win32/
 x64/
 
