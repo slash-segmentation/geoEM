@@ -77,17 +77,19 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 	#SET (CMAKE_OBJDUMP "/usr/bin/gcc-objdump")
 	#SET (CMAKE_RANLIB  "/usr/bin/gcc-ranlib")
 elseif (MSVC)
-	set(CMAKE_CXX_FLAGS                     "${CMAKE_CXX_FLAGS}      /GR-")
-	set(STATIC_LIBRARY_FLAGS                "${STATIC_LIBRARY_FLAGS} /GR-")
+	string(REPLACE "/GR" "" CMAKE_CXX_FLAGS      "${CMAKE_CXX_FLAGS}")
+	string(REPLACE "/GR" "" STATIC_LIBRARY_FLAGS "${STATIC_LIBRARY_FLAGS}")
 	#set(CMAKE_CXX_FLAGS_DEBUG              "${CMAKE_CXX_FLAGS_DEBUG}      ")
 	#set(STATIC_LIBRARY_FLAGS_DEBUG         "${STATIC_LIBRARY_FLAGS_DEBUG} ")
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}      /MP /OPT:REF /OPT:ICF /Oi")
-	set(STATIC_LIBRARY_FLAGS_RELWITHDEBINFO "${STATIC_LIBRARY_FLAGS_RELWITHDEBINFO} /MP /OPT:REF /OPT:ICF /Oi")
-	set(CMAKE_CXX_FLAGS_MINSIZEREL          "${CMAKE_CXX_FLAGS_MINSIZEREL}          /MP /OPT:REF /OPT:ICF")
-	set(STATIC_LIBRARY_FLAGS_MINSIZEREL     "${STATIC_LIBRARY_FLAGS_MINSIZEREL}     /MP /OPT:REF /OPT:ICF")
-	set(CMAKE_CXX_FLAGS_RELEASE             "${CMAKE_CXX_FLAGS_RELEASE}             /MP /OPT:REF /OPT:ICF /Oi /GL")
-	set(STATIC_LIBRARY_FLAGS_RELEASE        "${STATIC_LIBRARY_FLAGS_RELEASE}        /MP /OPT:REF /OPT:ICF /Oi /GL")
-	set(CMAKE_EXE_LINKER_FLAGS_RELEASE      "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
+	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}      /MP /Oi")
+	set(STATIC_LIBRARY_FLAGS_RELWITHDEBINFO "${STATIC_LIBRARY_FLAGS_RELWITHDEBINFO} /MP /Oi")
+	set(CMAKE_CXX_FLAGS_MINSIZEREL          "${CMAKE_CXX_FLAGS_MINSIZEREL}          /MP")
+	set(STATIC_LIBRARY_FLAGS_MINSIZEREL     "${STATIC_LIBRARY_FLAGS_MINSIZEREL}     /MP")
+	set(CMAKE_CXX_FLAGS_RELEASE             "${CMAKE_CXX_FLAGS_RELEASE}             /MP /Oi /GL")
+	set(STATIC_LIBRARY_FLAGS_RELEASE        "${STATIC_LIBRARY_FLAGS_RELEASE}        /MP /Oi /GL")
+	set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /OPT:REF /OPT:ICF")
+	set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL     "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL}     /OPT:REF /OPT:ICF")
+	set(CMAKE_EXE_LINKER_FLAGS_RELEASE        "${CMAKE_EXE_LINKER_FLAGS_RELEASE}        /OPT:REF /OPT:ICF /LTCG")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 	set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS}      -std=c++11")
 	set(STATIC_LIBRARY_FLAGS           "${STATIC_LIBRARY_FLAGS} -std=c++11")
@@ -101,37 +103,48 @@ endif ()
 if (USE_PRECOMPILED_HEADERS)
 	set(PCH PrecompiledHeader)
 	set(PCH_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${PCH}.hpp")
-	set(PCH_OUTDIR "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/${PCH}.dir")
-	make_directory(${PCH_OUTDIR})
-
-	string(TOUPPER "CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}" FLAGS_VAR_NAME)
-	set(PCH_FLAGS ${CMAKE_CXX_FLAGS} ${${FLAGS_VAR_NAME}})
-	get_directory_property(DIR_FLAGS INCLUDE_DIRECTORIES)
-	foreach (ITEM ${DIR_FLAGS})
-		list(APPEND PCH_FLAGS "-I${ITEM}")
-	endforeach (ITEM)
-	get_directory_property(DIR_FLAGS DEFINITIONS)
-	list(APPEND PCH_FLAGS ${DIR_FLAGS})
-	separate_arguments(PCH_FLAGS)
-
+		
 	if (MSVC)
-		# TODO: debug vs release? (above with ${PROJECT_BINARY_DIR} and ${CMAKE_BUILD_TYPE})
-		# TODO: need /Zm136 ?
-		set(PCH_OUTPUT "${PCH_OUTDIR}/${PCH}.hpp.pch")
+		set(PCH_OUTDIR "${PROJECT_BINARY_DIR}\\${PCH}.dir\\$(Configuration)")
+		string(REPLACE "/" "\\" PCH_OUTDIR "${PCH_OUTDIR}")
+		set(PCH_OUTPUT "${PCH_OUTDIR}\\${PCH}.hpp.pch")
+		set(PCH_OUTOBJ "${PCH_OUTDIR}\\${PCH}.obj")
+		set(PCH_OUTPDB "${PCH_OUTDIR}\\${PCH}.vc$(PlatformToolsetVersion).pdb")
 
-		add_custom_command(
-			OUTPUT ${PCH_OUTPUT}
-			COMMAND ${CMAKE_CXX_COMPILER} ${PCH_FLAGS} /Yc\"${PCH_SOURCE}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\" \"${CMAKE_CURRENT_SOURCE_DIR}/${PCH}.cpp\"
-			DEPENDS ${PCH_SOURCE}
-		)
-		add_custom_target(${PCH} DEPENDS ${PCH_OUTPUT})
+		add_library(${PCH} OBJECT ${PCH}.hpp ${PCH}.cpp) # TODO: OBJECT here should NOT produde a .lib but it does
+		set_source_files_properties(${PCH}.cpp PROPERTIES COMPILE_FLAGS "/Yc\"${PCH_SOURCE}\" /Fd\"${PCH_OUTPDB}\" /Fo\"${PCH_OUTOBJ}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\" /Zm140")
+		set_target_properties(${PCH} PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 
-		set(CMAKE_CXX_FLAGS      "${CMAKE_CXX_FLAGS}      /Yu\"${PCH_SOURCE}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\"")
-		set(STATIC_LIBRARY_FLAGS "${STATIC_LIBRARY_FLAGS} /Yu\"${PCH_SOURCE}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\"")
+		function(add_pch) # TARGETS...
+			foreach(TARGET ${ARGN})
+				set_target_properties(${TARGET} PROPERTIES COMPILE_FLAGS "/Yu\"${PCH_SOURCE}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\" /Zm140")
+				add_dependencies(${TARGET} ${PCH})
+				target_link_libraries(${TARGET} "${PCH_OUTOBJ}")
+				add_custom_command(TARGET ${TARGET} PRE_BUILD
+					COMMAND 
+						IF EXIST \"${PCH_OUTPDB}\" ( \n
+							COPY \"${PCH_OUTPDB}\" \"$(IntDir)\" /Y \n
+							IF NOT EXIST \"$(IntDir)vc$(PlatformToolsetVersion).pdb\" ( type NUL > \"$(IntDir)vc$(PlatformToolsetVersion).pdb\" ) \n
+						)
+				)
+			endforeach()
+		endfunction()
 
 	elseif (CMAKE_COMPILER_IS_GNUCXX)
+		set(PCH_OUTDIR "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/${PCH}.dir")
+		make_directory(${PCH_OUTDIR})
 		set(PCH_OUT_H  "${PCH_OUTDIR}/${PCH}.hpp")
 		set(PCH_OUTPUT "${PCH_OUTDIR}/${PCH}.hpp.gch")
+
+		string(TOUPPER "CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}" FLAGS_VAR_NAME)
+		set(PCH_FLAGS ${CMAKE_CXX_FLAGS} ${${FLAGS_VAR_NAME}})
+		get_directory_property(DIR_FLAGS INCLUDE_DIRECTORIES)
+		foreach (ITEM ${DIR_FLAGS})
+			list(APPEND PCH_FLAGS "-I${ITEM}")
+		endforeach (ITEM)
+		get_directory_property(DIR_FLAGS DEFINITIONS)
+		list(APPEND PCH_FLAGS ${DIR_FLAGS})
+		separate_arguments(PCH_FLAGS)
 
 		add_custom_command(
 			OUTPUT ${PCH_OUTPUT}
@@ -139,10 +152,19 @@ if (USE_PRECOMPILED_HEADERS)
 			DEPENDS ${PCH_SOURCE}
 		)
 		add_custom_target(${PCH} DEPENDS ${PCH_OUTPUT})
+		target_link_libraries(${PCH} ${LIBRARIES})
 
-		set(CMAKE_CXX_FLAGS      "${CMAKE_CXX_FLAGS}      -include \"${PCH_OUT_H}\" -Winvalid-pch")
-		set(STATIC_LIBRARY_FLAGS "${STATIC_LIBRARY_FLAGS} -include \"${PCH_OUT_H}\" -Winvalid-pch")
+		function(add_pch) # TARGETS...
+			foreach(TARGET ${ARGN})
+				set_target_properties(${TARGET} PROPERTIES COMPILE_FLAGS "-include \"${PCH_OUT_H}\" -Winvalid-pch")
+				add_dependencies(${TARGET} ${PCH})
+			endforeach()
+		endfunction()
+
 	# elseif Xcode?
+	else (MSVC)
+		message("Precompiled headers not available for your generator.")
+		set(USE_PRECOMPILED_HEADERS FALSE)
 	endif (MSVC)
 endif (USE_PRECOMPILED_HEADERS)
 
@@ -152,7 +174,7 @@ endif (USE_PRECOMPILED_HEADERS)
 ###############################################################################
 
 add_library(GeometryTypes STATIC GeometryTypes.hpp Polyhedron_3.hpp Polygons_3.hpp Skeleton_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
-add_library(Utilities STATIC Flags.hpp Flags-MSVC.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Progress.hpp Progress.cpp)
+add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Progress.hpp Progress.cpp)
 add_library(IO STATIC IO.hpp IO.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp)
 add_library(MedialAxisTransform STATIC MedialAxisTransform.hpp MedialAxisTransform.cpp MedialAxisTransform_Types_MAT.hpp MedialAxisTransform_Types_Triangulation.hpp MedialAxisTransform_Init.cpp MedialAxisTransform_Types_Geodesic.hpp MedialAxisTransform_Geodesic.cpp MedialAxisTransform_IO.hpp MedialAxisTransform_IO.cpp)
@@ -164,16 +186,12 @@ if (CREATE_GUI)
 endif (CREATE_GUI)
 
 if (USE_PRECOMPILED_HEADERS)
-	add_dependencies(GeometryTypes       ${PCH})
-	add_dependencies(Utilities           ${PCH})
-	add_dependencies(IO                  ${PCH})
-	add_dependencies(Intersection        ${PCH})
-	add_dependencies(MedialAxisTransform ${PCH})
-	add_dependencies(Skeleton            ${PCH})
-	if (CREATE_GUI)
-		add_dependencies(Viewer          ${PCH})
-	endif (CREATE_GUI)
+	add_pch(IO ${MY_LIBRARIES})
 endif (USE_PRECOMPILED_HEADERS)
+
+foreach(TARGET ${MY_LIBRARIES})
+	set_target_properties(${TARGET} PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
+endforeach()
 
 
 ###############################################################################
@@ -183,6 +201,13 @@ endif (USE_PRECOMPILED_HEADERS)
 add_executable(testing-app main.cpp)
 target_link_libraries(testing-app ${MY_LIBRARIES} ${LIBRARIES})
 if (USE_PRECOMPILED_HEADERS)
-	add_dependencies(testing-app ${PCH})
+	add_pch(testing-app)
+endif (USE_PRECOMPILED_HEADERS)
+
+
+add_executable(mesh-simplifier mesh-simplifier.cpp)
+target_link_libraries(mesh-simplifier ${MY_LIBRARIES} ${LIBRARIES})
+if (USE_PRECOMPILED_HEADERS)
+	add_pch(mesh-simplifier)
 endif (USE_PRECOMPILED_HEADERS)
 
