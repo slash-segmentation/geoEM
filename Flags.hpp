@@ -12,7 +12,6 @@
 #include <array>
 
 // TODO: one day make all flags names and None constexpr, but this can't be done until the C++ standard is clarified
-// TODO: support FLAGS()/FLAGS_WITH_VALUES() being called inside a class
 
 ///////////////////////////////////////////////////////////////////////////////
 // Type-safe, bit-wise flags, for representing many true/false options in a
@@ -35,7 +34,12 @@
 // is given by BASE_TYPE. The names and values for the flags are given
 // alternating. Every flag must have a value after it.
 //
-// FLAGS() and FLAGS_WITH_VALUES() cannot be used inside a class.
+// FLAGS() and FLAGS_WITH_VALUES() cannot be used inside a class directly or
+// within a header without multiply-defined symbols. To do either of these
+// you need to seperate declarations and defininitions, an example is:
+//
+//   class MyClass { FLAGS_DECL(MyFlags, A, B, C); }; // in header file
+//   FLAGS_DEFN(MyClass::MyFlags, A, B, C);           // in source file
 //
 // The created flags class can then be explicitly constructed from a value of
 // the integral base type, from another instance of the flags, or
