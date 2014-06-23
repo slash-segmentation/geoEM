@@ -68,7 +68,8 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 	set(STATIC_LIBRARY_FLAGS           "${STATIC_LIBRARY_FLAGS} -std=c++11")
 	set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE}      -O3") #-O -flto -fno-fat-lto-objects
 	set(STATIC_LIBRARY_FLAGS_RELEASE   "${STATIC_LIBRARY_FLAGS_RELEASE} -O3") #-O -flto -fno-fat-lto-objects
-	# TODO: link-time optimization (need stuff above as well)	
+	# TODO: link-time optimization (need stuff above as well)
+	# See: http://hubicka.blogspot.com/2014/04/linktime-optimization-in-gcc-2-firefox.html
 	#set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto -O3")
 	#set(_CMAKE_TOOLCHAIN_PREFIX gcc-) # we want to use gcc-ar/gcc-nm/gcc-ld which allows us to use static libraries and flto
 	#SET (CMAKE_AR      "/usr/bin/gcc-ar")
