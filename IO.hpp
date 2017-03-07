@@ -1,63 +1,89 @@
 #pragma once
 
 #include "GeometryTypes.hpp"
+#include <string>
 #include <iostream>
+#include <unordered_map>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Functions for reading and writing various geometric formats.
-// Many of the reading functions take an optional "assume_good" boolean, defaulting to false. When
-// false, large meshes will take a very long time to read because they are fully checked to make
-// sure they are suitable for being processed. In general, as long as you know the mesh is good,
-// you will want to give true to greatly speed this up.
+//
+// Supported polyhedral mesh formats:
+//   OBJ - common in the 3D modeling world, each file can contain multiple, possibly named, meshes
+//   OFF - common in the computational geometry field, they specify a single 3D mesh each
+// In both formats normals, colors, textures, etc are all ignored. Multi-object OFF files are not
+// supported. Reading OBJ files support normals only if compiled with polyhedron support for custom
+// normals.
+//
+// OFF File Reference: http://www.geomview.org/docs/html/OFF.html
+//
+// Reading functions:
+//   These return a new object allocated with "new" and must be deleted with "delete" when no loner
+//   needed. They take an optional "assume_good" boolean, defaulting to false. When false, meshes
+//   are fully checked to make sure they are suitable for being processed (which can take a long
+//   time for large meshes). In general, as long as you know the mesh is good, you will want to
+//   give true to greatly speed this up. You can always call check_mesh on your own.
+//
+// Writing functions:
+//   ...
+//
+// Format-specific options are given as a string which is a comma-separated list of name=value
+// items (or name items for "boolean" options). The names are case-insensitive. If creating
+// file_options objects yourself, make sure to use lowercase names.
+//
+// Read Options:
+//   OBJ - ObjectName  - load the given object by name
+//         GroupName   - load the given group by name
+//         ObjectIndex - load the given object by index
+//         GroupIndex  - load the given group by index
+//         Default is to load the first group, GroupIndex=0
+//   OFF - (no options)
+// 
+// Writing Options:
+//   OBJ - ObjectName, GroupName, ObjectIndex, GroupIndex as per reading options
+//         Append      - if given and file exists, data is appended to existing file
+//         Default is to create a new file with a single, unnamed, group with the mesh
+//         If Append is given, one of ObjectName or GroupName must be given as well
+//   OFF - Binary      - if given the file in written in the binary OFF format
+//
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// OFF Files - common in the computational geometry field, they specify a single 3D mesh each.
-// Note that only the basic GeomView format is supported, but both ASCII and binary versions can
-// be read (only ASCII version is written). Normals, colors, textures, etc are all ignored. Lists
-// are not supported.
-///////////////////////////////////////////////////////////////////////////////////////////////////
-Polyhedron3* read_off_file(const char* filename, bool assume_good = false);
-Polyhedron3* read_off(std::istream &in, bool assume_good = false);
-void write_off_file(const char* filename, Polyhedron3* P, bool verbose=true);
-void write_off(std::ostream &out, Polyhedron3* P, bool verbose=true);
+extern const std::string mesh_file_usage;
+extern const std::string mesh_file_read_usage;
+extern const std::string mesh_file_write_usage;
+
+void check_mesh(Polyhedron3* P);
+
+typedef std::unordered_map<std::string, std::string> file_options;
+enum class file_type { UNKNOWN, OBJ, OFF };
+
+// Parses a filename and options string into a filename and options. A colon (:) separates the
+// parts. The : cannot be the first character (or second on Windows). This means that on Windows
+// single-character filenames followed by options must be specified like ./x:options. The options
+// are parsed as per parse_file_options.
+file_options parse_filename_and_options(const std::string& filename_and_options, std::string& filename);
+// Parses options which are a comma-separated (,) list of name=value pairs. The name and values
+// cannot contain commas and the name cannot contain =.
+file_options parse_file_options(const std::string& options);
+// Gets the file type of a file simply based on file extension.
+file_type get_file_type(const std::string& filename);
+
+// Read a filename with options in the string as a Polyhedron3
+Polyhedron3* read_mesh(const std::string& filename_and_options, bool assume_good = false);
+// Read a filename with a separate options string as a Polyhedron3
+Polyhedron3* read_mesh(const std::string& filename, const std::string& options, bool assume_good = false);
+// Read a filename with a separate options object as a Polyhedron3
+Polyhedron3* read_mesh(const std::string& filename, const file_options& options, bool assume_good = false);
+// Read a stream object as a Polyhedron3
+Polyhedron3* read_mesh(std::istream &in, file_type type, const file_options& options = file_options(), bool assume_good = false);
+
+void write_mesh(const Polyhedron3* P, const std::string& filename_and_options);
+void write_mesh(const Polyhedron3* P, const std::string& filename, const std::string& options);
+void write_mesh(const Polyhedron3* P, const std::string& filename, const file_options& options);
+void write_mesh(const Polyhedron3* P, std::ostream &out, file_type type, const file_options& options = file_options());
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // CG Files - don't know much about this, but they have a single skeleton each.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 Skeleton3* read_cg(const char* filename);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-// OBJ Files - common in the 3D modeling world, each file can contain multiple meshes which you
-// can look up by index or name. Currently writing multiple meshes to a single OBJ file is not
-// directly supported (but could be done with the write_obj() functions).
-// Note that normals, colors, textures, etc are all ignored (except if caching normals, then they
-// are used).
-///////////////////////////////////////////////////////////////////////////////////////////////////
-class ObjFile
-{
-	bool _as_objects, _assume_good;
-
-	struct internal_data;
-	internal_data* data;
-
-public:
-	ObjFile(const char *filename, bool as_objects = false, bool assume_good = false);
-	~ObjFile();
-
-	inline const bool assume_good() const { return this->_assume_good; }
-	inline void set_assume_good(bool x) { this->_assume_good = x; }
-
-	inline const bool as_objects() const { return this->_as_objects; }
-	inline void set_as_objects(bool x) { this->_as_objects = x; }
-
-	const std::vector<std::string> names() const;
-	size_t count() const;
-
-	Polyhedron3* operator[](const std::string&) const; // need to "delete" return value
-	Polyhedron3* operator[](size_t) const;
-};
-//void write_obj_file(const char* filename, const PolyhedronCollection& P, bool as_objects = false);
-void write_obj_file(const char* filename, Polyhedron3* P);
-void write_obj(std::ostream &out, Polyhedron3* P);
-void write_obj(std::ostream &out, Polyhedron3* P, size_t& off);

@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 2.8.6)
+cmake_minimum_required(VERSION 3.1.0)
 project(geoEM CXX C)
 
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_AUTOMOC ON)
 
 ###############################################################################
 # End-user options
@@ -22,12 +24,12 @@ endif (${KERNEL_INEXACT})
 ###############################################################################
 
 # Load Boost
-find_package(Boost COMPONENTS chrono system thread)
+find_package(Boost COMPONENTS timer chrono system thread)
 set(LIBRARIES ${Boost_LIBRARIES})
 
 if (CREATE_GUI)
-	# Load CGAL (with Qt4)
-	find_package(CGAL REQUIRED COMPONENTS Qt4 MPFR GMP)
+	# Load CGAL (with Qt5)
+	find_package(CGAL REQUIRED COMPONENTS Qt5 MPFR GMP)
 	include(${CGAL_USE_FILE})
 	set(LIBRARIES ${LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
 
@@ -35,14 +37,14 @@ if (CREATE_GUI)
 	find_package(OpenGL REQUIRED)
 	set(LIBRARIES ${LIBRARIES} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
 
-	# Load Qt4 package including QtCore (default), QtGui (default), QtScript, QtXml, and QtOpenGL.
-	set(QT_USE_QTSCRIPT TRUE)
-	set(QT_USE_QTXML    TRUE)
-	set(QT_USE_QTOPENGL TRUE)
-	find_package(Qt4 REQUIRED)
-	include(${QT_USE_FILE})
-	set(LIBRARIES ${LIBRARIES} ${QT_LIBRARIES})
-
+	# Load Qt5 package including Core, Gui, Xml, and OpenGL.
+	find_package(Qt5 REQUIRED COMPONENTS Core Gui OpenGl Xml)
+	include_directories(${Qt5OpenGL_INCLUDE_DIRS}) # also add include directories for dependencies QtCore and QtGui
+	include_directories(${Qt5Xml_INCLUDE_DIRS})
+	add_definitions(${Qt5OpenGL_DEFINITIONS})
+	add_definitions(${Qt5Xml__DEFINITIONS})
+	set(LIBRARIES ${LIBRARIES} ${Qt5Core_LIBRARIES} ${Qt5Gui_LIBRARIES} ${Qt5OpenGL_LIBRARIES} ${Qt5Xml_LIBRARIES})
+	
 	# Load QGlViewer package
 	find_package(QGLViewer REQUIRED)
 	set(LIBRARIES ${LIBRARIES} ${QGLVIEWER_LIBRARIES})
@@ -175,8 +177,8 @@ endif (USE_PRECOMPILED_HEADERS)
 ###############################################################################
 
 add_library(GeometryTypes STATIC GeometryTypes.hpp Polyhedron_3.hpp Polygons_3.hpp Skeleton_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
-add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Progress.hpp Progress.cpp)
-add_library(IO STATIC IO.hpp IO.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
+add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Progress.hpp Progress.cpp Strings.hpp)
+add_library(IO STATIC IO.hpp IO.cpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp)
 add_library(MedialAxisTransform STATIC MedialAxisTransform.hpp MedialAxisTransform.cpp MedialAxisTransform_Types_MAT.hpp MedialAxisTransform_Types_Triangulation.hpp MedialAxisTransform_Init.cpp MedialAxisTransform_Types_Geodesic.hpp MedialAxisTransform_Geodesic.cpp MedialAxisTransform_IO.hpp MedialAxisTransform_IO.cpp)
 add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp Skeleton_Compute.cpp)

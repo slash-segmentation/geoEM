@@ -102,7 +102,7 @@ typedef CGAL::Plane_3<Kernel>       Plane3;
 
 #include "Polyhedron_3.hpp"
 //DECLARE_TEMPLATE(Polyhedron_3<Kernel>)
-typedef Polyhedron_3<Kernel>		Polyhedron3;
+typedef Polyhedron_3<Kernel> Polyhedron3;
 
 #include "Polygons_3.hpp"
 DECLARE_TEMPLATE(Polygons_3<Kernel>)
@@ -121,18 +121,8 @@ typedef CGAL::Bbox_3                Bbox3;
 
 
 // Other
-#if CGAL_VERSION_NR < CGAL_VERSION_NUMBER(4,3,0)
-#define CGAL_OLD_FACET_TREE
-#endif
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
-#ifdef CGAL_OLD_FACET_TREE
-#include <CGAL/AABB_polyhedron_triangle_primitive.h>
-DECLARE_TEMPLATE(CGAL::AABB_tree<CGAL::AABB_traits<Kernel, CGAL::AABB_polyhedron_triangle_primitive<Kernel, const Polyhedron3>>>)
-typedef CGAL::AABB_tree<CGAL::AABB_traits<Kernel, CGAL::AABB_polyhedron_triangle_primitive<Kernel, const Polyhedron3>>> FacetTree;
-#else
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
 DECLARE_TEMPLATE(CGAL::AABB_tree<CGAL::AABB_traits<Kernel, CGAL::AABB_face_graph_triangle_primitive<const Polyhedron3>>>)
 typedef CGAL::AABB_tree<CGAL::AABB_traits<Kernel, CGAL::AABB_face_graph_triangle_primitive<const Polyhedron3>>> FacetTree;
-#endif
-

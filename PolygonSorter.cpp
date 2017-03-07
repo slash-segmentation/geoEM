@@ -1,7 +1,9 @@
 #include "PolygonSorter.hpp"
 
 #include <CGAL/Cartesian.h>
+#include <CGAL/Dimension.h>
 #include <CGAL/Kd_tree.h>
+#include <CGAL/Kd_tree_rectangle.h>
 #include <CGAL/Search_traits_3.h>
 #include <CGAL/Search_traits_adapter.h>
 #include <CGAL/Incremental_neighbor_search.h>
@@ -23,13 +25,14 @@ typedef CGAL::Cartesian<double> DoubleKernel; // we are using a simpler, faster,
 typedef DoubleKernel::Point_3 Point;
 typedef DoubleKernel::Plane_3 Plane;
 typedef DoubleKernel::Vector_3 Vector;
-typedef boost::tuple<DoubleKernel::Point_3, unsigned int, unsigned int, unsigned int> PointAndFaceVertices;
+typedef boost::tuple<Point, unsigned int, unsigned int, unsigned int> PointAndFaceVertices;
 class Plane_Euclidean_Distance
 {
 	// Distance from point to plane is (a*x+b*y+c*z+d)/sqrt(a*a+b*b+c*c)
 	// The transformed distances will be (a*x+b*y+c*z)
 public:
 	typedef DoubleKernel::FT      FT;
+	typedef CGAL::Dimension_tag<3> D;
 	typedef PointAndFaceVertices  Point_d;
 	typedef DoubleKernel::Plane_3 Query_item;
 	typedef DoubleKernel::Point_3 Point3;
@@ -40,7 +43,7 @@ public:
 	
 	inline FT transformed_distance(double x, double y, double z) const { return h.a()*x+h.b()*y+h.c()*z; }
 	inline FT transformed_distance(const Query_item& h, const Point_d& pf) const { assert(h==this->h); const Point3& p = pf.get_head(); return transformed_distance(p.x(), p.y(), p.z()); }
-	inline FT min_distance_to_rectangle(const Query_item& h, const CGAL::Kd_tree_rectangle<FT>& r) const
+	inline FT min_distance_to_rectangle(const Query_item& h, const CGAL::Kd_tree_rectangle<FT, D>& r) const
 	{
 		assert(h==this->h);
 		// TODO: more efficient?
@@ -73,7 +76,7 @@ public:
 		//if      (q[2] < r.min_coord(2))	distance += (r.min_coord(2)-q[2])*(r.min_coord(2)-q[2]);
 		//else if (q[2] > r.max_coord(2))	distance += (q[2]-r.max_coord(2))*(q[2]-r.max_coord(2));
 	}
-	inline FT max_distance_to_rectangle(const Query_item& h, const CGAL::Kd_tree_rectangle<FT>& r) const
+	inline FT max_distance_to_rectangle(const Query_item& h, const CGAL::Kd_tree_rectangle<FT, D>& r) const
 	{
 		assert(h==this->h);
 		// TODO: more efficient?
@@ -114,8 +117,8 @@ public:
 	inline FT transformed_distance(FT d) const { return d*ft_sqrt(h.a()*h.a()+h.b()*h.b()+h.c()*h.c()) - h.d(); }
 	inline FT inverse_of_transformed_distance(FT d) const { return (d+h.d())/ft_sqrt(h.a()*h.a()+h.b()*h.b()+h.c()*h.c()); }
 };
-typedef CGAL::Search_traits_adapter< PointAndFaceVertices, CGAL::Nth_of_tuple_property_map<0, PointAndFaceVertices>, CGAL::Search_traits_3<DoubleKernel> > NNSearchTraits;
-typedef CGAL::/*Orthogonal_*/Incremental_neighbor_search< NNSearchTraits, Plane_Euclidean_Distance > NNIncrementalSearch;
+typedef CGAL::Search_traits_adapter<PointAndFaceVertices, CGAL::Nth_of_tuple_property_map<0, PointAndFaceVertices>, CGAL::Search_traits_3<DoubleKernel>> NNSearchTraits;
+typedef CGAL::/*Orthogonal_*/Incremental_neighbor_search<NNSearchTraits, Plane_Euclidean_Distance> NNIncrementalSearch;
 
 
 ///// Iterator Transformer /////

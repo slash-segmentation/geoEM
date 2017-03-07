@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 
+template <typename Iterator> static Iterator add(Iterator i, ptrdiff_t n) { std::advance(i, n); return i; }
+
 MAT* load_mat(const std::string filename, Polyhedron3* mesh)
 {
 	std::fstream file(filename.c_str(), std::ios_base::in | std::ios_base::binary);
@@ -51,7 +53,7 @@ MAT* load_mat(const std::string filename, Polyhedron3* mesh)
 			fluxes.push_back(f);
 		}
 
-		MAT::Facet_handle f = mat->add_facet(f_verts.begin(), f_verts.end(), MAT::Facet(mesh->vertices_begin() + V1, mesh->vertices_begin() + V2, weight, wgrad));
+		MAT::Facet_handle f = mat->add_facet(f_verts.begin(), f_verts.end(), MAT::Facet(add(mesh->vertices_begin(), V1), add(mesh->vertices_begin(), V2), weight, wgrad));
 		MAT::Edge_around_facet_const_circulator e = f->edges_circ();
 		for (unsigned int j = 0; j < n_f_verts; ++j, ++e) { if (abs(fluxes[j] - e->flux()) > abs(0.0001*fluxes[j])) { std::cerr << "Warning! flux mismatch: " << fluxes[j] << " != " << e->flux() << "     " << abs(fluxes[j] - e->flux()) << " > " << 0.0001*fluxes[j] << std::endl; } }
 	}
@@ -78,8 +80,8 @@ void save_mat(const std::string filename, MAT* mat, Polyhedron3* mesh)
 	// Write facets and fluxes
 	for (MAT::Facet_const_iterator i = mat->facets_begin(), end = mat->facets_end(); i != end; ++i)
 	{
-		unsigned int V1 = (unsigned int)(i->touching_vertex_start() - mesh->vertices_begin()),
-			V2 = (unsigned int)(i->touching_vertex_end() - mesh->vertices_begin()), n_f_verts = (unsigned int)i->degree();
+		unsigned int V1 = (unsigned int)std::distance(Polyhedron3::Vertex_const_iterator(mesh->vertices_begin()), i->touching_vertex_start()),
+			V2 = (unsigned int)std::distance(Polyhedron3::Vertex_const_iterator(mesh->vertices_begin()), i->touching_vertex_end()), n_f_verts = (unsigned int)i->degree();
 		double weight = i->weight();
 		Vector3 wgrad = i->wgrad();
 		file.write(reinterpret_cast<char*>(&V1), sizeof(V1));

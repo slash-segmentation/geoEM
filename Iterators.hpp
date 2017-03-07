@@ -2,16 +2,18 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // stable_vector_iterator "wraps" a vector iterator making it not invalidate during the operation
-// push_back(...), insert(end(), ...), reserve(...), and shrink_to_size().
-// This does make it ~20% slower to do either * or -> (due to an additional dereference).
-// V is the vector type and I is the iterator type
+// push_back(...), insert(end(), ...), reserve(...), and shrink_to_size(). Not "stable" (does not
+// necessarily stay pointing at the same value) during operations like remove and insert.
+// This does make it ~20% slower to do either * or -> (due to an additional dereference) and twice
+// as large (size of 2 pointers instead of just 1).
+// V is the vector type and I is the iterator type (either V::iterator or V::const_interator)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 template <typename V, typename I>
 class stable_vector_iterator
 {
 	template <typename V2, typename I2> friend class stable_vector_iterator;
 	V* v;
-	size_t i;
+	typename V::size_type i;
 public:
 	typedef stable_vector_iterator<V,I> type;
 	typedef typename I::value_type value_type;
@@ -25,12 +27,7 @@ public:
 	inline stable_vector_iterator(V* v, size_type i) : v(v), i(i) { }
 	inline stable_vector_iterator(const type& rhs) : v(rhs.v), i(rhs.i) { }
 	template <typename V2, typename I2> inline stable_vector_iterator(const stable_vector_iterator<V2,I2>& rhs) : v(rhs.v), i(rhs.i) { }
-	inline type& operator=(const type& rhs)
-	{
-		this->v = rhs.v;
-		this->i = rhs.i;
-		return *this;
-	}
+	inline type& operator=(const type& rhs) { this->v = rhs.v; this->i = rhs.i; return *this; }
 
 	inline bool operator==(const type& rhs) const { return this->v == rhs.v && this->i == rhs.i; }
 	inline bool operator!=(const type& rhs) const { return this->v != rhs.v || this->i != rhs.i; }
@@ -38,21 +35,21 @@ public:
 	inline bool operator<=(const type& rhs) const { return this->i <= rhs.i; }
 	inline bool operator> (const type& rhs) const { return this->i >  rhs.i; }
 	inline bool operator>=(const type& rhs) const { return this->i >= rhs.i; }
-	inline ptrdiff_t operator-(const type& rhs) const { return this->i - rhs.i; }
+	inline difference_type operator-(const type& rhs) const { return this->i - rhs.i; }
 	inline reference operator*() { return this->v->operator[](i); }
 	inline pointer operator->() { return &this->v->operator[](i); }
 	inline reference operator*() const { return this->v->operator[](i); }
 	inline pointer operator->() const { return &this->v->operator[](i); }
-	inline reference operator[](ptrdiff_t n) const { return this->v->operator[](i+n); }
+	inline reference operator[](difference_type n) const { return this->v->operator[](i+n); }
 	inline type& operator++() { ++this->i; return *this; }
 	inline type& operator--() { --this->i; return *this; }
 	inline type operator++(int) { type x = *this; ++this->i; return x; }
 	inline type operator--(int) { type x = *this; --this->i; return x; }
-	inline type& operator+=(ptrdiff_t n) { this->i += n; return *this; }
-	inline type& operator-=(ptrdiff_t n) { this->i -= n; return *this; }
-	inline type operator+(ptrdiff_t n) const { return type(this->v, this->i + n); }
-	inline type operator-(ptrdiff_t n) const { return type(this->v, this->i - n); }
-	friend inline type operator+(ptrdiff_t n, const type& rhs) { return type(rhs.v, rhs.i + n); }
+	inline type& operator+=(difference_type n) { this->i += n; return *this; }
+	inline type& operator-=(difference_type n) { this->i -= n; return *this; }
+	inline type operator+(difference_type n) const { return type(this->v, this->i + n); }
+	inline type operator-(difference_type n) const { return type(this->v, this->i - n); }
+	friend inline type operator+(difference_type n, const type& rhs) { return type(rhs.v, rhs.i + n); }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

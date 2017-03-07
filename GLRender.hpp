@@ -4,7 +4,7 @@
 #include "GeometryTypes.hpp"
 #include "PolygonSorter.hpp"
 #include "Intersection.hpp"
-#include <qcolor.h>
+#include <QColor>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // The functions for efficiently rendering objects to the screen. They work by buffering all

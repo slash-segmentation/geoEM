@@ -148,6 +148,13 @@ public:
 	inline Branch_const_iterator      branches_begin()      const { return Branch_const_iterator     (&this->bs, 0); }
 	inline Branch_const_iterator      branches_end()        const { return Branch_const_iterator     (&this->bs, this->bs.size()); }
 
+	inline size_t total_vertices() const {
+		size_t n = size_of_branch_points();
+		for (Branch_const_iterator B = branches_begin(), end = branches_end(); B != end; ++B) { n += B->size(); }
+		for (BranchPoint_const_iterator BP = branch_points_begin(), end = branch_points_end(); BP != end; ++BP) { n -= BP->degree(); }
+		return n;
+	}
+
 	// Add an isolated branch point at the given coordinate to the collection and return a handle to it.
 	inline BranchPoint_handle add_branch_point(const Coordinate& c) { this->bps.push_back(BranchPoint(c)); return BranchPoint_handle(&this->bps, this->bps.size() - 1); }
 	// Add an isolated branch point to the collection and return a handle to it.

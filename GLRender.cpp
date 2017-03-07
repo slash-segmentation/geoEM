@@ -82,14 +82,16 @@ GlPolyhedron::GlPolyhedron(const Polyhedron3* P) : nverts(0), nedges(0), nfaces(
 		norms[i++] = CGAL::to_double(n.dz());
 	}
 
+	IteratorReverseLookup<Polyhedron3::Vertex_const_handle> vertex_lookup(P->vertices_begin(), P->size_of_vertices());
+
 	// Get all edges
 	this->nedges = P->size_of_halfedges();
 	this->edges = new unsigned int[this->nedges];
 	i = 0;
 	for (Polyhedron3::Edge_const_iterator HE = P->edges_begin(), end = P->edges_end(); HE != end; ++HE)
 	{
-		this->edges[i++] = (unsigned int)vertex_number(HE->vertex(), P);
-		this->edges[i++] = (unsigned int)vertex_number(HE->opposite()->vertex(), P);
+		this->edges[i++] = (unsigned int)vertex_lookup[HE->vertex()];
+		this->edges[i++] = (unsigned int)vertex_lookup[HE->opposite()->vertex()];
 	}
 
 	// Get all faces
@@ -101,9 +103,9 @@ GlPolyhedron::GlPolyhedron(const Polyhedron3* P) : nverts(0), nedges(0), nfaces(
 	{
 		const Polyhedron3::Halfedge_const_handle &a = F->halfedge(), &b = a->next(), &c = b->next();
 		faces[i] = new unsigned int[3];
-		faces[i][0] = (unsigned int)vertex_number(a->vertex(), P);
-		faces[i][1] = (unsigned int)vertex_number(b->vertex(), P);
-		faces[i][2] = (unsigned int)vertex_number(c->vertex(), P);
+		faces[i][0] = (unsigned int)vertex_lookup[a->vertex()];
+		faces[i][1] = (unsigned int)vertex_lookup[b->vertex()];
+		faces[i][2] = (unsigned int)vertex_lookup[c->vertex()];
 		++i;
 	}
 
@@ -212,12 +214,13 @@ GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(S->size_of_vertices()), nedg
 	}
 	
 	// Get all edges
+	IteratorReverseLookup<Skeleton3::Vertex_const_iterator> vertex_lookup(S->vertices_begin(), S->size_of_vertices());
 	this->edges = new unsigned int[2*this->nedges];
 	i = 0;
 	for (Skeleton3::Edge_const_iterator E = S->edges_begin(), end = S->edges_end(); E != end; ++E)
 	{
-		this->edges[i++] = (unsigned int)vertex_number(E->source(), S);
-		this->edges[i++] = (unsigned int)vertex_number(E->target(), S);
+		this->edges[i++] = (unsigned int)vertex_lookup[E->source()];
+		this->edges[i++] = (unsigned int)vertex_lookup[E->target()];
 	}
 	
 	// Save vertex data to the graphics card

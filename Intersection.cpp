@@ -38,17 +38,17 @@ struct PolyBuilder
 	typedef const value_type& const_reference;
 
 	typedef std::list<Point2> PartialPolygon;
-	typedef std::unordered_map<Point2, PartialPolygon*, boost::hash<Point2> > pt2partialpoly;
+	typedef std::unordered_map<Point2, PartialPolygon*, boost::hash<Point2>> pt2partialpoly;
 
 	const Plane3& h;
 
 	typedef std::pair<const Point2&, const Point2&> simple_seg; // just a pair of points, should be "smaller" point first then "larger" (as defined by <).
-	std::unordered_set<simple_seg, boost::hash<simple_seg> > have_processed; // for finding duplicates
+	std::unordered_set<simple_seg, boost::hash<simple_seg>> have_processed; // for finding duplicates
 
 	Intersection& ints; // the built-up intersection (completed) polygons
 	pt2partialpoly starters, enders; // the partial polygons
 	
-	std::unordered_map<const Point3, const Point2, boost::hash<Point3> > pts;
+	std::unordered_map<const Point3, const Point2, boost::hash<Point3>> pts;
 	inline const Point2& to_2d(const Point3& p) { return this->pts.insert(std::make_pair(p,::to_2d(p,this->h))).first->second; }
 
 	inline void add_seg(const Point2& p, const Point2& q) { this->add_seg(p < q ? simple_seg(p, q) : simple_seg(q, p)); }

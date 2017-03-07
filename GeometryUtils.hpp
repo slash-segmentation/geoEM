@@ -72,10 +72,55 @@ void remove_nearly_collinear_points(std::list<Point2>* pts, Kernel::FT threshold
 void remove_nearly_collinear_points(std::list<Point3>* pts, Kernel::FT threshold = Kernel::FT(0.5), bool cyclic = true);
 
 
-// Get vertex and facet indices from Polyhedron3 and Polygon3 data structures (for debugging) [note that if not POLYHEDRON_USE_VECTOR these are extremely slow for Polyhedron3s]
-template <class DS> inline size_t vertex_number  (const typename DS::Vertex_const_handle   v, const DS* ds) { return std::distance(ds->vertices_begin(),  v); }
-template <class DS> inline size_t facet_number   (const typename DS::Facet_const_handle    f, const DS* ds) { return std::distance(ds->facets_begin(),    f); }
-template <class DS> inline size_t halfedge_number(const typename DS::Halfedge_const_handle e, const DS* ds) { return std::distance(ds->halfedges_begin(), e); }
+// Handle lookup collections and geometric hash functions for unordered_map/unordered_set
+// Use handle_map and handle_set like "typedef handle_map<Handle_type, Value> my_handle_map;"
+template <typename H, typename T> using handle_map = std::unordered_map<H, T, CGAL::Handle_hash_function>;
+template <typename H>             using handle_set = std::unordered_set<H,    CGAL::Handle_hash_function>;
+#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
+namespace boost
+#else
+namespace CGAL
+#endif
+{
+inline size_t hash_value(const EPEC_Kernel::FT x) { std::size_t h = 0; boost::hash_combine(h, CGAL::to_double(x)); return h; }
+inline size_t hash_value(const Point2& p) { std::size_t h = 0; boost::hash_combine(h, p.x()); boost::hash_combine(h, p.y()); return h; }
+inline size_t hash_value(const Point3& p) { std::size_t h = 0; boost::hash_combine(h, p.x()); boost::hash_combine(h, p.y()); boost::hash_combine(h, p.z()); return h; }
+}
+
+
+// Get vertex and facet indices from Polyhedron3 and Polygon3 data structures.
+// When marked DEPRECATED they should only be used in debugging since they are really, really slow (using list iterators).
+template <class I> DEPRECATED(inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::input_iterator_tag)) { return std::distance(a, b); }
+template <class I> inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::random_access_iterator_tag) { return b - a; }
+template <class DS> inline size_t vertex_number  (const typename DS::Vertex_const_handle   v, const DS* ds) { return _dist(ds->vertices_begin(),  v, std::iterator_traits<typename DS::Vertex_const_handle>  ::iterator_category()); }
+template <class DS> inline size_t facet_number   (const typename DS::Facet_const_handle    f, const DS* ds) { return _dist(ds->facets_begin(),    f, std::iterator_traits<typename DS::Facet_const_handle>   ::iterator_category()); }
+template <class DS> inline size_t halfedge_number(const typename DS::Halfedge_const_handle e, const DS* ds) { return _dist(ds->halfedges_begin(), e, std::iterator_traits<typename DS::Halfedge_const_handle>::iterator_category()); }
+// If you need to use these functions for list iterators for all elements, the below class is much better.
+// It is constructed using the beginning iterator and the length and defines the [] operator to take an iterator and give an index.
+// For random-access iterators it is equivalent to the above functions (so does not do lookups).
+template <class I>
+class IteratorReverseLookup
+{
+	template <class IT>
+	struct Internal
+	{
+		handle_map<I, size_t> x;
+		Internal(I begin, const size_t len) : x(size_t(len*1.2)) { this->x.reserve(len); for (size_t i = 0; i < len; ++begin, ++i) { this->x[begin] = i; } }
+		size_t get(const I iter) const { return this->x.at(iter); }
+	};
+	template <>
+	struct Internal<std::random_access_iterator_tag>
+	{
+		const I begin;
+		Internal(I begin, const size_t len) : begin(begin) { }
+		size_t get(const I iter) const { return iter - this->begin; }
+	};
+	Internal<typename std::iterator_traits<I>::iterator_category> x;
+
+public:
+	IteratorReverseLookup(I begin, const size_t len) : x(begin, len) { }
+	size_t operator[](const I iter) const { return this->x.get(iter); }
+};
 
 
 // Get a string version of a point / vector identical to how the original CurveSk program did it (for debugging)
@@ -90,22 +135,6 @@ inline std::string tostr(const Vector3& v) { std::stringstream s; s << v; return
 //extern CGAL::Cartesian_converter<EPIC_Kernel, Kernel> inexact_to_main;
 //extern CGAL::Cartesian_converter<EPEC_Kernel, EPIC_Kernel> exact_to_inexact;
 //extern CGAL::Cartesian_converter<EPIC_Kernel, EPEC_Kernel> inexact_to_exact;
-
-
-// Handle lookup collections and geometric hash functions for unordered_map/unordered_set
-// Use handle_map and handle_set like "typedef handle_map<Handle_type, Value>::type my_handle_map;"
-template <typename H, typename T> using handle_map = std::unordered_map<H, T, CGAL::Handle_hash_function>;
-template <typename H>             using handle_set = std::unordered_set<H,    CGAL::Handle_hash_function>;
-#ifdef BOOST_NO_ARGUMENT_DEPENDENT_LOOKUP
-namespace boost
-#else
-namespace CGAL
-#endif
-{
-inline size_t hash_value(const EPEC_Kernel::FT x) { std::size_t h = 0; boost::hash_combine(h, CGAL::to_double(x)); return h; }
-inline size_t hash_value(const Point2& p) { std::size_t h = 0; boost::hash_combine(h, p.x()); boost::hash_combine(h, p.y()); return h; }
-inline size_t hash_value(const Point3& p) { std::size_t h = 0; boost::hash_combine(h, p.x()); boost::hash_combine(h, p.y()); boost::hash_combine(h, p.z()); return h; }
-}
 
 
 // Bbox3 creation from points (significantly faster than adding the bboxes of each point)

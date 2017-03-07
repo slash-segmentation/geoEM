@@ -112,7 +112,7 @@ void Viewer::keyPressEvent(QKeyEvent *e)
 {
 	if (e->key() == Qt::Key_I)
 	{
-		this->P->inside_out();
+		inside_out(this->P);
 		if (this->glP) { delete (GlPolyhedron*)this->glP; this->glP = nullptr; }
 		update(); // Refresh display
 	}

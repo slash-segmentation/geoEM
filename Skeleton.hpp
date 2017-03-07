@@ -27,9 +27,19 @@ SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Remove the number of coordinates in the skeleton by removing all collinear
+// coordinates. This will not remove branch points or entire branches but may simplify
+// a branch down to just its endpoints.
+///////////////////////////////////////////////////////////////////////////////////////
+void skeleton_remove_collinear(SkeletonGraph3* SG);
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Reduce the number of coordinates in the skeleton by removing all collinear
 // coordinates and coordinates where the two neighbors form a triangle with squared
-// area less than the threshold. It will not remove branch points or entire branches
+// area less than the threshold. If a negative value is provided for the threshold then
+// the threshold is automatically determined as the lowest 20% of the squared areas
+// which means that at least 20% of the vertices will be removed (but likely more).
+// Default threshold is negative. This will not remove branch points or entire branches
 // but may simplify a branch down to just its endpoints.
 ///////////////////////////////////////////////////////////////////////////////////////
-void skeleton_reduce(SkeletonGraph3* SG, double threshold = 0.5);
+void skeleton_reduce(SkeletonGraph3* SG, double threshold = -1.0);

@@ -13,8 +13,8 @@ template class CGAL::Delaunay_triangulation_3<Kernel, TDS>;
 FLAGS_DEFN(MAT_Polygons_3_Facet<MAT>::Flags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
 FLAGS_DEFN(MAT_Polygons_3_Edge<MAT>::Flags, Skeleton, StableSkeleton, Visited);
 
-void init(Triangulation& T, Polyhedron3* mesh);
-void cleanup(Polyhedron3* mesh);
+void mat_init(Triangulation& T, Polyhedron3* mesh);
+void mat_cleanup(Polyhedron3* mesh);
 void compute_geodesic(Polyhedron3* mesh);
 void compute_geodesic_using_cache(Polyhedron3* mesh, const std::string filename, const std::string objname);
 
@@ -79,7 +79,7 @@ MAT* construct_medial_axis_transform(Polyhedron3* mesh, const std::string filena
 {
 	std::cerr << "Initializing medial axis transform calculator... " << std::endl;
 	Triangulation T;
-	init(T, mesh);
+	mat_init(T, mesh);
 	compute_geodesic_using_cache(mesh, filename, obj_name); // uses information in mesh based on T
 
 	std::cerr << "Computing medial axis transform..." << std::endl;
@@ -89,7 +89,7 @@ MAT* construct_medial_axis_transform(Polyhedron3* mesh, const std::string filena
 
 	// Done with triangulation and mesh, everything we need is in mat
 	T.clear();
-	cleanup(mesh);
+	mat_cleanup(mesh);
 	return mat;
 }
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +99,7 @@ MAT* construct_medial_axis_transform(Polyhedron3* mesh)
 {
 	std::cerr << "Initializing medial axis transform calculator... " << std::endl;
 	Triangulation T;
-	init(T, mesh);
+	mat_init(T, mesh);
 	compute_geodesic(mesh); // uses information in mesh based on T
 
 	std::cerr << "Computing medial axis transform..." << std::endl;
@@ -109,6 +109,6 @@ MAT* construct_medial_axis_transform(Polyhedron3* mesh)
 
 	// Done with triangulation and mesh, everything we need is in mat
 	T.clear();
-	cleanup(mesh);
+	mat_cleanup(mesh);
 	return mat;
 }

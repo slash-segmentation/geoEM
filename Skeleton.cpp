@@ -2,6 +2,8 @@
 
 #include "GeometryUtils.hpp"
 
+#include <algorithm>
+
 SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
 {
 	typedef handle_map<Skeleton3::Vertex_const_handle, SkeletonGraph3::BranchPoint_handle> vert2bp;
@@ -41,17 +43,46 @@ SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
 	return SG;
 }
 
+void skeleton_remove_collinear(SkeletonGraph3* SG)
+{
+	size_t nverts_before = SG->total_vertices();
+	for (SkeletonGraph3::Branch_iterator b = SG->branches_begin(), end = SG->branches_end(); b != end; ++b)
+	{
+		remove_collinear_points(&*b, false);
+	}
+	size_t nverts_after = SG->total_vertices();
+	std::cerr << "Removed " << nverts_before - nverts_after << " collinear vertices/edges out of " << nverts_before << std::endl;
+}
+
 void skeleton_reduce(SkeletonGraph3* SG, double threshold)
 {
-	size_t nverts_before = 0, nedges_before = 0, nverts_after = 0, nedges_after = 0;
-	for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), end = SG->branches_end(); B != end; ++B) { size_t s = B->size(); nverts_before += s; nedges_before += s-1; }
+	if (threshold < 0) {
+		std::vector<double> areas;
+		// Calculate mean and save all areas
+		for (SkeletonGraph3::Branch_iterator b = SG->branches_begin(), end = SG->branches_end(); b != end; ++b)
+		{
+			SkeletonGraph3::Branch_handle pts = b;
+			if (pts->size() < 3) { continue; }
+			// <p,q,r> starts out with the first three items of the list
+			SkeletonGraph3::Branch::iterator r = pts->begin(), p = r++, q = r++;
+			for (; r != pts->end(); ++r)
+			{
+				areas.push_back(CGAL::squared_area(*p, *q, *r));
+			}
+		}
+		// Get the value at 20% through the areas
+		size_t i = (size_t)(areas.size() * 0.2);
+		std::nth_element(areas.begin(), areas.begin() + i, areas.end());
+		threshold = areas[i];
+	}
 
+	// Perform reduction
+	size_t nverts_before = SG->total_vertices();
 	for (SkeletonGraph3::Branch_iterator b = SG->branches_begin(), end = SG->branches_end(); b != end; ++b)
 	{
 		remove_collinear_points(&*b, false);
 		remove_nearly_collinear_points(&*b, threshold, false);
 	}
-
-	for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), end = SG->branches_end(); B != end; ++B) { size_t s = B->size(); nverts_after += s; nedges_after += s-1; }
+	size_t nverts_after = SG->total_vertices();
 	std::cerr << "Removed " << nverts_before - nverts_after << " vertices/edges out of " << nverts_before << std::endl;
 }

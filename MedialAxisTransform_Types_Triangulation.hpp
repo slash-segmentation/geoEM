@@ -4,7 +4,7 @@
 #include "MedialAxisTransform_Types_MAT.hpp"
 
 #include <CGAL/Delaunay_triangulation_3.h>
-#include <CGAL/Triangulation_cell_base_with_circumcenter_3.h>
+#include <CGAL/Delaunay_triangulation_cell_base_with_circumcenter_3.h>
 
 #include <array>
 #include <boost/logic/tribool.hpp>
@@ -13,7 +13,7 @@
 // Internal classes and typedefs for triangulation data during MAT construction.
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-template <class Traits, class Vb = CGAL::Triangulation_vertex_base_3<Traits> >
+template <class Traits, class Vb = CGAL::Triangulation_vertex_base_3<Traits>>
 class Triangulation_vertex_with_extras : public Vb
 {
 	typedef Vb Base;
@@ -30,7 +30,7 @@ public:
 	Polyhedron3::Vertex_handle original; // vertex in the original polyhedral mesh
 };
 
-template <class Traits, class Cb = CGAL::Triangulation_cell_base_with_circumcenter_3<Traits> >
+template <class Traits, class Cb = CGAL::Delaunay_triangulation_cell_base_with_circumcenter_3<Traits>>
 class Triangulation_cell_with_extras : public Cb
 {
 	// circumcenters are the Voronoi vertices (the point at which a maximum number of Voronoi regions touch)

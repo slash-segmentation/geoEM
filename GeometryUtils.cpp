@@ -1,7 +1,7 @@
 #include "GeometryUtils.hpp"
 
 #include <vector>
-#include <set>
+#include <unordered_set>
 
 #include "Progress.hpp"
 
@@ -82,7 +82,7 @@ Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f)
 bool is_not_degenerate(const Polyhedron3* P)
 {
 	// Check uniqueness of vertices
-	std::set<Point3> points;
+	std::unordered_set<Point3, boost::hash<Point3>> points;
 	for (Polyhedron3::Point_const_iterator p = P->points_begin(), end = P->points_end(); p != end; ++p) { if (!points.insert(*p).second) { return false; } }
 
 	// Check geometry of facets
@@ -185,51 +185,8 @@ bool point_in_polyhedron(const Point3& p, const FacetTree& tree)
 	tree.all_intersected_primitives(Ray3(p, q), std::back_inserter(pipc));
 	return pipc.inside;
 }
-//// Original, straight-forward, method.
-//// It is faster if you don't handle any degeneracies, but even just detecting degeneracies makes the times nearly the same (and sometimes the new one still beats this one out).
-//// Never finished handling all the degenerate cases as the new method is way superior. Also, never abandoned the vector for a custom back_insterer.
-//static bool point_in_polyhedron_y(const Point3& p, const Polyhedron3* mesh, const Facet_Tree& tree)
-//{
-//	const static Vector3 dir = random_nonnull_vector();
-//	const Point3 q = p + dir;
-//	const Ray3 R(p, q);
-//	//return (tree.number_of_intersected_primitives(R) % 2) != 0; // fastest: don't even care about possible degeneracies
-//	int n_half_intersections = 0;
-//	//int n_intersections = 0;
-//	std::vector<Polyhedron3::Facet_const_handle> intersected_facets;
-//	tree.all_intersected_primitives(R, std::back_inserter(intersected_facets));
-//	for (std::vector<Polyhedron3::Facet_const_handle>::const_iterator fi = intersected_facets.begin(), fend = intersected_facets.end(); fi != fend; ++fi)
-//	{
-//		const Polyhedron3::Halfedge_const_handle &a = (*fi)->facet_begin(), &b = a->next(), &c = b->next();
-//		const Point3 &A = b->vertex()->point(), &B = c->vertex()->point(), &C = a->vertex()->point();
-//		//if (CGAL::coplanar(A, B, C, p) || CGAL::coplanar(A, B, p, q) || CGAL::coplanar(B, C, p, q) || CGAL::coplanar(C, A, p, q)) // this condition is to simply fail for any degeneracies (instead of handling the easy edge intersection)
-//		if (CGAL::coplanar(A, B, C, p) || R.has_on(A) || R.has_on(B) || R.has_on(C))
-//		{
-//			std::cerr << "! Warning: Degeneracy during the intersection test (test ray intersected vertex or is coplanar with facet)." << std::endl;
-//			throw std::invalid_argument("degeneracy");
-//		}
-//
-//		//// INCOMPLETE: Check if R intersects a vertex, it is an intersection if S is on the same side of all incident vertices
-//		//if (R.has_on(A))
-//		//{
-//		//	Polyhedron3::Halfedge_around_vertex_const_circulator he = b->vertex_begin(), end = he;
-//		//	CGAL::Oriented_side os = facet_to_plane3(he++->facet()).oriented_side(p);
-//		//	while (++he != end) { if (facet_to_plane3(he->facet()).oriented_side(p) != os) { /* INCOMPLETE: no intersection*/ } }
-//		//	/* INCOMPLETE: fractional intersection */
-//		//}
-//
-//		// Check if R intersects an edge and only count 1/2 intersection if the incident facets are on opposite sides (since the incident facet will come up a second time for the second half)
-//		const Plane3 ABp(A, B, p); if (ABp.has_on(q)) { if (ABp.oriented_side(C) != ABp.oriented_side(c->opposite()->next()->vertex()->point())) { ++n_half_intersections; } continue; }
-//		const Plane3 BCp(B, C, p); if (BCp.has_on(q)) { if (BCp.oriented_side(A) != BCp.oriented_side(a->opposite()->next()->vertex()->point())) { ++n_half_intersections; } continue; }
-//		const Plane3 CAp(C, A, p); if (CAp.has_on(q)) { if (CAp.oriented_side(B) != CAp.oriented_side(b->opposite()->next()->vertex()->point())) { ++n_half_intersections; } continue; }
-//		n_half_intersections += 2;
-//		//++n_intersections;
-//	}			//for i
-//	return ((n_half_intersections/2)%2) != 0;
-//	//return (n_intersections%2) != 0;
-//}
 
-
+// Debugging method
 #include <iostream>
 void print_tri_of_unit_cube(const Triangle3& t)
 {

@@ -30,6 +30,15 @@ typedef SSIZE_T ssize_t;
 // *nix-specific includes and macros...
 #endif // #ifdef _WIN32
 
+#ifdef _MSC_VER
+// MS C Compiler Specific
+#define DEPRECATED(...) __declspec(deprecated) __VA_ARGS__
+#else
+// GCC and Clang Specific
+#define DEPRECATED(...) __VA_ARGS__ __attribute__ ((deprecated))
+#endif
+
+
 // Include a bunch of CGAL stuff (heavy on the templates...)
 #include <CGAL/utils.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
