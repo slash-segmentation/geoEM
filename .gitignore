@@ -3,6 +3,7 @@ CMakeCache.txt
 cmake_install.cmake
 CMakeFiles/
 *.dir/
+*_autogen/
 
 # Linux Files
 Makefile
@@ -14,6 +15,7 @@ Makefile
 *.sln
 *.sdf
 *.opensdf
+*.opendb
 *.suo
 *.user
 *.filters
@@ -25,6 +27,9 @@ MinSizeRel/
 Release/
 Win32/
 x64/
+
+# Qt Files
+moc_*.cpp
 
 # Temporary program files
 *_geodesic_cache.dat
