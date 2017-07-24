@@ -2,56 +2,113 @@
 
 #include "GeometryUtils.hpp"
 
+#include <CGAL/boost/graph/split_graph_into_polylines.h>
+
 #include <algorithm>
+
+struct Skeleton2Graph
+{
+	typedef SkeletonGraph3::BranchPoint_handle BPH;
+	typedef std::unordered_map<Point3, BPH, boost::hash<Point3>> pt2bp_map;
+	const Skeleton3& s;
+	SkeletonGraph3* g;
+	pt2bp_map pt2bp;
+	SkeletonGraph3::Branch branch;
+	Skeleton2Graph(const Skeleton3& skel)
+		: s(skel), g(new SkeletonGraph3())
+	{}
+	void start_new_polyline()
+	{
+		branch.clear();
+	}
+	void add_node(Skeleton3::vertex_descriptor v)
+	{
+		branch.push_back(s[v].point);
+	}
+	void end_polyline()
+	{
+		if (branch.size() == 0) { return; }
+
+		Point3 a = branch.front(), b = branch.back();
+		pt2bp_map::iterator itr;
+		
+		// TODO: this creates branch points at the terminals!
+
+		// Find or add the starting branch point
+		itr = pt2bp.find(a);
+		if (itr == pt2bp.end()) { itr = pt2bp.insert(itr, std::make_pair(a, g->add_branch_point(a))); }
+		BPH bp_0 = itr->second;
+
+		// Find or add the ending branch point
+		itr = pt2bp.find(b);
+		if (itr == pt2bp.end()) { itr = pt2bp.insert(itr, std::make_pair(b, g->add_branch_point(b))); }
+		BPH bp_1 = itr->second;
+
+		g->add_branch(bp_0, bp_1, branch);
+	}
+};
 
 SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
 {
-	typedef handle_map<Skeleton3::Vertex_const_handle, SkeletonGraph3::BranchPoint_handle> vert2bp;
+	Skeleton2Graph s2g(*S);
+	CGAL::split_graph_into_polylines(*S, s2g);
+	s2g.g->shrink_to_fit();
+	return s2g.g;
+}
+
+/*
+SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
+{
+	typedef std::unordered_map<Skeleton3::vertex_descriptor, SkeletonGraph3::BranchPoint_handle> vert2bp;
 	vert2bp branch_points;
 
 	SkeletonGraph3* SG = new SkeletonGraph3();
 
 	// Find and create all branch points (have degree >2)
-	for (Skeleton3::Vertex_const_iterator v = S->vertices_begin(), end = S->vertices_end(); v != end; ++v)
+	Skeleton3::vertex_iterator V, Vend;
+	for (boost::tie(V, Vend) = boost::vertices(*S); V != Vend; ++V)
 	{
-		if (v->degree() > 2) { branch_points.insert(std::make_pair(v, SG->add_branch_point(v->point()))); }
+		if (boost::out_degree(*V, *S) > 2)
+		{
+			branch_points.insert(std::make_pair(*V, SG->add_branch_point((*S)[*V].point)));
+		}
 	}
 	
 	// Search out from every branch point to make branches
 	for (vert2bp::iterator bp = branch_points.begin(), end = branch_points.end(); bp != end; ++bp)
 	{
-		for (Skeleton3::Vertex::Edge_const_iterator i = bp->first->edges_begin(), end = bp->first->edges_end(); i != end; ++i)
+		Skeleton3::out_edge_iterator E, Eend;
+		for (boost::tie(E, Eend) = boost::out_edges(bp->first, *S); E != Eend; ++E)
 		{
 			// Travel along edge until we hit a vertex that doesn't have degree 2
 			SkeletonGraph3::Branch b;
-			Skeleton3::Vertex_const_handle v = bp->first;
-			Skeleton3::Edge_const_handle e = i;
+			Skeleton3::vertex_descriptor v = bp->first;
+			Skeleton3::edge_descriptor e = *E;
 			for(;;)
 			{
-				b.push_back(v->point());
-				v = e->opposite(v);
-				if (v->degree() != 2) { break; }
-				Skeleton3::Vertex::Edge_const_iterator ex = v->edges_begin();
-				e = (e == ex) ? std::next(ex) : ex;
+				b.push_back((*S)[v].point);
+				v = (v == boost::source(e, *S)) ? boost::target(e, *S) : boost::source(e, *S);
+				if (boost::out_degree(v, *S) != 2) { break; }
+				Skeleton3::out_edge_iterator EX, EXend;
+				boost::tie(EX, EXend) = boost::out_edges(v, *S);
+				e = *((e == *EX) ? ++EX : EX);
 			}
-			b.push_back(v->point());
-			SG->add_branch(bp->second, v->degree() == 1 ? SkeletonGraph3::BranchPoint_handle() : branch_points[v], b);
+			b.push_back((*S)[v].point);
+			SG->add_branch(bp->second, boost::out_degree(v, *S) == 1 ? SkeletonGraph3::BranchPoint_handle() : branch_points[v], b);
 		}
 	}
 
 	SG->shrink_to_fit();
 	return SG;
 }
+*/
 
 void skeleton_remove_collinear(SkeletonGraph3* SG)
 {
-	size_t nverts_before = SG->total_vertices();
 	for (SkeletonGraph3::Branch_iterator b = SG->branches_begin(), end = SG->branches_end(); b != end; ++b)
 	{
 		remove_collinear_points(&*b, false);
 	}
-	size_t nverts_after = SG->total_vertices();
-	std::cerr << "Removed " << nverts_before - nverts_after << " collinear vertices/edges out of " << nverts_before << std::endl;
 }
 
 void skeleton_reduce(SkeletonGraph3* SG, double threshold)
@@ -77,12 +134,9 @@ void skeleton_reduce(SkeletonGraph3* SG, double threshold)
 	}
 
 	// Perform reduction
-	size_t nverts_before = SG->total_vertices();
 	for (SkeletonGraph3::Branch_iterator b = SG->branches_begin(), end = SG->branches_end(); b != end; ++b)
 	{
 		remove_collinear_points(&*b, false);
 		remove_nearly_collinear_points(&*b, threshold, false);
 	}
-	size_t nverts_after = SG->total_vertices();
-	std::cerr << "Removed " << nverts_before - nverts_after << " vertices/edges out of " << nverts_before << std::endl;
 }

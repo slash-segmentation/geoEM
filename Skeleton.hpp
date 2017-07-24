@@ -18,6 +18,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 Skeleton3* construct_skeleton(MAT* mat, double flux_thd = 0.5, double wt_thd = 0.0);
 
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Construct the curve-skeleton of a polygon mesh using the mean curvature flow method
+// built into CGAL. The loop subdivisions parameter controls how much refinement of the
+// mesh to perform before calculating the skeleton, with higher values taking
+// considerably more time but improve the quality of the results.
+///////////////////////////////////////////////////////////////////////////////////////
+Skeleton3* construct_skeleton(const Polyhedron3* P, int loop_subdivisions = 0);
+
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Construct the "graph" version of a skeleton from the "raw" skeleton. The two
 // representations are not linked in any way, so modifying one will not modify the
