@@ -50,7 +50,16 @@ struct GlIntersection
 	GlIntersection(const Intersection& I);
 	~GlIntersection();
 	void render_plane(const QColor& color);
-	void render_polygon(const QColor& color);
+	void render_polygons(const QColor& color);
+};
+
+struct GlPoint
+{
+	Point3 pt;
+	double radius;
+	GlPoint(const Point3& pt, double radius);
+	~GlPoint();
+	void render(const QColor& color);
 };
 
 void gl_setup();

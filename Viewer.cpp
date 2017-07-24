@@ -14,6 +14,7 @@ QColor Viewer::DefaultPolyhedronEdgeColor(0, 0, 0);
 QColor Viewer::DefaultSkeletonColor(255, 0, 255);
 QColor Viewer::DefaultIntersectionColor(255, 0, 0);
 QColor Viewer::DefaultIntersectionPlaneColor(0, 127, 255, 32);
+QColor Viewer::DefaultPointColor(255, 0, 0);
 
 inline qglviewer::Vec pt2vec(const Point3& p) { return qglviewer::Vec(CGAL::to_double(p.x()), CGAL::to_double(p.y()), CGAL::to_double(p.z())); }
 inline Point3 vec2pt(const qglviewer::Vec& v) { return Point3(v.x, v.y, v.z); }
@@ -64,20 +65,33 @@ void Viewer::set_intersection(const Intersection& intersection, const QColor& in
 	this->ip_color = plane_color;
 }
 
+void Viewer::set_point(const Point3& pt, const double radius, const QColor& color)
+{
+	if (this->glPt) { delete (GlPoint*)this->glPt; this->glPt = nullptr; }
+	this->pt = pt;
+	this->pt_radius = radius;
+	this->pt_color = color;
+}
+
 void Viewer::draw()
 {
 	// Create GL objects (mostly loading buffers into graphics card)
 	if (!this->glP && this->P) { this->glP = new GlPolyhedron(this->P); }
 	if (!this->glS && this->S) { this->glS = new GlSkeleton(this->S); }
 	if (!this->glI && this->intersection.is_valid()) { this->glI = new GlIntersection(this->intersection); }
+	if (!this->glPt && this->pt_radius) { this->glPt = new GlPoint(this->pt, this->pt_radius); }
 
 	const Ray3 view(vec2pt(this->camera()->position()), vec2vec(this->camera()->orientation()*qglviewer::Vec(0,0,-1)));
 	
 	// Render!
+	if (this->glPt)
+	{
+		((GlPoint*)this->glPt)->render(this->pt_color);
+	}
 	if (this->glI)
 	{
 		((GlIntersection*)this->glI)->render_plane(this->ip_color);
-		((GlIntersection*)this->glI)->render_polygon(this->i_color);
+		((GlIntersection*)this->glI)->render_polygons(this->i_color);
 	}
 	if (this->glS)
 	{
@@ -90,7 +104,7 @@ void Viewer::draw()
 	}
 }
 
-Viewer::Viewer() : P(nullptr), glP(nullptr), glS(nullptr), glI(nullptr)
+Viewer::Viewer() : P(nullptr), glP(nullptr), glS(nullptr), glI(nullptr), glPt(nullptr)
 {
 	setKeyDescription(Qt::Key_I, "Flip the polyhedron inside/out");
 }
@@ -100,6 +114,7 @@ Viewer::~Viewer()
 	if (this->P)   { delete this->P; this->P = nullptr; }
 	if (this->glP) { delete (GlPolyhedron*)this->glP; this->glP = nullptr; }
 	if (this->glI) { delete (GlIntersection*)this->glI; this->glI = nullptr; }
+	if (this->glPt) { delete (GlPoint*)this->glPt; this->glPt = nullptr; }
 }
 
 void Viewer::init()

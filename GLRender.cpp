@@ -53,6 +53,7 @@ void gl_setup()
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 	glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
 	glShadeModel(GL_SMOOTH);
+	glEnable(GL_POINT_SMOOTH);
 }
 inline void _gl_set_color(const QColor &c) { glColor4d(c.redF(), c.greenF(), c.blueF(), c.alphaF()); }
 //inline void _gl_set_normal(const Direction3 &n) { glNormal3d(CGAL::to_double(n.dx()), CGAL::to_double(n.dy()), CGAL::to_double(n.dz())); }
@@ -197,7 +198,7 @@ void GlPolyhedron::render_faces(const Ray3& view, const QColor& color)
 
 
 ////////// GlSkeleton //////////
-GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(S->size_of_vertices()), nedges(S->size_of_edges()), edges(nullptr)
+GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(boost::num_vertices(*S)), nedges(boost::num_edges(*S)), edges(nullptr)
 {
 	size_t i;
 	this->bufs[0] = 0;
@@ -205,22 +206,26 @@ GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(S->size_of_vertices()), nedg
 	// Get all vertices
 	GLdouble* verts = new GLdouble[this->nverts*3];
 	i = 0;
-	for (Skeleton3::Vertex_const_iterator V = S->vertices_begin(), end = S->vertices_end(); V != end; ++V)
+	Skeleton3::vertex_iterator V, Vend;
+	std::unordered_map<Skeleton3::vertex_descriptor, size_t> vertex_lookup;
+	for (boost::tie(V, Vend) = boost::vertices(*S); V != Vend; ++V)
 	{
-		const Point3& v = V->point();
-		verts[i++] = CGAL::to_double(v.x());
-		verts[i++] = CGAL::to_double(v.y());
-		verts[i++] = CGAL::to_double(v.z());
+		vertex_lookup[*V] = i;
+		const Point3& v = (*S)[*V].point;
+		verts[3*i+0] = CGAL::to_double(v.x());
+		verts[3*i+1] = CGAL::to_double(v.y());
+		verts[3*i+2] = CGAL::to_double(v.z());
+		++i;
 	}
 	
 	// Get all edges
-	IteratorReverseLookup<Skeleton3::Vertex_const_iterator> vertex_lookup(S->vertices_begin(), S->size_of_vertices());
 	this->edges = new unsigned int[2*this->nedges];
 	i = 0;
-	for (Skeleton3::Edge_const_iterator E = S->edges_begin(), end = S->edges_end(); E != end; ++E)
+	Skeleton3::edge_iterator E, Eend;
+	for (boost::tie(E, Eend) = boost::edges(*S); E != Eend; ++E)
 	{
-		this->edges[i++] = (unsigned int)vertex_lookup[E->source()];
-		this->edges[i++] = (unsigned int)vertex_lookup[E->target()];
+		this->edges[i++] = (unsigned int)vertex_lookup[boost::source(*E, *S)];
+		this->edges[i++] = (unsigned int)vertex_lookup[boost::target(*E, *S)];
 	}
 	
 	// Save vertex data to the graphics card
@@ -382,7 +387,7 @@ void GlIntersection::render_plane(const QColor& color)
 	_gl_add_point(this->plane_corners[3]);
 	glEnd();
 }
-void GlIntersection::render_polygon(const QColor& color)
+void GlIntersection::render_polygons(const QColor& color)
 {
 	// Setup the GL environment
 	glDisable(GL_LIGHTING);
@@ -410,4 +415,29 @@ void GlIntersection::render_polygon(const QColor& color)
 	//	_gl_add_point(this->h.to_3d(e->target()));
 	//}
 	//glEnd();
+}
+
+
+
+////////// GlPoint //////////
+GlPoint::GlPoint(const Point3& pt, double radius) : pt(pt), radius(radius)
+{
+}
+GlPoint::~GlPoint()
+{
+}
+#include <iostream>
+
+void GlPoint::render(const QColor& color)
+{
+	// Setup the GL environment
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
+	glPointSize(2*this->radius);
+	_gl_set_color(color);
+
+	// Draw the point
+	glBegin(GL_POINTS);
+	_gl_add_point(this->pt);
+	glEnd();
 }
