@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.1.0)
 project(geoEM CXX C)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_AUTOMOC ON)
-
 ###############################################################################
 # End-user options
 ###############################################################################
@@ -28,21 +25,21 @@ find_package(Boost COMPONENTS timer chrono system thread)
 set(LIBRARIES ${Boost_LIBRARIES})
 
 if (CREATE_GUI)
-	# Load CGAL (with Qt5)
-	find_package(CGAL REQUIRED COMPONENTS Qt5 MPFR GMP)
+	# Load CGAL (with Qt)
+	find_package(CGAL REQUIRED COMPONENTS Qt5 Eigen3 MPFR GMP)
 	include(${CGAL_USE_FILE})
 	set(LIBRARIES ${LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
-
+	
 	# Load OpenGL
 	find_package(OpenGL REQUIRED)
 	set(LIBRARIES ${LIBRARIES} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
 
-	# Load Qt5 package including Core, Gui, Xml, and OpenGL.
+	# Load Qt package including Core, Gui, Xml, and OpenGL.
 	find_package(Qt5 REQUIRED COMPONENTS Core Gui OpenGl Xml)
 	include_directories(${Qt5OpenGL_INCLUDE_DIRS}) # also add include directories for dependencies QtCore and QtGui
 	include_directories(${Qt5Xml_INCLUDE_DIRS})
 	add_definitions(${Qt5OpenGL_DEFINITIONS})
-	add_definitions(${Qt5Xml__DEFINITIONS})
+	add_definitions(${Qt5Xml_DEFINITIONS})
 	set(LIBRARIES ${LIBRARIES} ${Qt5Core_LIBRARIES} ${Qt5Gui_LIBRARIES} ${Qt5OpenGL_LIBRARIES} ${Qt5Xml_LIBRARIES})
 	
 	# Load QGlViewer package
@@ -50,8 +47,8 @@ if (CREATE_GUI)
 	set(LIBRARIES ${LIBRARIES} ${QGLVIEWER_LIBRARIES})
 	include_directories(${QGLVIEWER_INCLUDE_DIR})
 else (CREATE_GUI)
-	# Load CGAL (without Qt4)
-	find_package(CGAL REQUIRED MPFR GMP)
+	# Load CGAL (without Qt)
+	find_package(CGAL REQUIRED COMPONENTS Eigen3 MPFR GMP)
 	include(${CGAL_USE_FILE})
 	set(LIBRARIES ${LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
 endif (CREATE_GUI)
@@ -121,6 +118,7 @@ if (USE_PRECOMPILED_HEADERS)
 		function(add_pch) # TARGETS...
 			foreach(TARGET ${ARGN})
 				set_target_properties(${TARGET} PROPERTIES COMPILE_FLAGS "/Yu\"${PCH_SOURCE}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\" /Zm140")
+				set_target_properties(${TARGET} PROPERTIES LINK_FLAGS "/ignore:4042")
 				add_dependencies(${TARGET} ${PCH})
 				target_link_libraries(${TARGET} "${PCH_OUTOBJ}")
 				add_custom_command(TARGET ${TARGET} PRE_BUILD
@@ -176,13 +174,14 @@ endif (USE_PRECOMPILED_HEADERS)
 # Add static libraries to be compiled
 ###############################################################################
 
-add_library(GeometryTypes STATIC GeometryTypes.hpp Polyhedron_3.hpp Polygons_3.hpp Skeleton_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
+add_library(GeometryTypes STATIC GeometryTypes.hpp Polyhedron_3.hpp Polygons_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
 add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Progress.hpp Progress.cpp Strings.hpp)
-add_library(IO STATIC IO.hpp IO.cpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
+add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp)
 add_library(MedialAxisTransform STATIC MedialAxisTransform.hpp MedialAxisTransform.cpp MedialAxisTransform_Types_MAT.hpp MedialAxisTransform_Types_Triangulation.hpp MedialAxisTransform_Init.cpp MedialAxisTransform_Types_Geodesic.hpp MedialAxisTransform_Geodesic.cpp MedialAxisTransform_IO.hpp MedialAxisTransform_IO.cpp)
-add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp Skeleton_Compute.cpp)
-set(MY_LIBRARIES IO Intersection MedialAxisTransform Skeleton GeometryTypes Utilities)
+add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp Skeleton_Compute_MAT.cpp Skeleton_Compute_MCF.cpp)
+add_library(Segmentation STATIC Segmentation.hpp Segmentation.cpp)
+set(MY_LIBRARIES IO Intersection MedialAxisTransform Skeleton Segmentation GeometryTypes Utilities)
 if (CREATE_GUI)
 	add_library(Viewer STATIC Viewer.hpp Viewer.cpp GLRender.hpp GLRender.cpp glext.h PolygonSorter.hpp PolygonSorter.cpp)
 	list(APPEND MY_LIBRARIES Viewer)
@@ -192,9 +191,11 @@ if (USE_PRECOMPILED_HEADERS)
 	add_pch(IO ${MY_LIBRARIES})
 endif (USE_PRECOMPILED_HEADERS)
 
-foreach(TARGET ${MY_LIBRARIES})
-	set_target_properties(${TARGET} PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
-endforeach()
+if (MSVC)
+	foreach(TARGET ${MY_LIBRARIES})
+		set_target_properties(${TARGET} PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
+	endforeach()
+endif (MSVC)
 
 
 ###############################################################################
@@ -203,6 +204,7 @@ endforeach()
 
 add_executable(testing-app main.cpp)
 target_link_libraries(testing-app ${MY_LIBRARIES} ${LIBRARIES})
+#message("X: ${MY_LIBRARIES} ${LIBRARIES}")
 if (USE_PRECOMPILED_HEADERS)
 	add_pch(testing-app)
 endif (USE_PRECOMPILED_HEADERS)
