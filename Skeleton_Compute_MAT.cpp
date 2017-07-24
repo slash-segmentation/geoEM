@@ -6,17 +6,10 @@
 #include "Heap.hpp"
 #include "GeometryUtils.hpp"
 
-//// Debugging functions:
-//inline void print_facet(MAT::Facet_const_handle f)
-//{
-//	MAT::Facet::Edge_around_facet_const_circulator e = f->edges_circ(), eend = e;
-//	do { std::cout << tostr(e->vertex()->point()) << ((e->flags & MAT::Edge::Flags::StableSkeleton()) ? "*" : " "); } while (++e != eend);
-//}
-
 ///////////////////////////////////////////////////////////////////////////////////////
-// Computes the "stable" skeleton which is the set of the most obvious edges that will
-// be part of the skeleton. They are marked such that there is at most one stable
-// skeleton edge per facet.
+// Computes the "stable" skeleton from the medial axis transformation which is the set
+// of the most obvious edges that will be part of the skeleton. They are marked such
+// that there is at most one stable skeleton edge per facet.
 ///////////////////////////////////////////////////////////////////////////////////////
 void compute_stable_skeleton(MAT* mat, double e_flux_thd, double wt_thd)
 {
@@ -89,28 +82,6 @@ void compute_skeleton(MAT* mat, double e_flux_thd, double wt_thd)
 	//Compute the stable part of the skeleton
 	compute_stable_skeleton(mat, e_flux_thd, wt_thd);
 	//-----------------------------------------------------
-
-	//// Debugging output
-	//std::cout << "Not Stable Skeleton" << std::endl;
-	//for (MAT::Facet_const_iterator f = mat->facets_begin(), end = mat->facets_end(); f != end; ++f)
-	//{
-	//	if (f->flags & MAT::Facet::Flags::NotStableSkeleton())
-	//	{
-	//		print_facet(f);
-	//		std::cout << std::endl;
-	//	}
-	//}
-	//std::cout << std::endl;
-	//std::cout << "Stable Skeleton" << std::endl;
-	//for (MAT::Facet_const_iterator f = mat->facets_begin(), end = mat->facets_end(); f != end; ++f)
-	//{
-	//	if (f->flags & MAT::Facet::Flags::StableSkeleton())
-	//	{
-	//		print_facet(f);
-	//		std::cout << std::endl;
-	//	}
-	//}
-	//std::cout << std::endl;
 
 	//-------------------------------------------------------------
 	// Generate the boundary information. Ignore facet with weights less than "wt_thd".
@@ -293,22 +264,6 @@ void compute_skeleton(MAT* mat, double e_flux_thd, double wt_thd)
 		}
 	}
 
-	//std::cerr<<"#facets in medial axis: "<<mat->size_of_facets()<<" #facets got eaten: "<<fcount<<std::endl;
-
-	//// Debugging output
-	//for (MAT::Facet_iterator f = mat->facets_begin(), end = mat->facets_end(); f != end; ++f)
-	//{
-	//	if (f->weight() < wt_thd) { continue; }
-	//	MAT::Facet::Edge_around_facet_circulator e = f->edges_circ(), e_end = e;
-	//	CGAL_For_all(e, e_end)
-	//	{
-	//		if (e->flags & MAT::Edge::Flags::Skeleton())
-	//		{
-	//			std::cout << tostr(e->vertex()->point()) << " - " << tostr(e->next_around_facet()->vertex()->point()) << std::endl;
-	//		}
-	//	}
-	//}
-
 	// Unset flag
 	for (MAT::Facet_iterator f = mat->facets_begin(), end = mat->facets_end(); f != end; ++f) { f->flags &= ~MAT::Facet::Flags::InHeap; }
 }
@@ -318,7 +273,7 @@ void compute_skeleton(MAT* mat, double e_flux_thd, double wt_thd)
 ///////////////////////////////////////////////////////////////////////////////////////
 Skeleton3* construct_skeleton_internal(MAT* mat, double wt_thd)
 {
-	typedef handle_map<MAT::Vertex_handle, Skeleton3::Vertex_handle> mat2skel;
+	typedef handle_map<MAT::Vertex_handle, Skeleton3::vertex_descriptor> mat2skel;
 	mat2skel verts_map;
 
 	// Set visited flag on non-skeleton edges
@@ -341,21 +296,28 @@ Skeleton3* construct_skeleton_internal(MAT* mat, double wt_thd)
 
 			// Get and create endpoints of edge in the skeleton
 			const MAT::Vertex_handle v0 = e->vertex(), v1 = e->next_around_facet()->vertex();
-			Skeleton3::Vertex_handle vs, ve;
+			Skeleton3::vertex_descriptor vs, ve;
 			mat2skel::iterator i;
-			i = verts_map.find(v0); if (i != verts_map.end()) { vs = i->second; } else { verts_map.insert(std::make_pair(v0, vs = S->add_vertex(v0->point()))); }
-			i = verts_map.find(v1); if (i != verts_map.end()) { ve = i->second; } else { verts_map.insert(std::make_pair(v1, ve = S->add_vertex(v1->point()))); }
+			i = verts_map.find(v0);
+			if (i != verts_map.end()) { vs = i->second; }
+			else
+			{
+				Skeleton3::vertex_property_type v = { v0->point() };
+				verts_map.insert(std::make_pair(v0, vs = boost::add_vertex(v, *S)));
+			}
+			i = verts_map.find(v1);
+			if (i != verts_map.end()) { ve = i->second; }
+			else
+			{
+				Skeleton3::vertex_property_type v = { v1->point() };
+				verts_map.insert(std::make_pair(v1, ve = boost::add_vertex(v, *S)));
+			}
 
 			// Mark the edge as visited and add it to the skeleton
 			e->flags |= MAT::Edge::Flags::Visited;
-#ifdef DETAILED_SKELETON
-			// The detailed skeleton has a side-effect of marking all of the incident edges as visited
-			S->add_edge(vs, ve, Skeleton3::Edge(f, e, wt_thd));
-#else
 			MAT::Edge::Edge_identified_circulator ei = e->circ_identified();
 			for (; ei != e; ++ei) { ei->flags |= MAT::Edge::Flags::Visited; }
-			S->add_edge(vs, ve, Skeleton3::Edge());
-#endif
+			boost::add_edge(vs, ve, *S);
 		}
 	}
 
@@ -366,23 +328,6 @@ Skeleton3* construct_skeleton_internal(MAT* mat, double wt_thd)
 		CGAL_For_all(e, e_end) { e->flags &= ~MAT::Edge::Flags::Visited; }
 	}
 
-	//// Debugging output
-	//for (Skeleton3::Edge_iterator e = S->edges_begin(), end = S->edges_end(); e != end; ++e)
-	//{
-	//	std::cout << tostr(e->source()->point()) << " - " << tostr(e->target()->point()) << std::endl;
-	//}
-	//// Debugging output as OFF file
-	//std::cout << "OFF" << std::endl << S->size_of_vertices() << " " << S->size_of_edges() << " 0" << std::endl;
-	//for (Skeleton3::Vertex_iterator v = S->vertices_begin(), end = S->vertices_end(); v != end; ++v)
-	//{
-	//	std::cout << v->point().x() << " " << v->point().y() << " " << v->point().z() << std::endl;
-	//}
-	//for (Skeleton3::Edge_iterator e = S->edges_begin(), end = S->edges_end(); e != end; ++e)
-	//{
-	//	std::cout << "2 " << vertex_number(e->source(), S) << " " << vertex_number(e->target(), S) << std::endl;
-	//}
-
-	S->shrink_to_fit();
 	return S;
 }
 
@@ -393,7 +338,6 @@ Skeleton3* construct_skeleton(MAT* mat, double flux_thd, double wt_thd)
 {
 	assert(flux_thd >= 0.0 && flux_thd < 1.0);
 	assert(wt_thd >= 0.0);
-	std::cerr << "Calculating skeleton using retraction..." << std::endl;
 	compute_skeleton(mat, flux_thd, wt_thd);
 	return construct_skeleton_internal(mat, wt_thd);
 }
