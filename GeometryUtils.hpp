@@ -53,8 +53,8 @@ template <class Kernel> inline CGAL::Direction_3<Kernel> normalized(const CGAL::
 
 
 // Get the distance (not-squared) between two points (approximating to double always)
-template <class Kernel> inline double distance(const CGAL::Point_2<Kernel> p, const CGAL::Point_2<Kernel> q) { return dbl_sqrt(CGAL::squared_distance(p, q)); }
-template <class Kernel> inline double distance(const CGAL::Point_3<Kernel> p, const CGAL::Point_3<Kernel> q) { return dbl_sqrt(CGAL::squared_distance(p, q)); }
+template <class Kernel> inline double distance(const CGAL::Point_2<Kernel>& p, const CGAL::Point_2<Kernel>& q) { return dbl_sqrt(CGAL::squared_distance(p, q)); }
+template <class Kernel> inline double distance(const CGAL::Point_3<Kernel>& p, const CGAL::Point_3<Kernel>& q) { return dbl_sqrt(CGAL::squared_distance(p, q)); }
 
 
 // Project 3D shapes into 2D using a plane
@@ -90,33 +90,36 @@ inline size_t hash_value(const Point3& p) { std::size_t h = 0; boost::hash_combi
 
 // Get vertex and facet indices from Polyhedron3 and Polygon3 data structures.
 // When marked DEPRECATED they should only be used in debugging since they are really, really slow (using list iterators).
-template <class I> DEPRECATED(inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::input_iterator_tag)) { return std::distance(a, b); }
+//template <class I> DEPRECATED(inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::input_iterator_tag)) { return std::distance(a, b); }
+template <class I> inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::input_iterator_tag) { return std::distance(a, b); }
 template <class I> inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::random_access_iterator_tag) { return b - a; }
-template <class DS> inline size_t vertex_number  (const typename DS::Vertex_const_handle   v, const DS* ds) { return _dist(ds->vertices_begin(),  v, std::iterator_traits<typename DS::Vertex_const_handle>  ::iterator_category()); }
-template <class DS> inline size_t facet_number   (const typename DS::Facet_const_handle    f, const DS* ds) { return _dist(ds->facets_begin(),    f, std::iterator_traits<typename DS::Facet_const_handle>   ::iterator_category()); }
-template <class DS> inline size_t halfedge_number(const typename DS::Halfedge_const_handle e, const DS* ds) { return _dist(ds->halfedges_begin(), e, std::iterator_traits<typename DS::Halfedge_const_handle>::iterator_category()); }
+template <class DS> inline size_t vertex_number  (const typename DS::Vertex_const_handle   v, const DS* ds) { return _dist(ds->vertices_begin(),  v, typename std::iterator_traits<typename DS::Vertex_const_handle>  ::iterator_category()); }
+template <class DS> inline size_t facet_number   (const typename DS::Facet_const_handle    f, const DS* ds) { return _dist(ds->facets_begin(),    f, typename std::iterator_traits<typename DS::Facet_const_handle>   ::iterator_category()); }
+template <class DS> inline size_t halfedge_number(const typename DS::Halfedge_const_handle e, const DS* ds) { return _dist(ds->halfedges_begin(), e, typename std::iterator_traits<typename DS::Halfedge_const_handle>::iterator_category()); }
 // If you need to use these functions for list iterators for all elements, the below class is much better.
 // It is constructed using the beginning iterator and the length and defines the [] operator to take an iterator and give an index.
 // For random-access iterators it is equivalent to the above functions (so does not do lookups).
-template <class I>
-class IteratorReverseLookup
+namespace irl_detail
 {
-	template <class IT>
+	template <class I, class IT>
 	struct Internal
 	{
 		handle_map<I, size_t> x;
 		Internal(I begin, const size_t len) : x(size_t(len*1.2)) { this->x.reserve(len); for (size_t i = 0; i < len; ++begin, ++i) { this->x[begin] = i; } }
 		size_t get(const I iter) const { return this->x.at(iter); }
 	};
-	template <>
-	struct Internal<std::random_access_iterator_tag>
+	template <class I>
+	struct Internal<I, std::random_access_iterator_tag>
 	{
 		const I begin;
 		Internal(I begin, const size_t len) : begin(begin) { }
 		size_t get(const I iter) const { return iter - this->begin; }
 	};
-	Internal<typename std::iterator_traits<I>::iterator_category> x;
-
+};
+template <class I>
+class IteratorReverseLookup
+{
+	irl_detail::Internal<I, typename std::iterator_traits<I>::iterator_category> x;
 public:
 	IteratorReverseLookup(I begin, const size_t len) : x(begin, len) { }
 	size_t operator[](const I iter) const { return this->x.get(iter); }

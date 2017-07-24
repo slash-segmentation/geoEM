@@ -35,7 +35,6 @@ class Intersection
 	Plane3 h;
 	std::vector<IntersectionPolygon2> polys;
 	
-	explicit inline Intersection(const Plane3& h) : h(h) { assert(!this->h.is_degenerate()); }
 	//Intersection(const Intersection&);
 	//Intersection& operator=(const Intersection&);
 
@@ -43,6 +42,7 @@ public:
 	typedef std::vector<IntersectionPolygon2>::iterator iterator;
 	typedef std::vector<IntersectionPolygon2>::const_iterator const_iterator;
 	inline Intersection() { } // construct an empty and degenerate intersection collection
+	explicit inline Intersection(const Plane3& h) : h(h) { assert(!this->h.is_degenerate()); } // construct an empty but not degenerate intersection collection
 	Intersection(const FacetTree& t, const Plane3& h);
 	inline bool is_degenerate() const { return this->h.is_degenerate(); }
 	inline bool is_empty() const { return this->polys.size() == 0; }

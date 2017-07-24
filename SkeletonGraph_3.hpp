@@ -1,5 +1,9 @@
 #pragma once
 
+// need to forward-declare these
+template <class Kernel> inline double distance(const CGAL::Point_2<Kernel>& p, const CGAL::Point_2<Kernel>& q);
+template <class Kernel> inline double distance(const CGAL::Point_3<Kernel>& p, const CGAL::Point_3<Kernel>& q);
+
 #include "GeometryTypes.hpp"
 #include "Iterators.hpp"
 #include <list>
@@ -23,6 +27,7 @@ template <typename SG3>
 class SkeletonGraph_3_BranchPoint
 {
 	friend SG3;
+	typedef SkeletonGraph_3_BranchPoint<SG3> Self;
 public:
 	typedef typename SG3::Coordinate  Coordinate; // not called Point here due to possible confusion of Branch::Point with BranchPoint
 	typedef typename SG3::Branch      Branch;
@@ -67,6 +72,7 @@ class SkeletonGraph_3_Branch : public std::list<typename SG3::Coordinate> // a b
 {
 	// TODO: overload some of the functions from list to make sure they keep the data behaved - like reverse
 	friend SG3;
+	typedef SkeletonGraph_3_Branch<SG3> Self;
 public:
 	typedef typename SG3::Coordinate  Coordinate; // not called Point here due to possible confusion of Branch::Point with BranchPoint
 	typedef typename SG3::Branch      Branch;
@@ -96,21 +102,33 @@ public:
 	//inline Base::const_iterator begin_from(BranchPoint_const_handle bp) const { if (bp == this->bps) { return this->begin(); } else { assert(bp == this->bpt); return this->rbegin(); } }
 	//inline Base::iterator       end_from  (BranchPoint_const_handle bp)       { if (bp == this->bps) { return this->end();   } else { assert(bp == this->bpt); return this->rend();   } }
 	//inline Base::const_iterator end_from  (BranchPoint_const_handle bp) const { if (bp == this->bps) { return this->end();   } else { assert(bp == this->bpt); return this->rend();   } }
+	inline double length() const
+	{
+		double len = 0.0;
+		typename Self::const_iterator i = this->begin(), end = this->end();
+		--end; --end; // work two at a time so need to end before the actual end
+		while (i != end)
+		{
+			const Coordinate& a = *i, b = *++i;
+			len += distance(a, b);
+		}
+		return len;
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Represents a 3D 'skeleton' - essentially a graph with 3D points associated with each vertex
 // but only the overall structure is explicitly represented.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-template <class K, template<typename> class BP = SkeletonGraph_3_BranchPoint, template<typename> class B = SkeletonGraph_3_Branch>
+template <class _K, template<typename> class _BP = SkeletonGraph_3_BranchPoint, template<typename> class _B = SkeletonGraph_3_Branch>
 class SkeletonGraph_3
 {
 public:
-	typedef SkeletonGraph_3<K, BP, B> Self;
-	typedef typename K::Point_3 Coordinate; // not called Point here due to possible confusion of Branch::Point with BranchPoint
-	typedef K        Kernel;
-	typedef BP<Self> BranchPoint;
-	typedef B<Self>  Branch;
+	typedef SkeletonGraph_3<_K, _BP, _B> Self;
+	typedef typename _K::Point_3 Coordinate; // not called Point here due to possible confusion of Branch::Point with BranchPoint
+	typedef _K        Kernel;
+	typedef _BP<Self> BranchPoint;
+	typedef _B<Self>  Branch;
 	
 	typedef std::vector<BranchPoint> BranchPoint_vector;
 	typedef std::vector<Branch>      Branch_vector;
@@ -160,9 +178,9 @@ public:
 	// Add an isolated branch point to the collection and return a handle to it.
 	inline BranchPoint_handle add_branch_point(const BranchPoint& bp) { this->bps.push_back(bp); return BranchPoint_handle(&this->bps, this->bps.size() - 1); }
 	// Add a branch to the collection. The branch is defined by the two branch points given. Both
-	// branch points are are updated to know about the new incident branch and the branch is
-	// updated to make sure it has the branch points at the end of its coordinate list. Return a
-	// handle to the new branch. The branch points can be left out to create a "leaf" branch or
+	// branch points are updated to know about the new incident branch and the branch is updated
+	// to make sure it has the branch points at the end of its coordinate list. Return a handle
+	// to the new branch. The branch points can be left out to create a "leaf" branch or
 	// an isolated branch.
 	inline Branch_handle add_branch(BranchPoint_handle bp0 = BranchPoint_handle(), BranchPoint_handle bp1 = BranchPoint_handle(), const Branch& b = Branch())
 	{

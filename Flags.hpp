@@ -426,7 +426,7 @@ namespace detail
 #define FLAGS___XNAME(T, N, V) #N
 #define FLAGS___XVALUE(T, N, V) V
 #define FLAGS___XDECLARE(T, N, V) static const type N
-#define FLAGS___XDEFINE(T, N, V) const T T::N(V)
+#define FLAGS___XDEFINE(T, N, V) template<> const T T::N(V)
 
 ////////// CREATE: Create the actual flags class //////////
 // T is the typename of the new flags-class
@@ -464,10 +464,11 @@ namespace detail
 		inline BOOST_CONSTEXPR T() : super_type() { } \
 		inline BOOST_CONSTEXPR T(const type& b) : super_type(b) { } \
 		inline explicit T(base_type b) : super_type(b) { } \
-		inline type& operator=(const type& b) { _x = b._x; return *this; } \
+		inline type& operator=(const type& b) { this->_x = b._x; return *this; } \
 		DECS; \
 	};
 #define FLAGS___CREATE2_DEFN(T, BT, N, NAMES, DEFS) \
+	template<> \
 	BOOST_CONSTEXPR const char* const T::_names [T::_count] \
 		FLAGS___INIT_IF_NO_CONSTEXPR(NAMES); \
 	DEFS
