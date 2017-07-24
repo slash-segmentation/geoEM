@@ -18,9 +18,7 @@ public:
 	FLAGS_DECL(Flags, StableSkeleton, NotStableSkeleton, Boundary, Eaten, InHeap);
 	Flags flags;
 private:
-//#ifdef DETAILED_SKELETON
 	Polyhedron3::Vertex_const_handle _vtchs, _vtche; // vertices of the dual Delaunay
-//#endif
 	double _weight;
 	Vector3 _wgrad;
 	//Vector3 _normal;
@@ -40,16 +38,12 @@ public:
 	}
 	inline MAT_Polygons_3_Facet(const Polyhedron3::Vertex_const_handle V1, const Polyhedron3::Vertex_const_handle V2, double weight, const Vector3& wgrad) //, const Vector3& normal
 		: Polygons_3_Facet<P3>(), flags(0),
-//#ifdef DETAILED_SKELETON
 		_vtchs(V1), _vtche(V2),
-//#endif
 		_weight(weight), _wgrad(wgrad) //, _normal(normal)
 	{
 	}
-//#ifdef DETAILED_SKELETON
 	inline Polyhedron3::Vertex_const_handle touching_vertex_start() const { return this->_vtchs; }
 	inline Polyhedron3::Vertex_const_handle touching_vertex_end()   const { return this->_vtche; }
-//#endif
 	inline double weight() const { return this->_weight; }
 	inline const Vector3& wgrad() const { return this->_wgrad; }
 	//inline const Vector3& normal() const { return this->_normal; }
