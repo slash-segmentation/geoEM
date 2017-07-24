@@ -25,7 +25,8 @@
 //   give true to greatly speed this up. You can always call check_mesh on your own.
 //
 // Writing functions:
-//   ...
+//   ... TODO
+//   TODO: OBJ file writing is currently unsupported
 //
 // Format-specific options are given as a string which is a comma-separated list of name=value
 // items (or name items for "boolean" options). The names are case-insensitive. If creating
@@ -75,15 +76,19 @@ Polyhedron3* read_mesh(const std::string& filename, const std::string& options, 
 // Read a filename with a separate options object as a Polyhedron3
 Polyhedron3* read_mesh(const std::string& filename, const file_options& options, bool assume_good = false);
 // Read a stream object as a Polyhedron3
-Polyhedron3* read_mesh(std::istream &in, file_type type, const file_options& options = file_options(), bool assume_good = false);
+Polyhedron3* read_mesh(std::istream& in, file_type type, const file_options& options = file_options(), bool assume_good = false);
 
 void write_mesh(const Polyhedron3* P, const std::string& filename_and_options);
 void write_mesh(const Polyhedron3* P, const std::string& filename, const std::string& options);
 void write_mesh(const Polyhedron3* P, const std::string& filename, const file_options& options);
-void write_mesh(const Polyhedron3* P, std::ostream &out, file_type type, const file_options& options = file_options());
+void write_mesh(const Polyhedron3* P, std::ostream& out, file_type type, const file_options& options = file_options());
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// CG Files - don't know much about this, but they have a single skeleton each.
+// CG Files - don't know much about this, but they have a single skeleton each and are similar to
+// OBJ files except use e for edge instead of f for face
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-Skeleton3* read_cg(const char* filename);
+Skeleton3* read_cg(const std::string& filename);
+Skeleton3* read_cg(std::istream& in);
+void write_cg(const Skeleton3* S, const std::string& filename);
+void write_cg(const Skeleton3* S, std::ostream& out);

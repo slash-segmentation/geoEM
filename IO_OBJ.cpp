@@ -1,91 +1,13 @@
 #include "IO_OBJ.hpp"
+#include "IO_core.hpp"
 #include "GeometryUtils.hpp"
 
 #include "Strings.hpp"
 
 #include <CGAL/Polyhedron_incremental_builder_3.h>
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <map>
 #include <exception>
 #include <stdexcept>
-
-// Vertex reader class used by both ObjReader and CgReader
-class VertexReader
-{
-protected:
-    typedef Point3     Point;
-    typedef Direction3 Direction;
-    
-    static char* read_command(std::istream &f, std::string& buf, char **params)
-    {
-        if (f.eof()) { return nullptr; }
-
-        // Read an entire line
-        std::getline(f, buf);
-        size_t comment = buf.find_first_of('#');
-        if (comment != std::string::npos) { buf.erase(comment); }
-        char *cmd = trim(const_cast<char*>(buf.c_str()));
-
-        // Get the command and parameters
-        char *space = strchr(cmd, " \t\v");
-        if (space) { *space = '\0'; *params = ltrim(space + 1); }
-        else { *params = cmd + buf.length(); } // no params
-        return cmd; // the command
-    }
-
-    void v(const char *params)
-    {
-        double x, y, z, w = 1.0;
-        int c1, c2, n = sscanf(params, "%lf %lf %lf%n %lf%n", &x, &y, &z, &c1, &w, &c2);
-        if (n == EOF || n < 3 || (n == 3 && params[c1]) || (n == 4 && params[c2])) { throw std::invalid_argument("Error: invalid file format"); }
-        this->vertices.push_back(Point(x, y, z)); // NOTE: w is dropped since it is only used in free-form (which is not supported at the moment)
-    }
-#ifdef POLYHEDRON_CACHED_NORMALS
-    void vn(const char *params)
-    {
-        double x, y, z;
-        int c, n = sscanf(params, "%lf %lf %lf%n", &x, &y, &z, &c);
-        if (n != 3 || params[c]) { throw std::invalid_argument("Error: invalid file format"); }
-        this->normals.push_back(Direction(x, y, z));
-    }
-#else
-    inline void vn(const char*) { }
-#endif
-    
-    std::vector<Point> vertices;
-#ifdef POLYHEDRON_CACHED_NORMALS
-    std::vector<Direction> normals;
-#endif
-
-    virtual void parse_cmd(const char* cmd, char* params, void* extra) = 0;
-    void init(std::istream &in, void* extra)
-    {
-        if (in.bad()) { throw std::invalid_argument("Error: bad file"); }
-
-        std::string buf;
-        buf.reserve(1024);
-        char *cmd, *params;
-
-        // Get all vertices and validate most of the file structure
-        while ((cmd = read_command(in, buf, &params)) != nullptr)
-        {
-            if (cmd[0] == 0) { continue; }
-            else if (streq_case_insensitive(cmd, "v")) { this->v(params); }
-            else if (streq_case_insensitive(cmd, "vn")) { this->vn(params); } // no-op if not caching normals
-            else { this->parse_cmd(cmd, params, extra); }
-        }
-
-        // Cleanup
-        this->vertices.shrink_to_fit();
-#ifdef POLYHEDRON_CACHED_NORMALS
-        this->normals.shrink_to_fit();
-#endif
-    }
-};
 
 // OBJ File References:
 //   http://en.wikipedia.org/wiki/Wavefront_.obj_file
@@ -94,32 +16,65 @@ protected:
 #ifdef _MSC_VER
 #pragma region Writing OBJ Files
 #endif
-//void write_obj_file(const char* filename, const PolyhedronCollection& P, bool as_objects)
-//{
-//	size_t off = 0;
-//	std::ofstream f(filename);
-//	// TODO: handle no-name and "default" polyhedrons
-//	for (PolyhedronCollection::const_iterator i = P.begin(), end = P.end(); i != end; ++i)
-//	{
-//		f << (as_objects ? 'o' : 'g') << ' ' << i->first << std::endl;
-//		write_obj(f, i->second, off);
-//	}
-//	f.close();
-//}
-void write_obj_file(const char* filename, Polyhedron3* P)
+void write_obj_file(const char* filename, const std::map<std::string, Polyhedron3*>& P, bool as_objects)
+{
+	size_t off = 0;
+	std::ofstream f(filename);
+	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
+	// TODO: handle no-name and "default" polyhedrons (possibly not even necessary)
+	for (std::map<std::string, Polyhedron3*>::const_iterator i = P.begin(), end = P.end(); i != end; ++i)
+	{
+		f << (as_objects ? "o " : "g ") << i->first << std::endl;
+		write_obj(f, i->second, off);
+	}
+	f.close();
+}
+void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects)
+{
+	size_t off = 0;
+	std::ofstream f(filename);
+	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
+	for (std::vector<Polyhedron3*>::const_iterator i = P.begin(), end = P.end(); i != end; ++i)
+	{
+		f << (as_objects ? "o " : "g ") << std::endl;
+		write_obj(f, *i, off);
+	}
+	f.close();
+}
+void write_obj_file(const char* filename, const Polyhedron3* P)
 {
     size_t off = 0;
     std::ofstream f(filename);
+	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
     write_obj(f, P, off);
     f.close();
 }
-void write_obj(std::ostream &out, Polyhedron3* P)
+void write_obj(std::ostream &out, const Polyhedron3* P)
 {
     size_t off = 0;
     write_obj(out, P, off);
 }
-void write_obj(std::ostream &out, Polyhedron3* P, size_t& off)
+void write_obj(std::ostream &out, const Polyhedron3* P, size_t& off)
 {
+	// Write vertices
+	handle_map<Polyhedron3::Vertex_const_handle, size_t> verts(P->size_of_vertices());
+	for (Polyhedron3::Vertex_const_iterator V = P->vertices_begin(), Vend = P->vertices_end(); V != Vend; ++V)
+	{
+		const Point3& p = V->point();
+		out << "v " << p.x() << " " << p.y() << " " << p.z() << std::endl;
+		verts.insert(std::make_pair(V, off++));
+	}
+	
+	// Write faces
+	for (Polyhedron3::Facet_const_iterator F = P->facets_begin(), Fend = P->facets_end(); F != Fend; ++F)
+	{
+		out << "f";
+		Polyhedron3::Halfedge_around_facet_const_circulator H = F->facet_begin(), Hstart = H;
+		do { out << " " << verts[H->vertex()]; } while (++H != Hstart);
+		out << std::endl;
+	}
+	
+	out << std::endl;
 }
 #ifdef _MSC_VER
 #pragma endregion
@@ -333,10 +288,9 @@ private:
             // else they are purposely ignored commands (materials, rendering tips, etc)
         }
     }
-
-public:
-    ObjFileDetail(std::istream& in)
-    {
+	
+	void build(std::istream& in)
+	{
         // Initialize
         Current cur(get_entry("", this->obj_lookup, this->objs), get_entry("default", this->grp_lookup, this->grps));
         this->init(in, &cur);
@@ -349,7 +303,15 @@ public:
         for (auto i = this->objs.begin(), end = this->objs.end(); i != end; ++i) { i->facets.shrink_to_fit(); }
         for (auto i = this->grps.begin(), end = this->grps.end(); i != end; ++i) { i->facets.shrink_to_fit(); }
         this->facets.shrink_to_fit();
-    }
+	}
+
+public:
+	ObjFileDetail(const char *filename)
+	{
+		std::ifstream in(filename, std::ifstream::binary);
+		this->build(in);
+	}
+    ObjFileDetail(std::istream& in) { this->build(in); }
     inline const size_t count_objects() const { return this->objs.size(); }
     inline const size_t count_groups()  const { return this->grps.size(); }
     const std::vector<std::string> object_names() const
@@ -419,7 +381,7 @@ public:
     }
 };
 
-ObjFile::ObjFile(const char *filename, bool as_objects) : _as_objects(as_objects), detail(new ObjFileDetail(std::ifstream(filename, std::ifstream::binary))) { }
+ObjFile::ObjFile(const char *filename, bool as_objects) : _as_objects(as_objects), detail(new ObjFileDetail(filename)) { }
 ObjFile::ObjFile(std::istream& in, bool as_objects) : _as_objects(as_objects), detail(new ObjFileDetail(in)) { }
 ObjFile::~ObjFile() { if (this->detail) { delete this->detail; this->detail = nullptr; } }
 const std::vector<std::string> ObjFile::names() const { return this->_as_objects ? this->detail->object_names() : this->detail->group_names(); }

@@ -103,7 +103,8 @@ file_type get_file_type(const std::string& filename)
 }
 inline bool get_bool_opt(const std::string& value)
 {
-    return !(value.length() == 1 && (value[0] == '0' || value[0] == 'f' || value[0] == 'F') || value.length() == 5 && tolower(value) == "false");
+    return !((value.length() == 1 && (value[0] == '0' || value[0] == 'f' || value[0] == 'F')) ||
+             (value.length() == 5 && tolower(value) == "false"));
 }
 #ifdef _MSC_VER
 #pragma endregion

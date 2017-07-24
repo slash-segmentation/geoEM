@@ -1,7 +1,11 @@
 #pragma once
 
 #include "GeometryTypes.hpp"
+
 #include <iostream>
+#include <string>
+#include <vector>
+#include <map>
 
 class ObjFileDetail;
 
@@ -32,7 +36,8 @@ public:
 };
 
 
-//void write_obj_file(const char* filename, const PolyhedronCollection& P, bool as_objects = false);
-void write_obj_file(const char* filename, Polyhedron3* P);
-void write_obj(std::ostream &out, Polyhedron3* P);
-void write_obj(std::ostream &out, Polyhedron3* P, size_t& off);
+void write_obj_file(const char* filename, const std::map<std::string, Polyhedron3*>& P, bool as_objects = false);
+void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects = false);
+void write_obj_file(const char* filename, const Polyhedron3* P);
+void write_obj(std::ostream &out, const Polyhedron3* P);
+void write_obj(std::ostream &out, const Polyhedron3* P, size_t& off);
