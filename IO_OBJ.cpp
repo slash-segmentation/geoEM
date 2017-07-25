@@ -16,28 +16,32 @@
 #ifdef _MSC_VER
 #pragma region Writing OBJ Files
 #endif
-void write_obj_file(const char* filename, const std::map<std::string, Polyhedron3*>& P, bool as_objects)
+void write_obj_file(const char* filename, const std::map<std::string, Polyhedron3*>& P, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	size_t off = 0;
+	size_t off = 0, i = 0;
 	std::ofstream f(filename);
 	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
+	if (matfile != "") { f << "mtllib " << matfile << std::endl << std::endl; }
 	// TODO: handle no-name and "default" polyhedrons (possibly not even necessary)
-	for (std::map<std::string, Polyhedron3*>::const_iterator i = P.begin(), end = P.end(); i != end; ++i)
+	for (std::map<std::string, Polyhedron3*>::const_iterator itr = P.begin(), end = P.end(); itr != end; ++itr, ++i)
 	{
-		f << (as_objects ? "o " : "g ") << i->first << std::endl;
-		write_obj(f, i->second, off);
+		f << (as_objects ? "o " : "g ") << itr->first << std::endl;
+		if (mtls.size() > i) { f << "usemtl " << mtls[i] << std::endl; }
+		write_obj(f, itr->second, off);
 	}
 	f.close();
 }
-void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects)
+void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	size_t off = 0;
+	size_t off = 0, i = 0;
 	std::ofstream f(filename);
 	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
-	for (std::vector<Polyhedron3*>::const_iterator i = P.begin(), end = P.end(); i != end; ++i)
+	if (matfile != "") { f << "mtllib " << matfile << std::endl << std::endl; }
+    for (std::vector<Polyhedron3*>::const_iterator itr = P.begin(), end = P.end(); itr != end; ++itr, ++i)
 	{
-		f << (as_objects ? "o " : "g ") << std::endl;
-		write_obj(f, *i, off);
+		f << (as_objects ? "o obj" : "g obj") << i << std::endl;
+		if (mtls.size() > i) { f << "usemtl " << mtls[i] << std::endl; }
+		write_obj(f, *itr, off);
 	}
 	f.close();
 }
@@ -70,7 +74,7 @@ void write_obj(std::ostream &out, const Polyhedron3* P, size_t& off)
 	{
 		out << "f";
 		Polyhedron3::Halfedge_around_facet_const_circulator H = F->facet_begin(), Hstart = H;
-		do { out << " " << verts[H->vertex()]; } while (++H != Hstart);
+		do { out << " " << verts[H->vertex()] + 1; } while (++H != Hstart);
 		out << std::endl;
 	}
 	

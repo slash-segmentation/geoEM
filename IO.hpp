@@ -86,7 +86,7 @@ void write_mesh(const Polyhedron3* P, std::ostream& out, file_type type, const f
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // CG Files - don't know much about this, but they have a single skeleton each and are similar to
-// OBJ files except use e for edge instead of f for face
+// OBJ files except use e for edge instead of f for face or l for line
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 Skeleton3* read_cg(const std::string& filename);
 Skeleton3* read_cg(std::istream& in);
