@@ -40,6 +40,10 @@ void write_obj_file(const char* filename, const std::map<std::string, Polyhedron
 					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
 void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects = false,
 					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
+void write_obj_file(std::ostream &out, const std::map<std::string, Polyhedron3*>& P, size_t& off, bool as_objects = false,
+					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
+void write_obj_file(std::ostream &out, const std::vector<Polyhedron3*>& P, size_t& off, bool as_objects = false,
+					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
 void write_obj_file(const char* filename, const Polyhedron3* P);
 void write_obj(std::ostream &out, const Polyhedron3* P);
 void write_obj(std::ostream &out, const Polyhedron3* P, size_t& off);

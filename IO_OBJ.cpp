@@ -18,32 +18,42 @@
 #endif
 void write_obj_file(const char* filename, const std::map<std::string, Polyhedron3*>& P, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	size_t off = 0, i = 0;
 	std::ofstream f(filename);
 	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
-	if (matfile != "") { f << "mtllib " << matfile << std::endl << std::endl; }
+	size_t off = 0;
+	write_obj_file(f, P, off, as_objects, matfile, mtls);
+	f.close();
+}
+void write_obj_file(std::ostream &out, const std::map<std::string, Polyhedron3*>& P, size_t& off, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
+{
+	size_t i = 0;
+	if (matfile != "") { out << "mtllib " << matfile << std::endl << std::endl; }
 	// TODO: handle no-name and "default" polyhedrons (possibly not even necessary)
 	for (std::map<std::string, Polyhedron3*>::const_iterator itr = P.begin(), end = P.end(); itr != end; ++itr, ++i)
 	{
-		f << (as_objects ? "o " : "g ") << itr->first << std::endl;
-		if (mtls.size() > i) { f << "usemtl " << mtls[i] << std::endl; }
-		write_obj(f, itr->second, off);
+		out << (as_objects ? "o " : "g ") << itr->first << std::endl;
+		if (mtls.size() > i) { out << "usemtl " << mtls[i] << std::endl; }
+		write_obj(out, itr->second, off);
 	}
-	f.close();
 }
 void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	size_t off = 0, i = 0;
 	std::ofstream f(filename);
 	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
-	if (matfile != "") { f << "mtllib " << matfile << std::endl << std::endl; }
+	size_t off = 0;
+	write_obj_file(f, P, off, as_objects, matfile, mtls);
+	f.close();
+}
+void write_obj_file(std::ostream &out, const std::vector<Polyhedron3*>& P, size_t& off, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
+{
+	size_t i = 0;
+	if (matfile != "") { out << "mtllib " << matfile << std::endl << std::endl; }
     for (std::vector<Polyhedron3*>::const_iterator itr = P.begin(), end = P.end(); itr != end; ++itr, ++i)
 	{
-		f << (as_objects ? "o obj" : "g obj") << i << std::endl;
-		if (mtls.size() > i) { f << "usemtl " << mtls[i] << std::endl; }
-		write_obj(f, *itr, off);
+		out << (as_objects ? "o obj" : "g obj") << i << std::endl;
+		if (mtls.size() > i) { out << "usemtl " << mtls[i] << std::endl; }
+		write_obj(out, *itr, off);
 	}
-	f.close();
 }
 void write_obj_file(const char* filename, const Polyhedron3* P)
 {
@@ -77,7 +87,6 @@ void write_obj(std::ostream &out, const Polyhedron3* P, size_t& off)
 		do { out << " " << verts[H->vertex()] + 1; } while (++H != Hstart);
 		out << std::endl;
 	}
-	
 	out << std::endl;
 }
 #ifdef _MSC_VER
