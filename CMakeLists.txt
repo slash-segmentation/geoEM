@@ -175,7 +175,7 @@ endif (USE_PRECOMPILED_HEADERS)
 ###############################################################################
 
 add_library(GeometryTypes STATIC GeometryTypes.hpp Polyhedron_3.hpp Polygons_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
-add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Progress.hpp Progress.cpp Strings.hpp)
+add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Progress.hpp Progress.cpp Strings.hpp)
 add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp)
 add_library(MedialAxisTransform STATIC MedialAxisTransform.hpp MedialAxisTransform.cpp MedialAxisTransform_Types_MAT.hpp MedialAxisTransform_Types_Triangulation.hpp MedialAxisTransform_Init.cpp MedialAxisTransform_Types_Geodesic.hpp MedialAxisTransform_Geodesic.cpp MedialAxisTransform_IO.hpp MedialAxisTransform_IO.cpp)
