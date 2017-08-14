@@ -7,6 +7,8 @@
 #include "MedialAxisTransform_IO.hpp"
 #include "Skeleton.hpp"
 #include "Segmentation.hpp"
+#include "Segments2Cylinders.hpp"
+#include "Points2Spheres.hpp"
 
 #include <boost/timer/timer.hpp>
 
@@ -20,6 +22,7 @@
 #endif
 
 #include <CGAL/boost/graph/split_graph_into_polylines.h>
+#include <CGAL/Subdivision_method_3.h>
 
 struct Display_polylines {
 	const Skeleton3& skeleton;
@@ -44,22 +47,79 @@ struct Display_polylines {
 	}
 };
 
-
 Intersection get_intersection(const FacetTree& ft, Point3 pt, Vector3 n)
 {
+	// Gets an intersection of an plane (defined by pt and n) using the given FacetTree.
+	// Only keeps the parts of the intersections that surround the given point (or subtract
+	// from the areas that surround the given point).
 	Plane3 h(pt, n);
 	Point2 pt2 = to_2d(pt, h);
 	Intersection intersection_full(ft, h), intersection(h);
+
+    // During the first pass add all of the positive polygons which contain the point to the list
+    // This really should just be a single polygon, but maybe not...
 	for (size_t i = 0; i < intersection_full.count(); ++i)
 	{
-		if (intersection_full[i].has_on_bounded_side(pt2))
+        IntersectionPolygon2& p = intersection_full[i];
+		if (p.orientation() == CGAL::COUNTERCLOCKWISE && p.bounded_side(pt2) != CGAL::ON_UNBOUNDED_SIDE)
 		{
-			intersection.add(intersection_full[i]);
+			intersection.add(p);
 		}
 	}
+
+    // Now add all polygons (positive or negative) which are contained within any of the already
+    // found polygons
+    size_t n_outside = intersection.count();
+    if (n_outside == 0) { return intersection; }
+    for (size_t i = 0; i < intersection_full.count(); ++i)
+	{
+        IntersectionPolygon2& p = intersection_full[i];
+        bool already_added = false;
+        for (size_t j = 0; j < n_outside; ++j)
+        {
+            if (p == intersection[j]) { already_added = true; break; }
+        }
+        if (already_added) { continue; }
+        for (size_t j = 0; j < n_outside; ++j)
+        {
+            if (p.is_inside(intersection[j]))
+            {
+                intersection.add(p);
+                break;
+            }
+        }
+    }
 	return intersection;
 }
 
+typedef boost::graph_traits<const Polyhedron3> P3_traits;
+
+std::vector<Point3> compute_rings(const Polyhedron3* P, const Skeleton3* S)
+{
+	// TODO: not quite to the rings yet, just the points that form the mesh
+	// Next steps are:
+	//   turn those points into a mesh using the connectivity in the original mesh
+	//	 get the boundary edges of the mesh
+	//		M->normalize_border(); go through M->border_edges_begin() to M->edges_end(); (or halfedges)
+	//	 sort those edges into the rings
+
+	//std::vector<Segment3> segs;
+	std::vector<Point3> pts;
+	BOOST_FOREACH(Skeleton3::vertex_descriptor v, vertices(*S))
+	{
+		if (degree(v, *S) > 2)
+		{
+			//const Point3& skel_pt = (*S)[v].point;
+			BOOST_FOREACH(P3_traits::vertex_descriptor mesh_v, (*S)[v].vertices)
+			{
+				//segs.push_back(Segment3(mesh_v->point(), skel_pt));
+				pts.push_back(mesh_v->point());
+			}
+		}
+	}
+	//return segs;
+	return pts;
+}
 
 int main(int argc, char **argv)
 {
@@ -75,7 +135,7 @@ int main(int argc, char **argv)
 #endif
 
 	CGAL::set_pretty_mode(std::cout);
-	
+
 	///////////////////////////////////////////////////////////////////////////
 	// Set the file to read
 	///////////////////////////////////////////////////////////////////////////
@@ -84,9 +144,21 @@ int main(int argc, char **argv)
 	//std::string filename = "example-data/other/cube-quads.off";
 	//std::string filename = "example-data/other/elephant.off";
 	//std::string filename = "example-data/small.off";
-	//std::string filename = "example-data/big.off";
-	std::string filename = "example-data/big_simplified.off";
+	std::string filename = "example-data/big.off";
+	//std::string filename = "example-data/big_simplified.off";
 	std::string obj_name = "";
+
+	///////////////////////////////////////////////////////////////////////////
+	// Settings
+	///////////////////////////////////////////////////////////////////////////
+	bool use_mat = false; // use Medial Axis Transform instead of Mean Curvature Flow to calculate skeleton
+	int loop_subdivisions = use_mat ? 0 : 1; // add extra vertices to the input mesh
+	bool use_sdf = false; // always use SDF instead of MCF skeleton to calculate segments (only used if use_mat is false)
+	const char* output_obj = "output.obj"; // the output OBJ file
+	bool output_bp_surface = false; // output the branch point surface which is currently not complete but adds lots of rendering time
+	const char* output_skel = "skel.cgal"; // the output CGAL file for the skeleton points
+	bool reduce_skel_graph = use_mat; // if the skeleton graph should have vertices reduced before being analyzed
+
 
 	///////////////////////////////////////////////////////////////////////////
 	// Read in the 3D polyhedral mesh
@@ -99,7 +171,12 @@ int main(int argc, char **argv)
 	}
 	std::cout << std::endl;
 
-	bool use_mat = false;
+	///////////////////////////////////////////////////////////////////////////
+	// Refine the mesh
+	///////////////////////////////////////////////////////////////////////////
+	if (loop_subdivisions > 0) {
+		CGAL::Subdivision_method_3::Loop_subdivision(*P, loop_subdivisions);
+	}
 
 	Skeleton3* S;
 	std::vector<Polyhedron3*> segments;
@@ -129,14 +206,17 @@ int main(int argc, char **argv)
 		}
 		std::cout << std::endl;
 		delete mat; // done with the medial axis transform
-		
+
 		///////////////////////////////////////////////////////////////////////////
 		// Segmention
 		///////////////////////////////////////////////////////////////////////////
 		std::cout << "Segmenting..." << std::endl;
 		{
 			boost::timer::auto_cpu_timer t;
-			segments = compute_segmentation(P, 2.0/3.0*CGAL_PI, 25, 5, 0.26);
+			segments = compute_segmentation(P,
+				2.0/3.0*CGAL_PI, 25, // SDF value calculation parameters (2/3*pi, 25)
+				15, 0.5);            // clustering parameters            (5, 0.26)
+				// TODO: how to determine parameters?
 		}
 		std::cout << std::endl;
 	}
@@ -148,26 +228,48 @@ int main(int argc, char **argv)
 		std::cout << "Constructing skeleton using mean curvature flow..." << std::endl;
 		{
 			boost::timer::auto_cpu_timer t;
-			S = construct_skeleton(P, 1); // TODO: how to determine parameter?
+			S = construct_skeleton(P);
 			//Skeleton3* S = read_cg("skeleton-small.cg");
 		}
 		std::cout << std::endl;
 
-		///////////////////////////////////////////////////////////////////////////
-		// Segmention
-		///////////////////////////////////////////////////////////////////////////
-		std::cout << "Segmenting using skeleton..." << std::endl;
+		if (use_sdf)
 		{
-			boost::timer::auto_cpu_timer t;
-			segments = compute_segmentation(P, S, 5, 0.26);
+			///////////////////////////////////////////////////////////////////////////
+			// Segmention (without skeleton using SDF)
+			///////////////////////////////////////////////////////////////////////////
+			std::cout << "Segmenting..." << std::endl;
+			{
+				boost::timer::auto_cpu_timer t;
+				segments = compute_segmentation(P,
+					2.0/3.0*CGAL_PI, 25, // SDF value calculation parameters (2/3*pi, 25)
+					15, 0.5);            // clustering parameters            (5, 0.26)
+					// TODO: how to determine parameters?
+			}
+			std::cout << std::endl;
 		}
-		std::cout << std::endl;
+		else
+		{
+			///////////////////////////////////////////////////////////////////////////
+			// Segmention using skeleton
+			///////////////////////////////////////////////////////////////////////////
+			std::cout << "Segmenting using skeleton..." << std::endl;
+			{
+				boost::timer::auto_cpu_timer t;
+				segments = compute_segmentation(P, S, 15 /*5*/, 0.5 /*0.26*/); // TODO: how to determine parameters?
+			}
+			std::cout << std::endl;
+		}
 	}
-	
-	std::ofstream output("skel.cgal");
-	Display_polylines display(*S, output);
-	CGAL::split_graph_into_polylines(*S, display);
-	output.close();
+
+
+    // Save the skeleton in an easy-to-use format for analysis
+    std::ofstream output(output_skel);
+	output << std::setprecision(10);
+    Display_polylines display(*S, output);
+    CGAL::split_graph_into_polylines(*S, display);
+    output.close();
+
 
 
 	///////////////////////////////////////////////////////////////////////////
@@ -178,25 +280,85 @@ int main(int argc, char **argv)
 	{
 		boost::timer::auto_cpu_timer t;
 		SG = construct_skeleton_graph(S); // TODO: delete SG; somewhere...
-		//size_t nverts_before = SG->total_vertices();
-		//skeleton_reduce(SG);
-		//size_t nverts_after = SG->total_vertices();
-		//std::cerr << "Removed " << nverts_before - nverts_after << " vertices/edges out of " << nverts_before << std::endl;
+
+		// Simplify the data by removing some of the coordinates
+		//   Always remove collinear coordinates
+		//   Optionally remove coordinates that form small triangles
+		size_t nverts_before = SG->total_vertices();
+		if (reduce_skel_graph) { skeleton_reduce(SG); }
+		else { skeleton_remove_collinear(SG); }
+		size_t nverts_after = SG->total_vertices();
+		std::cerr << "Removed " << nverts_before - nverts_after << " vertices/edges out of " << nverts_before << std::endl;
 	}
 	std::cout << std::endl;
 	delete S; // done with the skeleton
-	
 
-	
-	FacetTree ft(P->facets_begin(), P->facets_end(), *P);
-	double total_length = 0.0;
+
+
+	// Save the data to OBJ file including:
+	//	* The segments (colored [or white] and semi-transparent)
+	//	* The skeleton (solid black)
+	//	* The "branch point surface"   (optional, not complete yet)
+	std::vector<std::string> colors {
+		// missing Black
+		"Maroon", "Red", "Orange-Red", "Orange", "Gold", "Yellow", "Yellow-Green", "Lime",
+		"Green", "Spring-Green", "Cyan", "Dark-Cyan", "Dark-Turquoise", "Deep-Sky-Blue", "Navy",
+		"Medium-Blue", "Blue", "Royal-Blue", "Blue-Violet", "Indigo", "Purple", "Violet",
+		"Magenta", "Hot-Pink", "Pink", "Brown", "Sienna", "Dark-Gray", "Gray", "Silver", "White",
+	};
+
+	// The segments in the mesh in a myriad of colors
+	std::ofstream f(output_obj);
+	f << std::setprecision(10);	
+	size_t off = 0;
+	write_obj_file(f, segments, off, false, "colors.mtl", colors);
+
+	std::vector<Polyhedron3*> skeleton_cyl;
 	for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), Bend = SG->branches_end(); B != Bend; ++B)
 	{
-		total_length += B->length();
+		SkeletonGraph3::Branch::const_iterator i = B->begin(), end = B->end();
+		Point3 pt_end = *i++;
+		std::vector<Segment3> branch;
+		branch.reserve(B->size());
+		while (i != end)
+		{
+			Point3 pt = pt_end; pt_end = *i++;
+			branch.push_back(Segment3(pt, pt_end));
+		}
+		skeleton_cyl.push_back(segments2cylinders_merged(branch, 2.5, 8));
 	}
-	size_t increments = 4096;
-	double inc_length = total_length / increments;
-	std::cout << total_length << ", " << increments << ", " << inc_length << std::endl;
+	write_obj_file(f, skeleton_cyl, off, false, "", std::vector<std::string>{ "Black" });
+	for (std::vector<Polyhedron3*>::iterator itr = skeleton_cyl.begin(), end = skeleton_cyl.end(); itr != end; ++itr) { delete *itr; }
+
+	/*// The skeleton as black cylinders
+	std::vector<Segment3> skeleton;
+	skeleton.reserve(boost::num_edges(*S));
+	Skeleton3::edge_iterator E, Eend;
+	for (boost::tie(E, Eend) = boost::edges(*S); E != Eend; ++E)
+	{
+		skeleton.push_back(Segment3((*S)[boost::source(*E, *S)].point,
+									(*S)[boost::target(*E, *S)].point));
+	}
+	std::vector<Polyhedron3*> skeleton_cyl = segments2cylinders(skeleton, 2.5, 8);
+	write_obj_file(f, skeleton_cyl, off, false, "", std::vector<std::string>{ "Black" });
+	for (std::vector<Polyhedron3*>::iterator itr = skeleton_cyl.begin(), end = skeleton_cyl.end(); itr != end; ++itr) { delete *itr; }*/
+
+
+
+	// The "branch point surface" as black spheres at the moment - should be polylines as cylinders
+	if (output_bp_surface)
+	{
+		std::vector<Point3> rings = compute_rings(P, S);
+		std::vector<Polyhedron3*> rings_spheres = points2spheres(rings, 5.0, 3);
+		write_obj_file(f, rings_spheres, off, false, "", std::vector<std::string>{ "Black" });
+		for (std::vector<Polyhedron3*>::iterator itr = rings_spheres.begin(), end = rings_spheres.end(); itr != end; ++itr) { delete *itr; }
+	}
+
+	// Close the OBJ file
+    f.close();
+
+
+	FacetTree ft(P->facets_begin(), P->facets_end(), *P);
 	std::ofstream out("output.csv");
 	for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), Bend = SG->branches_end(); B != Bend; ++B)
 	{
@@ -205,29 +367,18 @@ int main(int argc, char **argv)
 		out << "Branch," << a << "," << b << std::endl;
 		SkeletonGraph3::Branch::const_iterator i = B->begin(), end = B->end();
 		Point3 pt_end = *i++;
-		double dist_carryover = 0.0;
+		const char* sep = "";
 		while (i != end)
 		{
-			Point3 pt = pt_end;
-			pt_end = *i++;
-			Vector3 n = normalized(pt_end - pt);
-			double len_line = distance(pt, pt_end), dist_line = dist_carryover;
-			const char* sep = "";
-			while (dist_line < len_line)
-			{
-				Intersection intersection = get_intersection(ft, pt, n);
-				out << sep << intersection.area();
-				sep = ",";
-				pt = pt + inc_length * n;
-				dist_line += inc_length;
-			}
-			dist_carryover = dist_line - len_line;
+			Point3 pt = pt_end; pt_end = *i++;
+			Intersection intersection = get_intersection(ft,
+				CGAL::midpoint(pt, pt_end), normalized(pt_end - pt));
+			out << sep << intersection.area();
+			sep = ",";
 		}
 		out << std::endl;
 	}
 	out.close();
-
-	write_obj_file("output.obj", segments, false);
 
 
 	///////////////////////////////////////////////////////////////////////////
@@ -255,7 +406,7 @@ int main(int argc, char **argv)
 		for (size_t i = 0; i < intersection.count(); ++i)
 		{
 			std::cout << "  Area: " << intersection[i].area() << std::endl;
-			std::cout << "  Polygon:";
+			std::cout << "  Polygon: ";
 			for (auto itr = intersection[i].vertices_begin(), end = intersection[i].vertices_end(); itr != end; ++itr)
 			{
 				std::cout << *itr << ", ";
@@ -294,4 +445,3 @@ int main(int argc, char **argv)
 	return 0;
 #endif
 }
-
