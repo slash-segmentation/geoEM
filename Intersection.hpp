@@ -24,6 +24,7 @@ public:
 	template <class InputIterator> IntersectionPolygon2(InputIterator first, InputIterator last, bool is_open = false, Traits p_traits = Traits()) : Base(first, last, p_traits), _open(is_open) {}
 	inline bool is_open()   const { return  this->_open; }
 	inline bool is_closed() const { return !this->_open; }
+	bool is_inside(const IntersectionPolygon2& p) const; // NOTE: p must be from the same Intersection
 };
 extern template class std::vector<IntersectionPolygon2>;
 

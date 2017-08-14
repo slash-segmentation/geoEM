@@ -3,11 +3,21 @@
 #include "GeometryUtils.hpp"
 
 #include <CGAL/Boolean_set_operations_2.h>
+#include <CGAL/circulator.h>
 
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
+#include <stdexcept>
 
 template class std::vector<IntersectionPolygon2>;
+
+bool IntersectionPolygon2::is_inside(const IntersectionPolygon2& p) const
+{
+    // Checks if this polygon is inside of another polygon. This assumes that both of the polygons
+	// are from the same set of intersections and short-cuts the calculations considerably.
+	return ::is_inside(bbox(), p.bbox()) && bounded_side(p[0]) == CGAL::ON_UNBOUNDED_SIDE;
+}
 
 size_t Intersection::total_count() const
 {
@@ -30,6 +40,110 @@ Kernel::FT Intersection::area() const
 	for (size_t i = 1; i < this->polys.size(); ++i) { a += polys[i].area(); }
 	return a;
 }
+
+#ifdef KERNEL_INEXACT
+
+#define AREA_THRESHOLD 0.0001 // largest seen has been ~1.5e-5
+#define MAX_WINDOW 16 // largest seen has been 6 so this is plenty large
+
+typedef CGAL::Circulator_from_container< std::list<Point2> > circulator;
+
+static bool __is_before(circulator i, circulator j)
+{
+	// Checks if the node pointed to be i comes before j. This assumes that if this is true then i
+	// will point to one of the first MAX_WINDOW nodes.
+	circulator x = i.min_circulator();
+	if (x != j.min_circulator()) { throw std::runtime_error("i and j must be from the same container"); }
+	// For very small collections do it a very easy way
+	if (i.container()->size() <= MAX_WINDOW) { return std::distance(x, i) < std::distance(x, j); }
+	for (size_t n = 0; n < MAX_WINDOW; ++n, ++x)
+	{
+		if (x == j) { return false; }
+		else if (x == i) { return true; }
+	}
+	return false;
+}
+
+static void filter_polygon(std::list<Point2>& P)
+{
+	// When the kernel is inexact we can inadvertently create very small "twists" in the polygon
+	// making it not simple and unusable. We correct these by eliminating the twists (only as
+	// long as the twist was very small, otherwise we let the problem propogate).
+	//
+	// The twists must contain at most MAX_WINDOW vertices and be at most AREA_THRESHOLD proportion
+	// of the total area. The MAX_WINDOW value allows the algorithm used here to go from O(n^3) to
+	// O(n).
+	if (P.size() < 4) { return; }
+	IntersectionPolygon2::Traits traits; // needed for CGAL::polygon_area_2
+	
+	// i goes over all points from begin() to end() - 3
+	circulator i(&P), i_end = i;
+	do
+	{
+		Segment2 a(*i, *std::next(i)); ++i;
+		circulator j = std::next(i), j_end = P.size() < MAX_WINDOW ? std::prev(i) : std::next(j, MAX_WINDOW);
+		do
+		{
+			Segment2 b(*j, *std::next(j)); ++j;
+			if (auto intersection = CGAL::intersection(a, b))
+			{
+				if (intersection->which() == 0)
+				{
+					// Segments intersect at a point
+					const Point2 x = boost::get<Point2>(*intersection);
+					
+					// Extract the polygon that goes x -> i -> ... -> (j-1)
+					// The remaining polygon will be ... -> (i-1) -> x -> j -> ...
+					auto ix = P.insert(i.current_iterator(), x); // ix is pointing to x, the intersection
+					std::list<Point2> Q(circulator(&P, ix), j);
+					if (__is_before(j, i))
+					{
+						// remove ... -> (j-1) and i -> ... from original polygon
+						P.erase(i.current_iterator(), P.end());
+						P.erase(P.begin(), j.current_iterator());
+					}
+					else
+					{
+						// remove i -> ... -> (j-1) from original polygon
+						P.erase(i.current_iterator(), j.current_iterator());
+					}
+
+					// Get the areas of the two polygons
+					Kernel::FT area1 = CGAL::abs(CGAL::polygon_area_2(P.begin(), P.end(), traits));
+					Kernel::FT area2 = CGAL::abs(CGAL::polygon_area_2(Q.begin(), Q.end(), traits));
+					
+					// Check the area and select the correct polygon
+					if (area1 < AREA_THRESHOLD*area2)
+					{
+						// Q contains the real polygon, need to replace P with its data
+						P.swap(Q);
+						i_end = circulator(&P);
+						i = std::next(i_end);
+					}
+					else if (area2 < AREA_THRESHOLD*area1)
+					{
+						// polygon is being kept in P
+						i_end = circulator(&P); // in case we removed the beginning elements
+						i = circulator(&P, ix); // make i point to x
+					}
+					else { continue; } // let the problem propogate but finishing processing the polygon juts in case
+					if (P.size() < 4) { return; } // completed
+					
+					// Update a, j, and j_end
+					a = Segment2(*std::prev(i), *i);
+					j = std::next(i); j_end = P.size() < MAX_WINDOW ? std::prev(i) : std::next(j, MAX_WINDOW);
+				}
+				else // if (intersection->which() == 1)
+				{
+					// TODO: Segments overlap, never seen and unsure how to handle, for now we shall skip it
+					continue;
+				}
+			}
+		} while (j != j_end);
+	} while (i != i_end);
+}
+
+#endif
 
 // Object that builds the polygons one intersection at a time
 struct PolyBuilder
@@ -56,7 +170,6 @@ struct PolyBuilder
 	void add_seg(const simple_seg& seg)
 	{
 		// Add a segment to the set of intersections
-
 		if (!have_processed.insert(seg).second) { return; } // already done
 
 		pt2partialpoly::iterator ss = starters.find(seg.first);
@@ -111,8 +224,22 @@ struct PolyBuilder
 			}
 			else { p->push_back(seg.second); enders[seg.second] = p; } // add the target to the end of the partial polygon 
 		}
-		else if (st != starters.end()) { PartialPolygon* p = st->second; starters.erase(st); p->push_front(seg.first); starters[seg.first] = p; } // add the source to the beginning of the partial polygon
-		else if (et != enders.end())   { PartialPolygon* p = et->second;   enders.erase(et); p->push_back (seg.first);   enders[seg.first] = p; } // add the source to the end of the partial polygon
+		else if (st != starters.end())
+		{
+			// add the source to the beginning of the partial polygon
+			PartialPolygon* p = st->second;
+			starters.erase(st);
+			p->push_front(seg.first);
+			starters[seg.first] = p;
+		}
+		else if (et != enders.end())
+		{
+			// add the source to the end of the partial polygon
+			PartialPolygon* p = et->second;
+			enders.erase(et);
+			p->push_back(seg.first);
+			enders[seg.first] = p;
+		}
 		else
 		{
 			// neither endpoint currently exists, create a new partial polygon
@@ -126,35 +253,65 @@ struct PolyBuilder
 
 	void add_polygon(std::list<Point2>* pts, bool is_open)
 	{
+		/*
 		// This is only possible if the original mesh is not a manifold, which we disallow.
-		//// Pairwise check for points that are duplicates (and then should be split)
-		//for (std::list<Point2>::const_iterator i = pts->begin(), end = pts->end(); i != end; ++i)
-		//{
-		//	for (std::list<Point2>::const_iterator j = std::next(i); j != end; ++j)
-		//	{
-		//		if (*i == *j) { /* coincident point found, split by doing [i,j) in another call and removing [i,j) from this one */ }
-		//	}
-		//}
+		// Pairwise check for points that are duplicates (and then should be split)
+		for (auto i = pts->begin(), end = pts->end(); i != end; ++i)
+		{
+			for (auto j = std::next(i); j != end; ++j)
+			{
+				if (*i == *j)
+				{
+					// coincident point found
+					// could handle by splitting [i,j) in another call and removing [i,j) from this one
+					throw std::runtime_error("coincident point found");
+				}
+			}
+		}*/
+
+#ifdef KERNEL_INEXACT
+		// When the kernel is inexact we can inadvertently create very small "twists" in the polygon
+		// making it not simple and unusable. We correct these by eliminating the twists (only as
+		// long as the twist was very small, otherwise we let the problem propogate).
+		if (!CGAL::is_simple_2(pts->begin(), pts->end())) { filter_polygon(*pts); }
+#endif
 
 		// Remove collinear points and make sure it is oriented clockwise (positive area)
+		// We correct for holes later
 		remove_collinear_points(pts);
-		this->ints.add((CGAL::orientation_2(pts->begin(),pts->end()) == CGAL::CLOCKWISE) ? IntersectionPolygon2(pts->rbegin(), pts->rend(), is_open) : IntersectionPolygon2(pts->begin(), pts->end(), is_open));
+		this->ints.add((CGAL::orientation_2(pts->begin(), pts->end()) == CGAL::CLOCKWISE) ?
+						IntersectionPolygon2(pts->rbegin(), pts->rend(), is_open) :
+						IntersectionPolygon2(pts->begin(), pts->end(), is_open));
 	}
 
 	void finish_up()
 	{
 		// Add the open contours
-		for (pt2partialpoly::iterator s = starters.begin(); s != starters.end(); ++s) { this->add_polygon(s->second, true); delete s->second; }
+		for (pt2partialpoly::iterator s = starters.begin(); s != starters.end(); ++s)
+		{
+			this->add_polygon(s->second, true);
+			delete s->second;
+		}
 
 		// Check to see which polygons are holes (and reverse them so they have negative area)
 		size_t n = ints.count();
 		std::vector<Bbox2>      boxes; boxes.reserve(n);
 		std::vector<Kernel::FT> areas; areas.reserve(n);
-		for (Intersection::const_iterator i = ints.begin(), end = ints.end(); i != end; ++i) { boxes.push_back(i->bbox()); areas.push_back(i->area()); }
+		for (Intersection::const_iterator i = ints.begin(), end = ints.end(); i != end; ++i)
+		{
+			boxes.push_back(i->bbox()); areas.push_back(i->area());
+		}
 		for (size_t i = 0; i < n; ++i)
 		{
 			bool hole = false;
-			for (size_t j = 0; j < n; ++j) { if (is_inside(boxes[j], boxes[i]) && areas[j] > areas[i] && ints[j].bounded_side(ints[i][0]) == CGAL::ON_BOUNDED_SIDE) { hole = !hole; } }
+			for (size_t j = 0; j < n; ++j)
+			{
+				if (is_inside(boxes[j], boxes[i]) && areas[j] > areas[i] &&
+					ints[j].bounded_side(ints[i][0]) == CGAL::ON_BOUNDED_SIDE)
+				{
+					hole = !hole;
+				}
+			}
 			if (hole) { ints[i].reverse_orientation(); }
 		}
 	}
@@ -191,6 +348,7 @@ struct PolyBuilder
 				if (Cos == CGAL::ON_ORIENTED_BOUNDARY)
 				{
 					// TODO: face ABC
+					throw std::runtime_error("face intersections not implemented yet");
 				}
 				else { this->add_seg(to_2d(A),to_2d(B)); } // edge AB
 			}
@@ -215,6 +373,7 @@ struct PolyBuilder
 		else
 		{
 			// impossible?
+			throw std::runtime_error("this should be impossible");
 		}
 	}
 
@@ -223,12 +382,12 @@ struct PolyBuilder
 	//typedef const value_type& const_reference;
 	//void push_back(const value_type& x)
 	//{
-	//	const Segment3* s = boost::get<Segment3>(&(x.first));
-	//	if (s) { this->add_seg(to_2d(*s, this->h)); }
+	//  const Segment3* s = boost::get<Segment3>(&(x.first));
+	//  if (s) { this->add_seg(to_2d(*s, this->h)); }
 
-	//	// We ignore faces and points since faces will have all their edges intersected and work that way, and singleton points would give a polygon of area 0 and really complicate things
-	//	// const Triangle3 *t = boost::get<Triangle3>(&(x.first));
-	//	// const Point3 *p = boost::get<Point3>(&(x.first));
+	//  // We ignore faces and points since faces will have all their edges intersected and work that way, and singleton points would give a polygon of area 0 and really complicate things
+	//  // const Triangle3 *t = boost::get<Triangle3>(&(x.first));
+	//  // const Point3 *p = boost::get<Point3>(&(x.first));
 	//}
 };
 
