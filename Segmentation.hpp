@@ -25,5 +25,5 @@ std::vector<Polyhedron3*> compute_segmentation(const Polyhedron3* P,
 // The skeleton must come from the curvature flow method and cannot be saved and loaded
 // as some metadata on the skeleton will be lost.
 ///////////////////////////////////////////////////////////////////////////////////////
-std::vector<Polyhedron3*> compute_segmentation(const Polyhedron3* P, const Skeleton3* S,
+std::vector<Polyhedron3*> compute_segmentation(/*const*/ Polyhedron3* P, const Skeleton3* S,
 	size_t number_of_clusters = 5, double smoothing_lambda = 0.26);

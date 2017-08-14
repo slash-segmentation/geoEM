@@ -54,7 +54,8 @@ public:
     }
 };
 
-std::vector<Polyhedron3*> get_meshes(const Polyhedron3* P, const Facet_int_prop_map segs, const size_t n)
+template<class Map>
+std::vector<Polyhedron3*> get_meshes(const Polyhedron3* P, const Map segs, const size_t n)
 {
 	// Get a list of faces/verts for each segmented portion of the polyhedron
 	std::vector<Facets> faces(n);
@@ -101,39 +102,57 @@ std::vector<Polyhedron3*> compute_segmentation(const Polyhedron3* P, double cone
 	return get_meshes(P, seg_prop_map, num_segs);
 }
 
-std::vector<Polyhedron3*> compute_segmentation(const Polyhedron3* P, const Skeleton3* S, size_t number_of_clusters, double smoothing_lambda)
+typedef boost::graph_traits<const Polyhedron3> P3_traits;
+
+template<class ValueType>
+struct Facet_with_id_pmap : public boost::put_get_helper<ValueType&, Facet_with_id_pmap<ValueType>>
 {
+    typedef P3_traits::face_descriptor key_type;
+    typedef ValueType value_type;
+    typedef value_type& reference;
+    typedef boost::lvalue_property_map_tag category;
+    Facet_with_id_pmap(std::vector<ValueType>& internal_vector) : internal_vector(internal_vector) { }
+    reference operator[](const key_type& key) const { return internal_vector[key->id()]; }
+    reference operator[](const P3_Facet& key) const { return internal_vector[key->id()]; }
+private:
+    std::vector<ValueType>& internal_vector;
+};
+
+std::vector<Polyhedron3*> compute_segmentation(Polyhedron3* P, const Skeleton3* S, size_t number_of_clusters, double smoothing_lambda)
+{
+	CGAL::set_halfedgeds_items_id(*P);
+	
 	// For each input vertex compute its distance to the skeleton
-	Vertex_double_map distances(P->size_of_vertices());
-	Skeleton3::vertex_iterator V, Vend;
-	for (boost::tie(V, Vend) = boost::vertices(*S); V != Vend; ++V)
+	std::vector<double> distances(num_vertices(*P));
+	BOOST_FOREACH(Skeleton3::vertex_descriptor v, vertices(*S))
 	{
-		const Point3& skel_pt = (*S)[*V].point;
-		const std::vector<Polyhedron3::Vertex_handle>& verts = (*S)[*V].vertices;
-		for (std::vector<Polyhedron3::Vertex_handle>::const_iterator itr = verts.begin(), end = verts.end(); itr != end; ++itr)
+		const Point3& skel_pt = (*S)[v].point;
+		BOOST_FOREACH(P3_traits::vertex_descriptor mesh_v, (*S)[v].vertices)
 		{
-			const Point3& mesh_pt = (*itr)->point();
-			distances[*itr] = distance(skel_pt, mesh_pt);
+			const Point3& mesh_pt = mesh_v->point();
+			distances[mesh_v->id()] = distance(skel_pt, mesh_pt);
 		}
 	}
 
 	// Compute SDF values with skeleton
-	Facet_double_map sdf_map;
-	Facet_double_prop_map sdf_prop_map(sdf_map);
-	for (P3_Facet F = P->facets_begin(), Fend = P->facets_end(); F != Fend; ++F)
+	std::vector<double> sdf_values(num_faces(*P));
+	Facet_with_id_pmap<double> sdf_prop_map(sdf_values);
+	BOOST_FOREACH(P3_traits::face_descriptor f, faces(*P))
 	{
 		double dist = 0;
-		Polyhedron3::Halfedge_around_facet_const_circulator H = F->facet_begin(), Hstart = H;
-		do { dist += distances[H->vertex()]; } while (++H != Hstart);
-		sdf_prop_map[F] = dist / 3.0;
+		BOOST_FOREACH(P3_traits::halfedge_descriptor hd, halfedges_around_face(halfedge(f, *P), *P))
+		{
+			dist += distances[target(hd, *P)->id()];
+		}
+		sdf_prop_map[f] = dist / 3.;
 	}
 
 	// Post-process the SDF values
 	CGAL::sdf_values_postprocessing(*P, sdf_prop_map);
 
 	// Segment the mesh
-	Facet_int_map seg_map;
-	Facet_int_prop_map seg_prop_map(seg_map);
+	std::vector<size_t> seg_ids(num_faces(*P));
+	Facet_with_id_pmap<size_t> seg_prop_map(seg_ids);
 	size_t num_segs = CGAL::segmentation_from_sdf_values(*P, sdf_prop_map, seg_prop_map, number_of_clusters, smoothing_lambda);
 	
 	// Break the original mesh into the segments
