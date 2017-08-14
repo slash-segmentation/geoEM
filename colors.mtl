@@ -1,0 +1,226 @@
+# Currently 32 colors
+
+newmtl Maroon
+Ka 0.500 0.000 0.000
+Kd 0.500 0.000 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Red
+Ka 1.000 0.000 0.000
+Kd 1.000 0.000 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Orange-Red
+Ka 1.000 0.271 0.000
+Kd 1.000 0.271 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Orange
+Ka 1.000 0.647 0.000
+Kd 1.000 0.647 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Gold
+Ka 1.000 0.843 0.000
+Kd 1.000 0.843 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Yellow
+Ka 1.000 1.000 0.000
+Kd 1.000 1.000 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Yellow-Green
+Ka 0.604 0.804 0.196
+Kd 0.604 0.804 0.196
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Lime
+Ka 0.000 1.000 0.000
+Kd 0.000 1.000 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Green
+Ka 0.000 0.500 0.000
+Kd 0.000 0.500 0.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Spring-Green
+Ka 0.000 1.000 0.500
+Kd 0.000 1.000 0.500
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Cyan
+Ka 0.000 1.000 1.000
+Kd 0.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Dark-Cyan
+Ka 0.000 0.545 0.545
+Kd 0.000 0.545 0.545
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Dark-Turquoise
+Ka 0.000 0.808 0.820
+Kd 0.000 0.808 0.820
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Deep-Sky-Blue
+Ka 0.000 0.750 1.000
+Kd 0.000 0.750 1.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Navy
+Ka 0.000 0.000 0.500
+Kd 0.000 0.000 0.500
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Medium-Blue
+Ka 0.000 0.000 0.804
+Kd 0.000 0.000 0.804
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Blue
+Ka 0.000 0.000 1.000
+Kd 0.000 0.000 1.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Royal-Blue
+Ka 0.255 0.412 0.882
+Kd 0.255 0.412 0.882
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Blue-Violet
+Ka 0.541 0.169 0.882
+Kd 0.541 0.169 0.882
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Indigo
+Ka 0.294 0.000 0.500
+Kd 0.294 0.000 0.500
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Purple
+Ka 0.500 0.000 0.500
+Kd 0.500 0.000 0.500
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Violet
+Ka 0.933 0.500 0.933
+Kd 0.933 0.500 0.933
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Magenta
+Ka 1.000 0.000 1.000
+Kd 1.000 0.000 1.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Hot-Pink
+Ka 1.000 0.412 0.706
+Kd 1.000 0.412 0.706
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Pink
+Ka 1.000 0.753 0.796
+Kd 1.000 0.753 0.796
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Brown
+Ka 0.647 0.165 0.165
+Kd 0.647 0.165 0.165
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Sienna
+Ka 0.627 0.322 0.176
+Kd 0.627 0.322 0.176
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Dark-Gray
+Ka 0.250 0.250 0.250
+Kd 0.250 0.250 0.250
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Gray
+Ka 0.500 0.500 0.500
+Kd 0.500 0.500 0.500
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl Silver
+Ka 0.750 0.750 0.750
+Kd 0.750 0.750 0.750
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+newmtl White
+Ka 1.000 1.000 1.000
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+d 0.75
+illum 2
+
+# This one is solid (no trasparency)
+newmtl Black
+Ka 0.000 0.000 0.000
+Kd 0.000 0.000 0.000
+Ks 0.000 0.000 0.000
+d 1
+illum 2
