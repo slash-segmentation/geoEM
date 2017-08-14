@@ -110,7 +110,7 @@ typedef Polygons_3<Kernel>			Polygons3;
 
 #include <boost/graph/adjacency_list.hpp>
 #include <CGAL/extract_mean_curvature_flow_skeleton.h>
-//DECLARE_TEMPLATE(CGAL::Mean_curvature_flow_skeletonization<Polyhedron3>::Skeleton)
+//DECLARE_TEMPLATE(CGAL::Mean_curvature_flow_skeletonization<Polyhedron3>)
 typedef CGAL::Mean_curvature_flow_skeletonization<Polyhedron3>::Skeleton Skeleton3;
 
 #include "SkeletonGraph_3.hpp"
