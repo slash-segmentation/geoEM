@@ -21,11 +21,9 @@ Skeleton3* construct_skeleton(MAT* mat, double flux_thd = 0.5, double wt_thd = 0
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Construct the curve-skeleton of a polygon mesh using the mean curvature flow method
-// built into CGAL. The loop subdivisions parameter controls how much refinement of the
-// mesh to perform before calculating the skeleton, with higher values taking
-// considerably more time but improve the quality of the results.
+// built into CGAL.
 ///////////////////////////////////////////////////////////////////////////////////////
-Skeleton3* construct_skeleton(const Polyhedron3* P, int loop_subdivisions = 0);
+Skeleton3* construct_skeleton(const Polyhedron3* P);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -37,19 +35,19 @@ SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Remove the number of coordinates in the skeleton by removing all collinear
-// coordinates. This will not remove branch points or entire branches but may simplify
-// a branch down to just its endpoints.
+// Remove coordinates in the skeleton by removing all collinear coordinates. This will
+// not remove branch points or entire branches but may simplify a branch down to just
+// its endpoints.
 ///////////////////////////////////////////////////////////////////////////////////////
 void skeleton_remove_collinear(SkeletonGraph3* SG);
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Reduce the number of coordinates in the skeleton by removing all collinear
-// coordinates and coordinates where the two neighbors form a triangle with squared
-// area less than the threshold. If a negative value is provided for the threshold then
-// the threshold is automatically determined as the lowest 20% of the squared areas
-// which means that at least 20% of the vertices will be removed (but likely more).
-// Default threshold is negative. This will not remove branch points or entire branches
-// but may simplify a branch down to just its endpoints.
+// Reduce coordinates in the skeleton by removing all collinear coordinates and
+// coordinates where the two neighbors form a triangle with squared area less than the
+// threshold. If a negative value is provided for the threshold then the threshold is
+// automatically determined as the lowest 20% of the squared areas which means that at
+// least 20% of the vertices will be removed (but likely more). Default threshold is
+// negative. This will not remove branch points or entire branches but may simplify a
+// branch down to just its endpoints.
 ///////////////////////////////////////////////////////////////////////////////////////
 void skeleton_reduce(SkeletonGraph3* SG, double threshold = -1.0);
