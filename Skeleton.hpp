@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio>
+
 #include "GeometryTypes.hpp"
 #include "MedialAxisTransform.hpp"
 
@@ -24,6 +26,19 @@ Skeleton3* construct_skeleton(MAT* mat, double flux_thd = 0.5, double wt_thd = 0
 // built into CGAL.
 ///////////////////////////////////////////////////////////////////////////////////////
 Skeleton3* construct_skeleton(const Polyhedron3* P);
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Write a skeleton to a file.
+///////////////////////////////////////////////////////////////////////////////////////
+void write_skeleton(const Skeleton3* S, std::ofstream& output);
+inline void write_skeleton(const Skeleton3* S, const char* filename, int precision=10)
+{
+    std::ofstream output(filename);
+	output << std::setprecision(10);
+	write_skeleton(S, output);
+    output.close();
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////

@@ -103,6 +103,34 @@ SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
 }
 */
 
+
+struct Output_polylines {
+	const Skeleton3& skeleton;
+	std::ofstream& out;
+	int polyline_size;
+	std::stringstream sstr;
+	Output_polylines(const Skeleton3& skeleton, std::ofstream& out)
+		: skeleton(skeleton), out(out)
+	{}
+	void start_new_polyline()
+	{
+		polyline_size = 0;
+		sstr.str("");
+		sstr.clear();
+	}
+	void add_node(Skeleton3::vertex_descriptor v)
+	{
+		++polyline_size;
+		sstr << " " << skeleton[v].point;
+	}
+	void end_polyline() { out << polyline_size << sstr.str() << std::endl; }
+};
+void write_skeleton(const Skeleton3* S, std::ofstream& output)
+{
+    Output_polylines outputter(*S, output);
+    CGAL::split_graph_into_polylines(*S, outputter);
+}
+
 void skeleton_remove_collinear(SkeletonGraph3* SG)
 {
 	for (SkeletonGraph3::Branch_iterator b = SG->branches_begin(), end = SG->branches_end(); b != end; ++b)
