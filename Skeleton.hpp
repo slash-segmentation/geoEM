@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdio>
+#include <iostream>
 
 #include "GeometryTypes.hpp"
 #include "MedialAxisTransform.hpp"
