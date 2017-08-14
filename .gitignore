@@ -35,3 +35,6 @@ moc_*.cpp
 *_geodesic_cache.dat
 *.log
 .qglviewer.xml
+*.cgal
+*.obj
+*.csv
