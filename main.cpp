@@ -21,31 +21,7 @@
 #include <CGAL/auto_link/Qt.h>
 #endif
 
-#include <CGAL/boost/graph/split_graph_into_polylines.h>
 #include <CGAL/Subdivision_method_3.h>
-
-struct Display_polylines {
-	const Skeleton3& skeleton;
-	std::ofstream& out;
-	int polyline_size;
-	std::stringstream sstr;
-	Display_polylines(const Skeleton3& skeleton, std::ofstream& out)
-		: skeleton(skeleton), out(out)
-	{}
-	void start_new_polyline() {
-		polyline_size = 0;
-		sstr.str("");
-		sstr.clear();
-	}
-	void add_node(Skeleton3::vertex_descriptor v) {
-		++polyline_size;
-		sstr << " " << skeleton[v].point;
-	}
-	void end_polyline()
-	{
-		out << polyline_size << sstr.str() << "\n";
-	}
-};
 
 Intersection get_intersection(const FacetTree& ft, Point3 pt, Vector3 n)
 {
@@ -123,17 +99,6 @@ std::vector<Point3> compute_rings(const Polyhedron3* P, const Skeleton3* S)
 
 int main(int argc, char **argv)
 {
-#ifdef CREATE_GUI
-	QApplication app(argc, argv);
-	//app.setOrganizationDomain("inria.fr");
-	//app.setOrganizationName("INRIA");
-	app.setApplicationName("Cross Section");
-
-	// Import resources from libCGALQt4.
-	// See http://doc.trolltech.com/4.4/qdir.html#Q_INIT_RESOURCE
-	CGAL_QT_INIT_RESOURCES;
-#endif
-
 	CGAL::set_pretty_mode(std::cout);
 
 	///////////////////////////////////////////////////////////////////////////
@@ -148,6 +113,7 @@ int main(int argc, char **argv)
 	//std::string filename = "example-data/big_simplified.off";
 	std::string obj_name = "";
 
+	
 	///////////////////////////////////////////////////////////////////////////
 	// Settings
 	///////////////////////////////////////////////////////////////////////////
@@ -171,6 +137,7 @@ int main(int argc, char **argv)
 	}
 	std::cout << std::endl;
 
+	
 	///////////////////////////////////////////////////////////////////////////
 	// Refine the mesh
 	///////////////////////////////////////////////////////////////////////////
@@ -178,99 +145,76 @@ int main(int argc, char **argv)
 		CGAL::Subdivision_method_3::Loop_subdivision(*P, loop_subdivisions);
 	}
 
+	
+	///////////////////////////////////////////////////////////////////////////
+	// Construct the skeleton
+	///////////////////////////////////////////////////////////////////////////
+	// read with: S = read_cg("skeleton.cg");
 	Skeleton3* S;
-	std::vector<Polyhedron3*> segments;
 	if (use_mat)
 	{
-		///////////////////////////////////////////////////////////////////////////
 		// Construct the medial axis transform from the mesh
-		///////////////////////////////////////////////////////////////////////////
 		std::cout << "Constructing medial axis transform..." << std::endl;
 		MAT* mat;
 		{
 			boost::timer::auto_cpu_timer t;
 			mat = construct_medial_axis_transform(P, filename, obj_name);
 			//dump_mat(mat);
-			//MAT* mat = load_mat("output.mat", P);
+			//mat = load_mat("output.mat", P);
 		}
 		std::cout << std::endl;
 
-		///////////////////////////////////////////////////////////////////////////
 		// Construct the skeleton from the medial axis transform
-		///////////////////////////////////////////////////////////////////////////
 		std::cout << "Constructing skeleton from MAT..." << std::endl;
 		{
 			boost::timer::auto_cpu_timer t;
 			S = construct_skeleton(mat, 0.7, 0.0); // TODO: how to determine parameters?
-			//Skeleton3* S = read_cg("skeleton-small.cg");
 		}
 		std::cout << std::endl;
 		delete mat; // done with the medial axis transform
+	}
+	else
+	{
+		// Construct the skeleton using mean curvature flow
+		std::cout << "Constructing skeleton using mean curvature flow..." << std::endl;
+		{
+			boost::timer::auto_cpu_timer t;
+			S = construct_skeleton(P);
+		}
+		std::cout << std::endl;
+	}
 
-		///////////////////////////////////////////////////////////////////////////
-		// Segmention
-		///////////////////////////////////////////////////////////////////////////
+	
+	///////////////////////////////////////////////////////////////////////////
+	// Compute Segmention
+	///////////////////////////////////////////////////////////////////////////
+	// TODO: how to determine parameters?
+	std::vector<Polyhedron3*> segments;
+	if (use_mat || use_sdf)
+	{
+		// Segmention using SDF
 		std::cout << "Segmenting..." << std::endl;
 		{
 			boost::timer::auto_cpu_timer t;
 			segments = compute_segmentation(P,
 				2.0/3.0*CGAL_PI, 25, // SDF value calculation parameters (2/3*pi, 25)
 				15, 0.5);            // clustering parameters            (5, 0.26)
-				// TODO: how to determine parameters?
 		}
 		std::cout << std::endl;
 	}
 	else
 	{
-		///////////////////////////////////////////////////////////////////////////
-		// Construct the skeleton using mean curvature flow
-		///////////////////////////////////////////////////////////////////////////
-		std::cout << "Constructing skeleton using mean curvature flow..." << std::endl;
+		// Segmention using MCF skeleton
+		std::cout << "Segmenting using skeleton..." << std::endl;
 		{
 			boost::timer::auto_cpu_timer t;
-			S = construct_skeleton(P);
-			//Skeleton3* S = read_cg("skeleton-small.cg");
+			segments = compute_segmentation(P, S, 15 /*5*/, 0.5 /*0.26*/); 
 		}
 		std::cout << std::endl;
-
-		if (use_sdf)
-		{
-			///////////////////////////////////////////////////////////////////////////
-			// Segmention (without skeleton using SDF)
-			///////////////////////////////////////////////////////////////////////////
-			std::cout << "Segmenting..." << std::endl;
-			{
-				boost::timer::auto_cpu_timer t;
-				segments = compute_segmentation(P,
-					2.0/3.0*CGAL_PI, 25, // SDF value calculation parameters (2/3*pi, 25)
-					15, 0.5);            // clustering parameters            (5, 0.26)
-					// TODO: how to determine parameters?
-			}
-			std::cout << std::endl;
-		}
-		else
-		{
-			///////////////////////////////////////////////////////////////////////////
-			// Segmention using skeleton
-			///////////////////////////////////////////////////////////////////////////
-			std::cout << "Segmenting using skeleton..." << std::endl;
-			{
-				boost::timer::auto_cpu_timer t;
-				segments = compute_segmentation(P, S, 15 /*5*/, 0.5 /*0.26*/); // TODO: how to determine parameters?
-			}
-			std::cout << std::endl;
-		}
 	}
-
-
     // Save the skeleton in an easy-to-use format for analysis
-    std::ofstream output(output_skel);
-	output << std::setprecision(10);
-    Display_polylines display(*S, output);
-    CGAL::split_graph_into_polylines(*S, display);
-    output.close();
-
-
+	write_skeleton(S, output_skel, 10);
+	
 
 	///////////////////////////////////////////////////////////////////////////
 	// Get the "graph" version of the skeleton - easier to use
@@ -294,25 +238,18 @@ int main(int argc, char **argv)
 	delete S; // done with the skeleton
 
 
-
-	// Save the data to OBJ file including:
-	//	* The segments (colored [or white] and semi-transparent)
+	///////////////////////////////////////////////////////////////////////////
+	// Save the model as an OBJ file
+	///////////////////////////////////////////////////////////////////////////
+	// Model includes:
 	//	* The skeleton (solid black)
-	//	* The "branch point surface"   (optional, not complete yet)
-	std::vector<std::string> colors {
-		// missing Black
-		"Maroon", "Red", "Orange-Red", "Orange", "Gold", "Yellow", "Yellow-Green", "Lime",
-		"Green", "Spring-Green", "Cyan", "Dark-Cyan", "Dark-Turquoise", "Deep-Sky-Blue", "Navy",
-		"Medium-Blue", "Blue", "Royal-Blue", "Blue-Violet", "Indigo", "Purple", "Violet",
-		"Magenta", "Hot-Pink", "Pink", "Brown", "Sienna", "Dark-Gray", "Gray", "Silver", "White",
-	};
-
-	// The segments in the mesh in a myriad of colors
+	//	* The segments (semi-transparent colored [or white])
+	//	* The "branch point surface" (optional, not complete yet)
 	std::ofstream f(output_obj);
-	f << std::setprecision(10);	
+	f << std::setprecision(10);
 	size_t off = 0;
-	write_obj_file(f, segments, off, false, "colors.mtl", colors);
-
+	
+	// The skeleton graph as a series of cylinders
 	std::vector<Polyhedron3*> skeleton_cyl;
 	for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), Bend = SG->branches_end(); B != Bend; ++B)
 	{
@@ -330,20 +267,14 @@ int main(int argc, char **argv)
 	write_obj_file(f, skeleton_cyl, off, false, "", std::vector<std::string>{ "Black" });
 	for (std::vector<Polyhedron3*>::iterator itr = skeleton_cyl.begin(), end = skeleton_cyl.end(); itr != end; ++itr) { delete *itr; }
 
-	/*// The skeleton as black cylinders
-	std::vector<Segment3> skeleton;
-	skeleton.reserve(boost::num_edges(*S));
-	Skeleton3::edge_iterator E, Eend;
-	for (boost::tie(E, Eend) = boost::edges(*S); E != Eend; ++E)
-	{
-		skeleton.push_back(Segment3((*S)[boost::source(*E, *S)].point,
-									(*S)[boost::target(*E, *S)].point));
-	}
-	std::vector<Polyhedron3*> skeleton_cyl = segments2cylinders(skeleton, 2.5, 8);
-	write_obj_file(f, skeleton_cyl, off, false, "", std::vector<std::string>{ "Black" });
-	for (std::vector<Polyhedron3*>::iterator itr = skeleton_cyl.begin(), end = skeleton_cyl.end(); itr != end; ++itr) { delete *itr; }*/
-
-
+	// The segments in the mesh in a myriad of colors
+	std::vector<std::string> colors { // missing Black which is used for skeleton
+		"Maroon", "Red", "Orange-Red", "Orange", "Gold", "Yellow", "Yellow-Green", "Lime",
+		"Green", "Spring-Green", "Cyan", "Dark-Cyan", "Dark-Turquoise", "Deep-Sky-Blue", "Navy",
+		"Medium-Blue", "Blue", "Royal-Blue", "Blue-Violet", "Indigo", "Purple", "Violet",
+		"Magenta", "Hot-Pink", "Pink", "Brown", "Sienna", "Dark-Gray", "Gray", "Silver", "White",
+	};
+	write_obj_file(f, segments, off, false, "colors.mtl", colors);
 
 	// The "branch point surface" as black spheres at the moment - should be polylines as cylinders
 	if (output_bp_surface)
@@ -358,6 +289,9 @@ int main(int argc, char **argv)
     f.close();
 
 
+	///////////////////////////////////////////////////////////////////////////
+	// Calculate the intersection of planes along the skeleton
+	///////////////////////////////////////////////////////////////////////////
 	FacetTree ft(P->facets_begin(), P->facets_end(), *P);
 	std::ofstream out("output.csv");
 	for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), Bend = SG->branches_end(); B != Bend; ++B)
@@ -381,42 +315,14 @@ int main(int argc, char **argv)
 	out.close();
 
 
-	///////////////////////////////////////////////////////////////////////////
-	// Calculate the intersection of a random plane which is perpendicular to
-	// a point along the skeleton with the polyhedron
-	///////////////////////////////////////////////////////////////////////////
-	std::cout << "Calculating intersection..." << std::endl;
-	Point3 pt;
-	Intersection intersection;
-	{
-		boost::timer::auto_cpu_timer t_;
-
-		srand(time(nullptr));
-		SkeletonGraph3::Branch_handle B = SG->branches_begin() + (rand() % SG->size_of_branches());
-		SkeletonGraph3::Branch::iterator itr = B->begin();
-		std::advance(itr, rand() % (B->size() - 1));
-		Point3 p = *itr++, q = *itr;
-		Vector3 n = q - p;
-		pt = p + n / 2;
-
-		FacetTree ft(P->facets_begin(), P->facets_end(), *P);
-		intersection = get_intersection(ft, pt, n);
-
-		std::cout << "Intersections: " << intersection.count() << ", Total area: " << intersection.area() << std::endl;
-		for (size_t i = 0; i < intersection.count(); ++i)
-		{
-			std::cout << "  Area: " << intersection[i].area() << std::endl;
-			std::cout << "  Polygon: ";
-			for (auto itr = intersection[i].vertices_begin(), end = intersection[i].vertices_end(); itr != end; ++itr)
-			{
-				std::cout << *itr << ", ";
-			}
-			std::cout << std::endl;
-		}
-	}
-	std::cout << std::endl;
-
 #ifdef CREATE_GUI
+	QApplication app(argc, argv);
+	app.setApplicationName("Cross Section");
+
+	// Import resources from libCGALQt4.
+	// See http://doc.trolltech.com/4.4/qdir.html#Q_INIT_RESOURCE
+	CGAL_QT_INIT_RESOURCES;
+
 	/////////////////////////////////////////////////////////////////////////////
 	//// Setup the viewer
 	/////////////////////////////////////////////////////////////////////////////
