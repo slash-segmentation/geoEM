@@ -38,17 +38,6 @@ void VertexReader::v(const char *params)
 	if (n == EOF || n < 3 || (n == 3 && params[c1]) || (n == 4 && params[c2])) { throw std::invalid_argument("Error: invalid file format"); }
 	this->vertices.push_back(Point(x, y, z)); // NOTE: w is dropped since it is only used in free-form (which is not supported at the moment)
 }
-#ifdef POLYHEDRON_CACHED_NORMALS
-void VertexReader::vn(const char *params)
-{
-	double x, y, z;
-	int c, n = sscanf(params, "%lf %lf %lf%n", &x, &y, &z, &c);
-	if (n != 3 || params[c]) { throw std::invalid_argument("Error: invalid file format"); }
-	this->normals.push_back(Direction(x, y, z));
-}
-#else
-void VertexReader::vn(const char*) { }
-#endif
 
 void VertexReader::init(std::istream &in, void* extra)
 {
@@ -63,15 +52,11 @@ void VertexReader::init(std::istream &in, void* extra)
 	{
 		if (cmd[0] == 0) { continue; }
 		else if (streq_case_insensitive(cmd, "v")) { this->v(params); }
-		else if (streq_case_insensitive(cmd, "vn")) { this->vn(params); } // no-op if not caching normals
 		else { this->parse_cmd(cmd, params, extra); }
 	}
 
 	// Cleanup
 	this->vertices.shrink_to_fit();
-#ifdef POLYHEDRON_CACHED_NORMALS
-	this->normals.shrink_to_fit();
-#endif
 }
 #ifdef _MSC_VER
 #pragma endregion

@@ -176,6 +176,23 @@ inline Bbox3 facet_to_bbox3(Polyhedron3::Facet_const_handle f) { const Polyhedro
 inline Segment3 halfedge_to_segment3(Polyhedron3::Halfedge_const_handle he) { return Segment3(he->prev()->vertex()->point(), he->vertex()->point()); }
 
 
+// Polyhedron part normals
+inline Direction3 normal(const Polyhedron3::Facet_const_handle &f)
+{
+	// assumes triangle face
+	Polyhedron3::Halfedge_around_facet_const_circulator he = f->facet_begin();
+	Vector3 n = CGAL::normal(he->prev()->vertex()->point(), he->vertex()->point(), he->next()->vertex()->point());
+	return Direction3(normalized(n));
+}
+inline Direction3 normal(const Polyhedron3::Vertex_const_handle &v)
+{
+	Vector3 n = CGAL::NULL_VECTOR;
+	Polyhedron3::Halfedge_around_vertex_const_circulator he = v->vertex_begin(), end(he);
+	CGAL_For_all(he, end) { if (!he->is_border()) { n = n + to_vector(normal(he->facet())); } }
+	return Direction3(normalized(n));
+}
+
+
 // Polyhedron looping around a vertex/facet
 #define FOR_EDGES_AROUND_VERTEX(V, e) \
 	Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \

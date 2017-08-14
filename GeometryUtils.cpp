@@ -126,15 +126,7 @@ bool is_manifold(const Polyhedron3* P)
 	// Manifold requirements that are given and checked with P->is_valid()
 	// * Every edge belongs to two faces
 	// * Every vertex is surrounded by one sequence of edges and faces
-
-#if POLYHEDRON_CACHED_NORMALS
-	// * All normals face inside or outside, but not both (given, unless custom normals are present)
-	Polyhedron3::Facet_const_iterator f = P->facets_begin(), end = P->facets_end();
-	CGAL::Oriented_side os;
-	for (; f != end; ++f) { if (f->has_normal()) { Plane3 h = facet_to_plane3(f); os = h.oriented_side(Ray3(h.point(), f->normal()).point(1)); ++f; break; } }
-	for (; f != end; ++f) { if (f->has_normal()) { Plane3 h = facet_to_plane3(f); if (os != h.oriented_side(Ray3(h.point(), f->normal()).point(1))) { return false; } } }
-#endif
-
+	// * All normals face inside or outside, but not both (given)
 	// * Faces only intersect each other in common edges/vertices
 	// TODO: make faster
 	Progress progress("Checking manifold...", P->size_of_facets());

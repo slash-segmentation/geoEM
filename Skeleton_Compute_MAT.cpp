@@ -124,7 +124,7 @@ void compute_skeleton(MAT* mat, double e_flux_thd, double wt_thd)
 		boundaries[0].clear();
 		std::vector<Edges>::iterator boundaries_end = boundaries.begin();
 		{
-			bool connect_last, connect_first;
+			bool connect_last = false, connect_first = false;
 			MAT::Facet::Edge_around_facet_circulator e = f->edges_circ(), e_end = e;
 			CGAL_For_all(e, e_end)
 			{

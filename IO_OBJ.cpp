@@ -134,77 +134,6 @@ private:
     }
     raw_meshes::iterator o(const char *params) { return get_entry(params, this->obj_lookup, this->objs); }
     
-#ifdef POLYHEDRON_CACHED_NORMALS
-    facet f_v(char *s, bool has_vt)
-    {
-        facet f;
-        ssize_t v;
-        while (str_read_int(s, &s, &v) && // read "v"
-                (!has_vt || *s == '/' && str_skip_int(s+1, &s)) && // skip "vt"
-                (!*s || isspace(*s)))
-        {
-            // Add vertex to facet
-            if (v == 0 || (size_t)CGAL::abs(v) > this->vertices.size()) { break; }
-            f.push_back((v > 0) ? v - 1 : v + this->vertices.size());
-            s = ltrim(s);
-            if (!*s) { if (f.size() < 3) { break; } return f; } // Finished
-        }
-        throw std::invalid_argument("Error: invalid OBJ file format");
-    }
-    facet f_v_vn(char *s, bool has_vt)
-    {
-        // TODO: update for new reading system
-        b->begin_facet();
-        Builder::Vertex_handle vv;
-        ssize_t v, n;
-        size_t count = 0;
-        while (str_read_int(s, &s, &v) && // read "v"
-                *s++ == '/' && (!has_vt || str_skip_int(s, &s)) && // skip "vt"
-                *s == '/' && str_read_int(s+1, &s, &n) && (!*s || isspace(*s))) // read "vn"
-        {
-            // Add vertex with normal
-            if (v == 0 || (size_t)CGAL::abs(v) > num_vertices || n == 0 || (size_t)CGAL::abs(n) > num_normals) { break; }
-            v = (v > 0) ? v - 1 : v + num_vertices;
-            n = (n > 0) ? n - 1 : n + num_normals;
-            vv = b->vertex(v);
-            if (vv->has_normal() && vv->normal() != this->normals[n])
-            {
-                vv = b->add_vertex(vv->point());
-                v = total_vertices++;
-            }
-            vv->set_normal(this->normals[n]);
-            b->add_vertex_to_facet(v);
-            ++count;
-            s = ltrim(s);
-            if (!*s) { if (count < 3) { break; } b->end_facet(); return; } // Finished
-        }
-        b->end_facet();
-        throw std::invalid_argument("Error: invalid OBJ file format");
-    }
-    facet f(char *params)
-    {
-        // At least 3 points
-        // Each point is of one of the following forms, and in a face all points have the same form
-        //   v, v/vt, v//vn, v/vt/vn
-
-        // Call the proper function for the given form by parsing the first vertex
-        char *s = params;
-        if (str_skip_int(s, &s))
-        {
-            if (isspace(*s)) { return f_v(params, false); } // v
-            else if (*s++ == '/')
-            {
-                if (*s == '/' && str_skip_int(s+1, &s)) { return f_v_vn(params, false); } // v//vn
-                else if (str_skip_int(s, &s))
-                {
-                    if (isspace(*s)) { return f_v(params, true); } // v/vt
-                    else if (*s == '/' && str_skip_int(s+1, &s) && isspace(*s)) { return f_v_vn(params, true); } // v/vt/vn
-                }
-            }
-        }
-        throw std::invalid_argument("Error: invalid OBJ file format");
-    }
-#else
     facet f_v(char *s, bool has_vt, bool has_vn)
     {
         facet f;
@@ -246,7 +175,6 @@ private:
         }
         throw std::invalid_argument("Error: invalid OBJ file format");
     }
-#endif
 
     inline static bool o_matches(const char *params, const char* obj_name) { return strcmp(params, obj_name) == 0; }
     inline static bool g_matches(char *params, const char* grp_name) { char *name = strtok(params, " "); while (name != nullptr) { if (strcmp(name, grp_name) == 0) { return true; } name = strtok(nullptr, " "); } return false; }

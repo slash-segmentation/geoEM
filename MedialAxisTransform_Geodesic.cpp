@@ -15,7 +15,7 @@
 // triangulation stored in the mesh.
 // This uses the "flatexact_fast" method (instead of flatexact or Dijkstra methods).
 ///////////////////////////////////////////////////////////////////////////////////////
-void compute_geodesic(Polyhedron3* mesh)
+void compute_geodesic(Polyhedron3* mesh, VData& vdata)
 {
 	Progress progress("Computing geodesic distances...", mesh->size_of_vertices());
 	progress.start();
@@ -27,17 +27,26 @@ void compute_geodesic(Polyhedron3* mesh)
 	typedef handle_map<Polyhedron3::Vertex_const_handle, handle_set<Polyhedron3::Facet_const_handle>> LECF;
 	LECF le_cf(128); // the checking flag of the linking edges
 	handle_set<Polyhedron3::Vertex_const_handle> dv_df(128); // the done flag of the vertices having the Delaunay edge connected with
-	
+	HEData edata(mesh->size_of_halfedges());
+	for (Polyhedron3::Halfedge_iterator e = mesh->halfedges_begin(), end = mesh->halfedges_end(); e != end; ++e)
+	{
+		edata[e->id()] = HalfedgeData(e);
+	}
+
 	for (Polyhedron3::Vertex_iterator v = mesh->vertices_begin(), vend = mesh->vertices_end(); v != vend; ++v)
 	{
 		//std::cout << std::endl << std::endl << "source point: " << vertex_number(v, mesh) << std::endl;
-		GeodesicDistances& v_geod = v->extra()->geod;
+		GeodesicDistances& v_geod = vdata[v->id()].geod;
 
 		// Init flags
 		size_t n_inc_tri_verts = v_geod.size();
 		le_cf.clear(); le_cf.rehash((size_t)(1.1*n_inc_tri_verts));
 		dv_df.clear(); dv_df.rehash((size_t)(1.1*n_inc_tri_verts));
-		for (GeodesicDistances::const_iterator i = v_geod.begin(), end = v_geod.end(); i != end; ++i) { le_cf.insert(std::make_pair(i->first, handle_set<Polyhedron3::Facet_const_handle>((size_t)(1.1*i->first->extra()->n_inc_facets)))); }
+		for (GeodesicDistances::const_iterator i = v_geod.begin(), end = v_geod.end(); i != end; ++i)
+		{
+			le_cf.insert(std::make_pair(i->first, handle_set<Polyhedron3::Facet_const_handle>(
+				(size_t)(1.1*vdata[i->first->id()].n_inc_facets))));
+		}
 		
 		// Compute distance/direction to all adjacent vertices and get the starting edges (they are the opposite edges of the vertex we are circulating, not including border edges)
 		geod.clear();
@@ -48,13 +57,13 @@ void compute_geodesic(Polyhedron3* mesh)
 		{
 			Polyhedron3::Halfedge_const_handle ep = e->prev(); // the edge opposite v
 			Polyhedron3::Vertex_const_handle va = ep->vertex();
-			double d = e->extra()->length;
+			double d = edata[e->id()].length;
 			geod[va] = GeodesicDistance(d, (va->point()-v->point()) / d);
 			//std::cout << "the new geod for " << vertex_number(va, mesh) << " : " << d <<std::endl;
 			if (v_geod.count(va)) { dv_df.insert(va); }
 
 			//std::cout << "eid: " << edge_number(e, mesh) << " fid_inc:  " << facet_number(e->facet(), mesh) << std::endl;
-			if (!ep->is_border_edge()) { edge_heap.push_raw(ep->extra()->eid, d); }
+			if (!ep->is_border_edge()) { edge_heap.push_raw(edata[ep->id()].eid, d); }
 		}
 		edge_heap.heapify();
 
@@ -69,8 +78,8 @@ void compute_geodesic(Polyhedron3* mesh)
 			if (v1 == v || v2 == v) { continue; }
 
 			//const double L = distance(v2->point(), v1->point());
-			const double L = e->extra()->length;
-			const Kernel::FT L_2 = e->extra()->squared_length;
+			const double L = edata[e->id()].length;
+			const Kernel::FT L_2 = edata[e->id()].squared_length;
 			//std::cout << std::endl << std::endl;
 			//std::cout << edge_number(e, mesh) << " length " << L << std::endl;
 			double C1 = get_dist(geod, v1);
@@ -104,8 +113,8 @@ void compute_geodesic(Polyhedron3* mesh)
 
 				//const Kernel::FT d1_2 = CGAL::squared_distance(v0->point(), v1->point());
 				//const Kernel::FT d2_2 = CGAL::squared_distance(v0->point(), v2->point());
-				const Kernel::FT d1_2 = e1->extra()->squared_length;
-				const Kernel::FT d2_2 = e2->extra()->squared_length;
+				const Kernel::FT d1_2 = edata[e1->id()].squared_length;
+				const Kernel::FT d2_2 = edata[e2->id()].squared_length;
 				const Kernel::FT ncos_b1 = (d1_2 + L_2 - d2_2), dcos_b1_2 = 4 * L_2 * d1_2;
 				const Kernel::FT ncos_b2 = (d2_2 + L_2 - d1_2), dcos_b2_2 = 4 * L_2 * d2_2;
 				
@@ -163,7 +172,7 @@ void compute_geodesic(Polyhedron3* mesh)
 					{
 						//std::cout << "try to propagate to the adjacent facet: " << facet_number(e_circ->facet(), mesh) << std::endl;
 						double dist_circ = min2(dist, get_dist(geod, e_circ->prev()->vertex())); // endpoint of e_circ that is not v0
-						Polyhedron3::Halfedge_const_handle _e_circ = e_circ->extra()->eid;
+						Polyhedron3::Halfedge_const_handle _e_circ = edata[e_circ->id()].eid;
 						EdgeHeap::handle h = edge_heap.find(_e_circ);
 						if (h != nullptr)
 						{
@@ -181,7 +190,7 @@ void compute_geodesic(Polyhedron3* mesh)
 				}
 
 				LECF::iterator i = le_cf.find(v0);
-				if (i != le_cf.end() && i->second.insert(f).second && i->first->extra()->n_inc_facets == i->second.size()) { dv_df.insert(v0); }
+				if (i != le_cf.end() && i->second.insert(f).second && vdata[i->first->id()].n_inc_facets == i->second.size()) { dv_df.insert(v0); }
 				
 				// Switch to the incident facet
 				e = e->opposite();
@@ -208,7 +217,7 @@ void compute_geodesic(Polyhedron3* mesh)
 	progress.done();
 }
 // Same as compute_geodesic but attempts to cache the data to a file (or read it from that file)
-void compute_geodesic_using_cache(Polyhedron3* mesh, const std::string filename, const std::string objname)
+void compute_geodesic_using_cache(Polyhedron3* mesh, VData& vdata, const std::string filename, const std::string objname)
 {
 	std::string gdc_name = filename + (objname == "" ? "" : ("_" + objname)) + "_geodesic_cache.dat";
 	struct stat org_stat, gdc_stat;
@@ -223,7 +232,7 @@ void compute_geodesic_using_cache(Polyhedron3* mesh, const std::string filename,
 			CGAL::set_binary_mode(f);
 			for (Polyhedron3::Vertex_handle i = mesh->vertices_begin(), end = mesh->vertices_end(); i != end; ++i)
 			{
-				GeodesicDistances& gds = i->extra()->geod;
+				GeodesicDistances& gds = vdata[i->id()].geod;
 				std::vector<Polyhedron3::Vertex_const_handle> keys;
 				keys.reserve(gds.size());
 				for (GeodesicDistances::const_iterator j = gds.begin(), end = gds.end(); j != end; ++j) { keys.push_back(j->first); }
@@ -243,7 +252,7 @@ void compute_geodesic_using_cache(Polyhedron3* mesh, const std::string filename,
 	else
 	{
 CALCULATE:
-		compute_geodesic(mesh);
+		compute_geodesic(mesh, vdata);
 
 		std::fstream f(gdc_name, std::ios_base::out | std::ios_base::binary);
 		if (!f.bad())
@@ -251,7 +260,7 @@ CALCULATE:
 			CGAL::set_binary_mode(f);
 			for (Polyhedron3::Vertex_const_handle i = mesh->vertices_begin(), end = mesh->vertices_end(); i != end; ++i)
 			{
-				const GeodesicDistances& gds = i->extra()->geod;
+				const GeodesicDistances& gds = vdata[i->id()].geod;
 				std::vector<Polyhedron3::Vertex_const_handle> keys;
 				keys.reserve(gds.size());
 				for (GeodesicDistances::const_iterator j = gds.begin(), end = gds.end(); j != end; ++j) { keys.push_back(j->first); }

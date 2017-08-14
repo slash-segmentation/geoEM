@@ -21,32 +21,30 @@ private:
 	Polyhedron3::Vertex_const_handle _vtchs, _vtche; // vertices of the dual Delaunay
 	double _weight;
 	Vector3 _wgrad;
-	//Vector3 _normal;
 public:
-	MAT_Polygons_3_Facet(const Polyhedron3::Vertex_const_handle V1, const Polyhedron3::Vertex_const_handle V2)
-		: Polygons_3_Facet<P3>(), flags(0), _vtchs(V1), _vtche(V2) //, _normal(normalized(V1->point() - V2->point()))
+	MAT_Polygons_3_Facet(const Polyhedron3::Vertex_const_handle V1, const Polyhedron3::Vertex_const_handle V2, const VData& vdata)
+		: Polygons_3_Facet<P3>(), flags(0), _vtchs(V1), _vtche(V2)
 	{
-		const GeodesicDistance &gd_12 = V1->extra()->geod.at(V2), &gd_21 = V2->extra()->geod.at(V1);
+		const GeodesicDistance &gd_12 = vdata[V1->id()].geod.at(V2), &gd_21 = vdata[V2->id()].geod.at(V1);
 		this->_weight = gd_12.distance;
 
 		const Vector3 normal = normalized(V1->point() - V2->point());
 		const Vector3 &wgrad_a = gd_21.derivative, &wgrad_b = gd_12.derivative;
-		const Vector3 wgrad_a_proj = wgrad_a - (wgrad_a * /*this->_*/normal) * /*this->_*/normal; // normalized?
-		const Vector3 wgrad_b_proj = wgrad_b - (wgrad_b * /*this->_*/normal) * /*this->_*/normal; // normalized?
+		const Vector3 wgrad_a_proj = wgrad_a - (wgrad_a * normal) * normal; // normalized?
+		const Vector3 wgrad_b_proj = wgrad_b - (wgrad_b * normal) * normal; // normalized?
 		//std::cerr<<"dot(a, b): "<<wgrad_a_proj*wgrad_b_proj<<std::endl;
 		this->_wgrad = wgrad_a_proj + wgrad_b_proj;
 	}
 	inline MAT_Polygons_3_Facet(const Polyhedron3::Vertex_const_handle V1, const Polyhedron3::Vertex_const_handle V2, double weight, const Vector3& wgrad) //, const Vector3& normal
 		: Polygons_3_Facet<P3>(), flags(0),
 		_vtchs(V1), _vtche(V2),
-		_weight(weight), _wgrad(wgrad) //, _normal(normal)
+		_weight(weight), _wgrad(wgrad)
 	{
 	}
 	inline Polyhedron3::Vertex_const_handle touching_vertex_start() const { return this->_vtchs; }
 	inline Polyhedron3::Vertex_const_handle touching_vertex_end()   const { return this->_vtche; }
 	inline double weight() const { return this->_weight; }
 	inline const Vector3& wgrad() const { return this->_wgrad; }
-	//inline const Vector3& normal() const { return this->_normal; }
 protected:
 	virtual void finish() override;
 };

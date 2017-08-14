@@ -16,12 +16,8 @@ protected:
 
 	static char* read_command(std::istream &f, std::string& buf, char **params);
 	void v(const char *params);
-	void vn(const char *params);
 
 	std::vector<Point> vertices;
-#ifdef POLYHEDRON_CACHED_NORMALS
-	std::vector<Direction> normals;
-#endif
 
 	virtual void parse_cmd(const char* cmd, char* params, void* extra) = 0;
 	void init(std::istream &in, void* extra);

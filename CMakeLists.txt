@@ -174,7 +174,7 @@ endif (USE_PRECOMPILED_HEADERS)
 # Add static libraries to be compiled
 ###############################################################################
 
-add_library(GeometryTypes STATIC GeometryTypes.hpp Polyhedron_3.hpp Polygons_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
+add_library(GeometryTypes STATIC GeometryTypes.hpp Polygons_3.hpp SkeletonGraph_3.hpp GeometryTypes.cpp)
 add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Progress.hpp Progress.cpp Strings.hpp)
 add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp)

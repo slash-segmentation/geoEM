@@ -55,7 +55,7 @@ public:
         for (std::vector<Facet_handle>::iterator fit_it = facets.begin(), end = facets.end(); fit_it != end; ++fit_it)
         {
             Facet_handle fit = *fit_it;
-            CDT cdt(P_traits(to_vector(fit->normal())));
+            CDT cdt(P_traits(to_vector(normal(fit))));
 
             Facet::Halfedge_around_facet_circulator he = fit->facet_begin(), he_end(he);
             CDT::Vertex_handle previous, first;

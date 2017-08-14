@@ -74,7 +74,7 @@ GlPolyhedron::GlPolyhedron(const Polyhedron3* P) : nverts(0), nedges(0), nfaces(
 	for (Polyhedron3::Vertex_const_iterator V = P->vertices_begin(), end = P->vertices_end(); V != end; ++V)
 	{
 		const Point3& v = V->point();
-		const Direction3& n = V->normal();
+		const Direction3& n = normal(V);
 		verts[i  ] = CGAL::to_double(v.x());
 		norms[i++] = CGAL::to_double(n.dx());
 		verts[i  ] = CGAL::to_double(v.y());
@@ -189,7 +189,7 @@ void GlPolyhedron::render_faces(const Ray3& view, const QColor& color)
 	//  VERTICES_AROUND_FACET(f, v)
 	//	{
 	//		// Gouraud (smooth) shading has 1 normal per vertex
-	//		_gl_set_normal(v->normal());
+	//		_gl_set_normal(normal(v));
 	//		_gl_add_point(v->point());
 	//	}
 	//}

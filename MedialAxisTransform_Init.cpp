@@ -6,15 +6,17 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct AddIncidentVertices
 {
-	Vertex_extra* ve;
-	inline AddIncidentVertices(Vertex_extra* ve) : ve(ve) { }
-	inline AddIncidentVertices& operator=(const Triangulation::Vertex_handle& v) { this->ve->geod[v->original] = GeodesicDistance(-1); return (*this); }
+	VertexData& vd;
+	inline AddIncidentVertices(VertexData& vd) : vd(vd) { }
+	inline AddIncidentVertices& operator=(const Triangulation::Vertex_handle& v) { this->vd.geod[v->original] = GeodesicDistance(-1); return (*this); }
 	inline AddIncidentVertices& operator*()     { return (*this); }
 	inline AddIncidentVertices& operator++()    { return (*this); }
 	inline AddIncidentVertices& operator++(int) { return (*this); }
 };
-void mat_init(Triangulation& T, Polyhedron3* mesh)
+void mat_init(Triangulation& T, Polyhedron3* mesh, VData& vdata)
 {
+	CGAL::set_halfedgeds_items_id(*mesh);
+
 	// Build Delaunay triangulation (the dual of the Voronoi diagram)
 	// We record the original polyhedral vertex in each Delaunay vertex
 	T.tds().vertices().reserve(mesh->size_of_vertices());
@@ -58,12 +60,11 @@ void mat_init(Triangulation& T, Polyhedron3* mesh)
 	//std::cout << "Triangulation has: [all]    " << T.number_of_vertices()+1 << " vertices, " << T.number_of_edges()        << " edges, " << T.number_of_facets()        << " facets, " << T.number_of_cells()        << " cells" << std::endl;
 
 	// Setup the mesh with extra data
-	assert(!extras_are_used(mesh));
+	vdata.resize(mesh->size_of_vertices());
 	for (Triangulation::Finite_vertices_iterator vit = T.finite_vertices_begin(), end = T.finite_vertices_end(); vit != end; ++vit)
 	{
-		T.finite_adjacent_vertices(vit, AddIncidentVertices(vit->original->extra() = new Vertex_extra(vit->original)));
+		T.finite_adjacent_vertices(vit, AddIncidentVertices(vdata[vit->original->id()] = VertexData(vit->original)));
 	}
-	for (Polyhedron3::Halfedge_iterator e = mesh->halfedges_begin(), end = mesh->halfedges_end(); e != end; ++e) { e->extra() = new Halfedge_extra(e); }
 
 	// Make inside vs. outside cells and facet intersections
 	FacetTree tree(mesh->facets_begin(), mesh->facets_end(), *mesh);
@@ -82,9 +83,4 @@ void mat_init(Triangulation& T, Polyhedron3* mesh)
 			cn->facet_intersects_mesh[cn->index(c)] = intersects;
 		}
 	}
-}
-void mat_cleanup(Polyhedron3* mesh)
-{
-	for (Polyhedron3::Vertex_iterator   v = mesh->vertices_begin(),  end = mesh->vertices_end();  v != end; ++v) { delete v->extra(); v->extra() = nullptr; }
-	for (Polyhedron3::Halfedge_iterator e = mesh->halfedges_begin(), end = mesh->halfedges_end(); e != end; ++e) { delete e->extra(); e->extra() = nullptr; }
 }

@@ -4,6 +4,7 @@
 #include "GeometryUtils.hpp"
 
 #include <limits>
+#include <vector>
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Internal classes and typedefs for polyhedron extra geodesic data.
@@ -18,20 +19,30 @@ struct GeodesicDistance
 	explicit GeodesicDistance(double distance = MAX_DIST, const Vector3& derivative = Vector3()) : distance(distance), derivative(derivative) {}
 };
 typedef handle_map<Polyhedron3::Vertex_const_handle, GeodesicDistance> GeodesicDistances;
-inline double get_dist(const GeodesicDistances& gds, const Polyhedron3::Vertex_const_handle& v) { GeodesicDistances::const_iterator gd = gds.find(v); return (gd == gds.end()) ? MAX_DIST : gd->second.distance; }
+inline double get_dist(const GeodesicDistances& gds, const Polyhedron3::Vertex_const_handle& v)
+{
+	GeodesicDistances::const_iterator gd = gds.find(v); return (gd == gds.end()) ? MAX_DIST : gd->second.distance;
+}
 
-struct Vertex_extra // For Polyhedron3::Vertex::extra()
+struct VertexData
 {
 	GeodesicDistances geod;
 	size_t n_inc_facets;
-	Vertex_extra(Polyhedron3::Vertex_const_handle v) : geod(), n_inc_facets(num_inc_facets(v)) { }
+	VertexData() : geod(), n_inc_facets() { }
+	VertexData(Polyhedron3::Vertex_const_handle v) : geod(), n_inc_facets(num_inc_facets(v)) { }
 private:
 	static size_t num_inc_facets(Polyhedron3::Vertex_const_handle v) { size_t n = 0; FOR_FACETS_AROUND_VERTEX(v, f) { if (f != Polyhedron3::Face_handle()) { ++n; } } return n; }
 };
-struct Halfedge_extra // For Polyhedron3::Halfedge::extra()
+typedef std::vector<VertexData> VData;
+
+struct HalfedgeData
 {
-	const Kernel::FT squared_length;
-	const double length;
-	const Polyhedron3::Halfedge_const_handle eid; // the min2() of e and e->opposite(), basically making the edge unique regardless of half-edge
-	Halfedge_extra(Polyhedron3::Halfedge_const_handle e) : squared_length(CGAL::squared_distance(e->vertex()->point(), e->prev()->vertex()->point())), length(dbl_sqrt(squared_length)), eid(min2(e, e->opposite())) { }
+	Kernel::FT squared_length;
+	double length;
+	Polyhedron3::Halfedge_const_handle eid; // the min2() of e and e->opposite(), basically making the edge unique regardless of half-edge
+	HalfedgeData() : squared_length(), length(), eid() { }
+	HalfedgeData(Polyhedron3::Halfedge_const_handle e) :
+		squared_length(CGAL::squared_distance(e->vertex()->point(), e->prev()->vertex()->point())),
+		length(dbl_sqrt(squared_length)), eid(min2(e, e->opposite())) { }
 };
+typedef std::vector<HalfedgeData> HEData;

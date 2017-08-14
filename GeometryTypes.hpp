@@ -100,13 +100,23 @@ typedef CGAL::Triangle_3<Kernel>    Triangle3;
 DECLARE_TEMPLATE(CGAL::Plane_3<Kernel>)
 typedef CGAL::Plane_3<Kernel>       Plane3;
 
-#include "Polyhedron_3.hpp"
-//DECLARE_TEMPLATE(Polyhedron_3<Kernel>)
-typedef Polyhedron_3<Kernel> Polyhedron3;
-
-#include "Polygons_3.hpp"
-DECLARE_TEMPLATE(Polygons_3<Kernel>)
-typedef Polygons_3<Kernel>			Polygons3;
+// Using a vector backing makes everything slightly faster but prevents polyhedrons being used for
+// many operations such as surface triangulation and mesh simplification. If vector is not used,
+// we at least provide a memory pool for the list to allocate memory from to speed it up.
+//#define POLYHEDRON_USE_VECTOR
+#include <CGAL/Polyhedron_3.h>
+#include <CGAL/Polyhedron_items_with_id_3.h>
+#include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
+#include <CGAL/IO/Polyhedron_iostream.h>
+#if defined(POLYHEDRON_USE_VECTOR)
+#include <CGAL/HalfedgeDS_vector.h>
+//DECLARE_TEMPLATE(CGAL::Polyhedron_3<Kernel, ...>)
+typedef CGAL::Polyhedron_3<Kernel, CGAL::Polyhedron_items_with_id_3, CGAL::HalfedgeDS_vector> Polyhedron3;
+#else
+#include <boost/pool/pool_alloc.hpp>
+//DECLARE_TEMPLATE(CGAL::Polyhedron_3<Kernel, ...>)
+typedef CGAL::Polyhedron_3<Kernel, CGAL::Polyhedron_items_with_id_3, CGAL::HalfedgeDS_default, boost::fast_pool_allocator<int>> Polyhedron3;
+#endif
 
 #include <boost/graph/adjacency_list.hpp>
 #include <CGAL/extract_mean_curvature_flow_skeleton.h>

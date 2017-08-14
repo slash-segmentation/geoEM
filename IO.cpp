@@ -20,9 +20,6 @@ const std::string mesh_file_usage =
     "  OFF - specify a single 3D mesh each\n"
     "In both formats normals, colors, textures, etc are all ignored. Multi-object OFF\n"
     "files are not supported."
-#ifdef POLYHEDRON_CACHED_NORMALS
-    " Reading OBJ files support normals."
-#endif
     "\n\n"
     "Filenames can also include options for reading/writing the files. They are given\n"
     "after a colon (:) after the filename as a comma-separated list of name=value\n"
