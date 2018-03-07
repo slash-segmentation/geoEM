@@ -50,10 +50,13 @@ public:
 		if (n == 0)
 		{
 			// Base case: add a triangle
+			size_t va = vert_ind(a, B, map);
+			size_t vb = vert_ind(b, B, map);
+			size_t vc = vert_ind(c, B, map);
 			B.begin_facet();
-			B.add_vertex_to_facet(vert_ind(a, B, map));
-			B.add_vertex_to_facet(vert_ind(b, B, map));
-			B.add_vertex_to_facet(vert_ind(c, B, map));
+			B.add_vertex_to_facet(va);
+			B.add_vertex_to_facet(vb);
+			B.add_vertex_to_facet(vc);
 			B.end_facet();
 		}
 		else
