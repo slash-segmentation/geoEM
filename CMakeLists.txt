@@ -23,25 +23,30 @@ endif (${KERNEL_INEXACT})
 # Load Boost
 find_package(Boost COMPONENTS timer chrono system thread)
 set(LIBRARIES ${Boost_LIBRARIES})
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 if (CREATE_GUI)
 	# Load CGAL (with Qt)
 	find_package(CGAL REQUIRED COMPONENTS Qt5 Eigen3 MPFR GMP)
 	include(${CGAL_USE_FILE})
 	set(LIBRARIES ${LIBRARIES} ${CGAL_LIBRARIES} ${CGAL_3RD_PARTY_LIBRARIES})
-	
+
 	# Load OpenGL
 	find_package(OpenGL REQUIRED)
 	set(LIBRARIES ${LIBRARIES} ${OPENGL_gl_LIBRARY} ${OPENGL_glu_LIBRARY})
 
 	# Load Qt package including Core, Gui, Xml, and OpenGL.
-	find_package(Qt5 REQUIRED COMPONENTS Core Gui OpenGl Xml)
-	include_directories(${Qt5OpenGL_INCLUDE_DIRS}) # also add include directories for dependencies QtCore and QtGui
+	find_package(Qt5 REQUIRED COMPONENTS Core Gui OpenGL Xml)
+	include_directories(${QtCore_INCLUDE_DIRS})
+	include_directories(${QtGui_INCLUDE_DIRS})
+	include_directories(${Qt5OpenGL_INCLUDE_DIRS})
 	include_directories(${Qt5Xml_INCLUDE_DIRS})
+	add_definitions(${Qt5Core_DEFINITIONS})
+	add_definitions(${Qt5Gui_DEFINITIONS})
 	add_definitions(${Qt5OpenGL_DEFINITIONS})
 	add_definitions(${Qt5Xml_DEFINITIONS})
 	set(LIBRARIES ${LIBRARIES} ${Qt5Core_LIBRARIES} ${Qt5Gui_LIBRARIES} ${Qt5OpenGL_LIBRARIES} ${Qt5Xml_LIBRARIES})
-	
+
 	# Load QGlViewer package
 	find_package(QGLViewer REQUIRED)
 	set(LIBRARIES ${LIBRARIES} ${QGLVIEWER_LIBRARIES})
@@ -60,6 +65,7 @@ endif (CREATE_GUI)
 # Adjust the compiler/linker flags
 ###############################################################################
 
+add_definitions(-DCGAL_EIGEN3_ENABLED)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
 set(STATIC_LIBRARY_FLAGS_DEBUG "${STATIC_LIBRARY_FLAGS_DEBUG} -D_DEBUG")
 if (CMAKE_COMPILER_IS_GNUCXX)
@@ -103,7 +109,7 @@ endif ()
 if (USE_PRECOMPILED_HEADERS)
 	set(PCH PrecompiledHeader)
 	set(PCH_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/${PCH}.hpp")
-		
+
 	if (MSVC)
 		set(PCH_OUTDIR "${PROJECT_BINARY_DIR}\\${PCH}.dir\\$(Configuration)")
 		string(REPLACE "/" "\\" PCH_OUTDIR "${PCH_OUTDIR}")
@@ -122,7 +128,7 @@ if (USE_PRECOMPILED_HEADERS)
 				add_dependencies(${TARGET} ${PCH})
 				target_link_libraries(${TARGET} "${PCH_OUTOBJ}")
 				add_custom_command(TARGET ${TARGET} PRE_BUILD
-					COMMAND 
+					COMMAND
 						IF EXIST \"${PCH_OUTPDB}\" ( \n
 							COPY \"${PCH_OUTPDB}\" \"$(IntDir)\" /Y \n
 							IF NOT EXIST \"$(IntDir)vc$(PlatformToolsetVersion).pdb\" ( type NUL > \"$(IntDir)vc$(PlatformToolsetVersion).pdb\" ) \n
@@ -185,6 +191,9 @@ set(MY_LIBRARIES IO Intersection MedialAxisTransform Skeleton Segmentation Geome
 if (CREATE_GUI)
 	add_library(Viewer STATIC Viewer.hpp Viewer.cpp GLRender.hpp GLRender.cpp glext.h PolygonSorter.hpp PolygonSorter.cpp)
 	list(APPEND MY_LIBRARIES Viewer)
+	if (CMAKE_COMPILER_IS_GNUCXX)
+		set_target_properties(Viewer PROPERTIES COMPILE_FLAGS "-fPIC")
+	endif (CMAKE_COMPILER_IS_GNUCXX)
 endif (CREATE_GUI)
 
 if (USE_PRECOMPILED_HEADERS)
@@ -215,4 +224,3 @@ target_link_libraries(mesh-simplifier ${MY_LIBRARIES} ${LIBRARIES})
 if (USE_PRECOMPILED_HEADERS)
 	add_pch(mesh-simplifier)
 endif (USE_PRECOMPILED_HEADERS)
-
