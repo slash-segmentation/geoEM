@@ -35,8 +35,8 @@ void write_skeleton(const Skeleton3* S, std::ofstream& output);
 inline void write_skeleton(const Skeleton3* S, const char* filename, int precision=10)
 {
     std::ofstream output(filename);
-	output << std::setprecision(10);
-	write_skeleton(S, output);
+    output << std::setprecision(10);
+    write_skeleton(S, output);
     output.close();
 }
 
