@@ -100,7 +100,7 @@ class MAT_Polygons_3_Edge : public Polygons_3_Edge<P3>
 public:
 	FLAGS_DECL(Flags, Skeleton, StableSkeleton, Visited);
 	Flags flags;
-	MAT_Polygons_3_Edge(typename base::Vertex_handle v, typename base::Facet_handle f) : Polygons_3_Edge<P3>(v, f), flags(0) { }
+	MAT_Polygons_3_Edge(typename base::Vertex_handle v, typename base::Facet_handle f) : Polygons_3_Edge<P3>(v, f), _flux(0.0), flags(0) { }
 	inline double flux() const { return this->_flux; }
 };
 
