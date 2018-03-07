@@ -135,5 +135,6 @@ typedef CGAL::Bbox_3                Bbox3;
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
-DECLARE_TEMPLATE(CGAL::AABB_tree<CGAL::AABB_traits<Kernel, CGAL::AABB_face_graph_triangle_primitive<const Polyhedron3>>>)
+//DECLARE_TEMPLATE(CGAL::AABB_tree<CGAL::AABB_traits<Kernel, CGAL::AABB_face_graph_triangle_primitive<const Polyhedron3>>>)
 typedef CGAL::AABB_tree<CGAL::AABB_traits<Kernel, CGAL::AABB_face_graph_triangle_primitive<const Polyhedron3>>> FacetTree;
+
