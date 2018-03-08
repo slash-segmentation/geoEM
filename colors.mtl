@@ -217,7 +217,7 @@ Ks 0.000 0.000 0.000
 d 0.75
 illum 2
 
-# This one is solid (no trasparency)
+# This one is solid (no transparency)
 newmtl Black
 Ka 0.000 0.000 0.000
 Kd 0.000 0.000 0.000
