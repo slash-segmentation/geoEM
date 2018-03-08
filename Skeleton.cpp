@@ -86,54 +86,6 @@ SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
     return s2g.g;
 }
 
-/*
-SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
-{
-    typedef std::unordered_map<Skeleton3::vertex_descriptor, SkeletonGraph3::BranchPoint_handle> vert2bp;
-    vert2bp branch_points;
-
-    SkeletonGraph3* SG = new SkeletonGraph3();
-
-    // Find and create all branch points (have degree >2)
-    Skeleton3::vertex_iterator V, Vend;
-    for (boost::tie(V, Vend) = boost::vertices(*S); V != Vend; ++V)
-    {
-        if (boost::out_degree(*V, *S) > 2)
-        {
-            branch_points.insert(std::make_pair(*V, SG->add_branch_point((*S)[*V].point)));
-        }
-    }
-
-    // Search out from every branch point to make branches
-    for (vert2bp::iterator bp = branch_points.begin(), end = branch_points.end(); bp != end; ++bp)
-    {
-        Skeleton3::out_edge_iterator E, Eend;
-        for (boost::tie(E, Eend) = boost::out_edges(bp->first, *S); E != Eend; ++E)
-        {
-            // Travel along edge until we hit a vertex that doesn't have degree 2
-            SkeletonGraph3::Branch b;
-            Skeleton3::vertex_descriptor v = bp->first;
-            Skeleton3::edge_descriptor e = *E;
-            for(;;)
-            {
-                b.push_back((*S)[v].point);
-                v = (v == boost::source(e, *S)) ? boost::target(e, *S) : boost::source(e, *S);
-                if (boost::out_degree(v, *S) != 2) { break; }
-                Skeleton3::out_edge_iterator EX, EXend;
-                boost::tie(EX, EXend) = boost::out_edges(v, *S);
-                e = *((e == *EX) ? ++EX : EX);
-            }
-            b.push_back((*S)[v].point);
-            SG->add_branch(bp->second, boost::out_degree(v, *S) == 1 ? SkeletonGraph3::BranchPoint_handle() : branch_points[v], b);
-        }
-    }
-
-    SG->shrink_to_fit();
-    return SG;
-}
-*/
-
-
 struct Output_polylines {
     const Skeleton3& skeleton;
     std::ofstream& out;
