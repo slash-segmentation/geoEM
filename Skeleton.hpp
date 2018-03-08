@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "GeometryTypes.hpp"
-#include "MedialAxisTransform.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // This file declares many functions for creating and working with skeletons.
@@ -11,19 +10,7 @@
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Construct the curve-skeleton of a polygon mesh using its medial axis with geodesic.
-// The flux and weight threshold parameters control the aggressiveness of the trimming
-// process.
-//
-// Weight threshold must be >= 0 (0 ensures nothing is trimmed due to its weight)
-// Flux threshold must be [0,1)
-///////////////////////////////////////////////////////////////////////////////////////
-Skeleton3* construct_skeleton(MAT* mat, double flux_thd = 0.5, double wt_thd = 0.0);
-
-
-///////////////////////////////////////////////////////////////////////////////////////
-// Construct the curve-skeleton of a polygon mesh using the mean curvature flow method
-// built into CGAL.
+// Construct the curve-skeleton of a polygon mesh using the mean curvature flow method.
 ///////////////////////////////////////////////////////////////////////////////////////
 Skeleton3* construct_skeleton(const Polyhedron3* P);
 
