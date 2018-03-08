@@ -26,7 +26,7 @@ void remove_collinear_points(std::list<Point2>* pts, bool cyclic)
     // If collinear we remove q and make: <p,q,r> = <p,r,r+1>
     // If not collinear we advance each: <p,q,r> = <q,r,r+1>
     // If the list is cyclic (e.g. making a closed polygon) then we need to make sure to also consider the triplets that cross the ends (at least two to check - more if one of those is collinear)
-    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic) 
+    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic)
     for (; r != pts->end(); ++r) { if (CGAL::collinear(*p, *q, *r)) { q = r = pts->erase(q); } else { p = q; q = r; } }
     if (cyclic && pts->size() >= 3 && CGAL::collinear(*p, *q, pts->front())) { pts->erase(q); }
 }
@@ -39,7 +39,7 @@ void remove_collinear_points(std::list<Point3>* pts, bool cyclic)
     // If collinear we remove q and make: <p,q,r> = <p,r,r+1>
     // If not collinear we advance each: <p,q,r> = <q,r,r+1>
     // If the list is cyclic (e.g. making a closed polygon) then we need to make sure to also consider the triplets that cross the ends (at least two to check - more if one of those is collinear)
-    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic) 
+    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic)
     for (; r != pts->end(); ++r) { if (CGAL::collinear(*p, *q, *r)) { q = r = pts->erase(q); } else { p = q; q = r; } }
     if (cyclic && pts->size() >= 3 && CGAL::collinear(*p, *q, pts->front())) { pts->erase(q); }
 }
@@ -52,7 +52,7 @@ void remove_nearly_collinear_points(std::list<Point2>* pts, Kernel::FT threshold
     // If collinear we remove q and make: <p,q,r> = <p,r,r+1>
     // If not collinear we advance each: <p,q,r> = <q,r,r+1>
     // If the list is cyclic (e.g. making a closed polygon) then we need to make sure to also consider the triplets that cross the ends (at least two to check - more if one of those is collinear)
-    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic) 
+    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic)
     for (; r != pts->end(); ++r) { Kernel::FT a = CGAL::area(*p,*q,*r); if (a*a < threshold) { q = r = pts->erase(q); } else { p = q; q = r; } }
     if (cyclic && pts->size() >= 3) { Kernel::FT a = CGAL::area(*p,*q,pts->front()); if (a*a < threshold) { pts->erase(q); } }
 }
@@ -65,7 +65,7 @@ void remove_nearly_collinear_points(std::list<Point3>* pts, Kernel::FT threshold
     // If collinear we remove q and make: <p,q,r> = <p,r,r+1>
     // If not collinear we advance each: <p,q,r> = <q,r,r+1>
     // If the list is cyclic (e.g. making a closed polygon) then we need to make sure to also consider the triplets that cross the ends (at least two to check - more if one of those is collinear)
-    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic) 
+    iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic)
     for (; r != pts->end(); ++r) { if (CGAL::squared_area(*p, *q, *r) < threshold) { q = r = pts->erase(q); } else { p = q; q = r; } }
     if (cyclic && pts->size() >= 3 && CGAL::squared_area(*p, *q, pts->front()) < threshold) { pts->erase(q); }
 }
@@ -79,6 +79,30 @@ Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f)
     return Polygon2(pts.begin(), pts.end());
 }
 
+// Calculate the volume of a polyhedron using Gauss's theorem / divergence theorem
+Kernel::FT volume(const Polyhedron3* P)
+{
+    // To increase numerical stability make the 4th point in every tetrahedron the centriod of the
+    // polyhedron instead of some random point like the origin.
+    Kernel::FT x = 0, y = 0, z = 0;
+    for (auto v = P->vertices_begin(), v_end = P->vertices_end(); v != v_end; ++v)
+    {
+        x += v->point().x(); y += v->point().y(); z += v->point().z();
+    }
+    Point3 center(x / Kernel::FT(P->size_of_vertices()),
+                  y / Kernel::FT(P->size_of_vertices()),
+                  z / Kernel::FT(P->size_of_vertices()));
+    Kernel::FT volume = 0;
+    for (auto f = P->facets_begin(), f_end = P->facets_end(); f != f_end; ++f)
+    {
+        auto he = f->facet_begin();
+        volume += CGAL::volume((he++)->vertex()->point(),
+                               (he++)->vertex()->point(),
+                               (he++)->vertex()->point(), center);
+        assert(he == f->facet_begin()); // must be a triangular mesh
+    }
+    return volume;
+}
 bool is_not_degenerate(const Polyhedron3* P)
 {
     // Check uniqueness of vertices

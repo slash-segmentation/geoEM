@@ -228,6 +228,7 @@ inline Vector3 random_nonnull_vector() { Vector3 v = random_vector(); while (v =
 
 
 // Other utilities
+Kernel::FT volume(const Polyhedron3* P);
 bool is_not_degenerate(const Polyhedron3* P);
 bool is_manifold(const Polyhedron3* P); // currently extremely slow
 bool point_in_polyhedron(const Point3& p, const FacetTree& tree);
