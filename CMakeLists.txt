@@ -186,7 +186,7 @@ add_library(GeometryTypes STATIC GeometryTypes.hpp Polygons_3.hpp SkeletonGraph_
 add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Progress.hpp Progress.cpp Strings.hpp)
 add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp PolyBuilder.hpp)
-add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp Skeleton_Compute_MCF.cpp)
+add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp)
 add_library(Segmentation STATIC Segmentation.hpp Segmentation.cpp)
 set(MY_LIBRARIES IO Intersection Skeleton Segmentation GeometryTypes Utilities)
 if (CREATE_GUI)

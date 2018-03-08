@@ -3,9 +3,39 @@
 #include "GeometryUtils.hpp"
 
 #include <CGAL/boost/graph/split_graph_into_polylines.h>
+#include <CGAL/Mean_curvature_flow_skeletonization.h>
 
 #include <algorithm>
 
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Constructs the skeleton using mean curvature flow.
+///////////////////////////////////////////////////////////////////////////////////////
+Skeleton3* construct_skeleton(const Polyhedron3* P)
+{
+    Skeleton3* S = new Skeleton3();
+    CGAL::Mean_curvature_flow_skeletonization<Polyhedron3> skeletonizer(*P);
+
+    // Default values:
+    // max triangle angle = 110 degrees
+    // min edge length = 0.002 * diagonal of bounding box
+    // max iterations = 500
+    // area variation factor = 0.0001
+    // quality speed tradeoff = 0.1             - larger values result in high quality skeletons
+    // is medially centered = true
+    // medially centered speed tradeoff = 0.2   - larger value is more accurate to medial but not as smooth or fast
+    //skeletonizer.set_max_iterations(...);
+    //skeletonizer.set_quality_speed_tradeoff(...);
+
+    skeletonizer.contract_until_convergence();
+    skeletonizer.convert_to_skeleton(*S);
+    return S;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Other skeleton utilties.
+///////////////////////////////////////////////////////////////////////////////////////
 struct Skeleton2Graph
 {
     typedef SkeletonGraph3::BranchPoint_handle BPH;
@@ -31,7 +61,7 @@ struct Skeleton2Graph
 
         Point3 a = branch.front(), b = branch.back();
         pt2bp_map::iterator itr;
-        
+
         // TODO: this creates branch points at the terminals!
 
         // Find or add the starting branch point
@@ -73,7 +103,7 @@ SkeletonGraph3* construct_skeleton_graph(const Skeleton3* S)
             branch_points.insert(std::make_pair(*V, SG->add_branch_point((*S)[*V].point)));
         }
     }
-    
+
     // Search out from every branch point to make branches
     for (vert2bp::iterator bp = branch_points.begin(), end = branch_points.end(); bp != end; ++bp)
     {
