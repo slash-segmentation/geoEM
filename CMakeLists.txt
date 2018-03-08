@@ -117,7 +117,7 @@ if (USE_PRECOMPILED_HEADERS)
 		set(PCH_OUTOBJ "${PCH_OUTDIR}\\${PCH}.obj")
 		set(PCH_OUTPDB "${PCH_OUTDIR}\\vc$(PlatformToolsetVersion).pdb")
 
-		add_library(${PCH} OBJECT ${PCH}.hpp ${PCH}.cpp) # TODO: OBJECT here should NOT produde a .lib but it does
+		add_library(${PCH} OBJECT ${PCH}.hpp ${PCH}.cpp) # TODO: OBJECT here should NOT produce a .lib but it does
 		set_source_files_properties(${PCH}.cpp PROPERTIES COMPILE_FLAGS "/Yc\"${PCH_SOURCE}\" /Fd\"${PCH_OUTPDB}\" /Fo\"${PCH_OUTOBJ}\" /Fp\"${PCH_OUTPUT}\" /FI\"${PCH_SOURCE}\" /Zm140")
 		set_target_properties(${PCH} PROPERTIES STATIC_LIBRARY_FLAGS_RELEASE "/LTCG")
 
@@ -149,8 +149,10 @@ if (USE_PRECOMPILED_HEADERS)
 		foreach (ITEM ${DIR_FLAGS})
 			list(APPEND PCH_FLAGS "-I${ITEM}")
 		endforeach (ITEM)
-		get_directory_property(DIR_FLAGS DEFINITIONS)
-		list(APPEND PCH_FLAGS ${DIR_FLAGS})
+		get_directory_property(DIR_FLAGS COMPILE_DEFINITIONS)
+		foreach (ITEM ${DIR_FLAGS})
+			list(APPEND PCH_FLAGS "-D${ITEM}")
+		endforeach (ITEM)
 		separate_arguments(PCH_FLAGS)
 
 		add_custom_command(
@@ -159,7 +161,7 @@ if (USE_PRECOMPILED_HEADERS)
 			DEPENDS ${PCH_SOURCE}
 		)
 		add_custom_target(${PCH} DEPENDS ${PCH_OUTPUT})
-		target_link_libraries(${PCH} ${LIBRARIES})
+		#target_link_libraries(${PCH} ${LIBRARIES})
 
 		function(add_pch) # TARGETS...
 			foreach(TARGET ${ARGN})
