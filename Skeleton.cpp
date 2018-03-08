@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 // Constructs the skeleton using mean curvature flow.
 ///////////////////////////////////////////////////////////////////////////////////////
-Skeleton3* construct_skeleton(const Polyhedron3* P)
+Skeleton3* construct_skeleton(const Polyhedron3* P, double quality_factor)
 {
     Skeleton3* S = new Skeleton3();
     CGAL::Mean_curvature_flow_skeletonization<Polyhedron3> skeletonizer(*P);
@@ -24,8 +24,7 @@ Skeleton3* construct_skeleton(const Polyhedron3* P)
     // quality speed tradeoff = 0.1             - larger values result in high quality skeletons
     // is medially centered = true
     // medially centered speed tradeoff = 0.2   - larger value is more accurate to medial but not as smooth or fast
-    //skeletonizer.set_max_iterations(...);
-    //skeletonizer.set_quality_speed_tradeoff(...);
+    skeletonizer.set_quality_speed_tradeoff(quality_factor);
 
     skeletonizer.contract_until_convergence();
     skeletonizer.convert_to_skeleton(*S);
