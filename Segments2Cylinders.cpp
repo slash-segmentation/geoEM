@@ -1,6 +1,7 @@
 #include "Segments2Cylinders.hpp"
 
-#include <GeometryUtils.hpp>
+#include "GeometryUtils.hpp"
+
 #include <CGAL/Polyhedron_incremental_builder_3.h>
 
 #include <math.h>
