@@ -53,7 +53,7 @@ typedef CGAL::Ray_2<Kernel>         Ray2;
 
 #include <CGAL/Line_2.h>
 DECLARE_TEMPLATE(CGAL::Line_2<Kernel>)
-typedef CGAL::Line_2<Kernel>		Line2;
+typedef CGAL::Line_2<Kernel>        Line2;
 
 #include <CGAL/Triangle_2.h>
 DECLARE_TEMPLATE(CGAL::Triangle_2<Kernel>)
@@ -125,7 +125,7 @@ typedef CGAL::Mean_curvature_flow_skeletonization<Polyhedron3>::Skeleton Skeleto
 
 #include "SkeletonGraph_3.hpp"
 DECLARE_TEMPLATE(SkeletonGraph_3<Kernel>)
-typedef SkeletonGraph_3<Kernel>		SkeletonGraph3;
+typedef SkeletonGraph_3<Kernel>     SkeletonGraph3;
 
 #include <CGAL/Bbox_3.h>
 typedef CGAL::Bbox_3                Bbox3;

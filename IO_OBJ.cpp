@@ -18,48 +18,48 @@
 #endif
 void write_obj_file(const char* filename, const std::map<std::string, Polyhedron3*>& P, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	std::ofstream f(filename);
-	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
-	size_t off = 0;
-	write_obj_file(f, P, off, as_objects, matfile, mtls);
-	f.close();
+    std::ofstream f(filename);
+    f << "# OBJ File saved from geoEM" << std::endl << std::endl;
+    size_t off = 0;
+    write_obj_file(f, P, off, as_objects, matfile, mtls);
+    f.close();
 }
 void write_obj_file(std::ostream &out, const std::map<std::string, Polyhedron3*>& P, size_t& off, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	size_t i = 0;
-	if (matfile != "") { out << "mtllib " << matfile << std::endl << std::endl; }
-	// TODO: handle no-name and "default" polyhedrons (possibly not even necessary)
-	for (std::map<std::string, Polyhedron3*>::const_iterator itr = P.begin(), end = P.end(); itr != end; ++itr, ++i)
-	{
-		out << (as_objects ? "o " : "g ") << itr->first << std::endl;
-		if (mtls.size() > i) { out << "usemtl " << mtls[i] << std::endl; }
-		write_obj(out, itr->second, off);
-	}
+    size_t i = 0;
+    if (matfile != "") { out << "mtllib " << matfile << std::endl << std::endl; }
+    // TODO: handle no-name and "default" polyhedrons (possibly not even necessary)
+    for (std::map<std::string, Polyhedron3*>::const_iterator itr = P.begin(), end = P.end(); itr != end; ++itr, ++i)
+    {
+        out << (as_objects ? "o " : "g ") << itr->first << std::endl;
+        if (mtls.size() > i) { out << "usemtl " << mtls[i] << std::endl; }
+        write_obj(out, itr->second, off);
+    }
 }
 void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	std::ofstream f(filename);
-	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
-	size_t off = 0;
-	write_obj_file(f, P, off, as_objects, matfile, mtls);
-	f.close();
+    std::ofstream f(filename);
+    f << "# OBJ File saved from geoEM" << std::endl << std::endl;
+    size_t off = 0;
+    write_obj_file(f, P, off, as_objects, matfile, mtls);
+    f.close();
 }
 void write_obj_file(std::ostream &out, const std::vector<Polyhedron3*>& P, size_t& off, bool as_objects, const std::string& matfile, const std::vector<std::string>& mtls)
 {
-	size_t i = 0;
-	if (matfile != "") { out << "mtllib " << matfile << std::endl << std::endl; }
+    size_t i = 0;
+    if (matfile != "") { out << "mtllib " << matfile << std::endl << std::endl; }
     for (std::vector<Polyhedron3*>::const_iterator itr = P.begin(), end = P.end(); itr != end; ++itr, ++i)
-	{
-		out << (as_objects ? "o obj" : "g obj") << i << std::endl;
-		if (mtls.size() > i) { out << "usemtl " << mtls[i] << std::endl; }
-		write_obj(out, *itr, off);
-	}
+    {
+        out << (as_objects ? "o obj" : "g obj") << i << std::endl;
+        if (mtls.size() > i) { out << "usemtl " << mtls[i] << std::endl; }
+        write_obj(out, *itr, off);
+    }
 }
 void write_obj_file(const char* filename, const Polyhedron3* P)
 {
     size_t off = 0;
     std::ofstream f(filename);
-	f << "# OBJ File saved from geoEM" << std::endl << std::endl;
+    f << "# OBJ File saved from geoEM" << std::endl << std::endl;
     write_obj(f, P, off);
     f.close();
 }
@@ -70,24 +70,24 @@ void write_obj(std::ostream &out, const Polyhedron3* P)
 }
 void write_obj(std::ostream &out, const Polyhedron3* P, size_t& off)
 {
-	// Write vertices
-	handle_map<Polyhedron3::Vertex_const_handle, size_t> verts(P->size_of_vertices());
-	for (Polyhedron3::Vertex_const_iterator V = P->vertices_begin(), Vend = P->vertices_end(); V != Vend; ++V)
-	{
-		const Point3& p = V->point();
-		out << "v " << p.x() << " " << p.y() << " " << p.z() << std::endl;
-		verts.insert(std::make_pair(V, off++));
-	}
-	
-	// Write faces
-	for (Polyhedron3::Facet_const_iterator F = P->facets_begin(), Fend = P->facets_end(); F != Fend; ++F)
-	{
-		out << "f";
-		Polyhedron3::Halfedge_around_facet_const_circulator H = F->facet_begin(), Hstart = H;
-		do { out << " " << verts[H->vertex()] + 1; } while (++H != Hstart);
-		out << std::endl;
-	}
-	out << std::endl;
+    // Write vertices
+    handle_map<Polyhedron3::Vertex_const_handle, size_t> verts(P->size_of_vertices());
+    for (Polyhedron3::Vertex_const_iterator V = P->vertices_begin(), Vend = P->vertices_end(); V != Vend; ++V)
+    {
+        const Point3& p = V->point();
+        out << "v " << p.x() << " " << p.y() << " " << p.z() << std::endl;
+        verts.insert(std::make_pair(V, off++));
+    }
+    
+    // Write faces
+    for (Polyhedron3::Facet_const_iterator F = P->facets_begin(), Fend = P->facets_end(); F != Fend; ++F)
+    {
+        out << "f";
+        Polyhedron3::Halfedge_around_facet_const_circulator H = F->facet_begin(), Hstart = H;
+        do { out << " " << verts[H->vertex()] + 1; } while (++H != Hstart);
+        out << std::endl;
+    }
+    out << std::endl;
 }
 #ifdef _MSC_VER
 #pragma endregion
@@ -229,9 +229,9 @@ private:
             // else they are purposely ignored commands (materials, rendering tips, etc)
         }
     }
-	
-	void build(std::istream& in)
-	{
+    
+    void build(std::istream& in)
+    {
         // Initialize
         Current cur(get_entry("", this->obj_lookup, this->objs), get_entry("default", this->grp_lookup, this->grps));
         this->init(in, &cur);
@@ -244,14 +244,14 @@ private:
         for (auto i = this->objs.begin(), end = this->objs.end(); i != end; ++i) { i->facets.shrink_to_fit(); }
         for (auto i = this->grps.begin(), end = this->grps.end(); i != end; ++i) { i->facets.shrink_to_fit(); }
         this->facets.shrink_to_fit();
-	}
+    }
 
 public:
-	ObjFileDetail(const char *filename)
-	{
-		std::ifstream in(filename, std::ifstream::binary);
-		this->build(in);
-	}
+    ObjFileDetail(const char *filename)
+    {
+        std::ifstream in(filename, std::ifstream::binary);
+        this->build(in);
+    }
     ObjFileDetail(std::istream& in) { this->build(in); }
     inline const size_t count_objects() const { return this->objs.size(); }
     inline const size_t count_groups()  const { return this->grps.size(); }

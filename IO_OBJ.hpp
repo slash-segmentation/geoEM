@@ -17,33 +17,33 @@ class ObjFileDetail;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class ObjFile
 {
-	bool _as_objects;
-	ObjFileDetail* detail;
+    bool _as_objects;
+    ObjFileDetail* detail;
 
 public:
-	ObjFile(const char *filename, bool as_objects = false);
-	ObjFile(std::istream& in, bool as_objects = false);
-	~ObjFile();
+    ObjFile(const char *filename, bool as_objects = false);
+    ObjFile(std::istream& in, bool as_objects = false);
+    ~ObjFile();
 
-	inline const bool as_objects() const { return this->_as_objects; }
-	inline void set_as_objects(bool x) { this->_as_objects = x; }
+    inline const bool as_objects() const { return this->_as_objects; }
+    inline void set_as_objects(bool x) { this->_as_objects = x; }
 
-	const std::vector<std::string> names() const;
-	size_t size() const;
+    const std::vector<std::string> names() const;
+    size_t size() const;
 
-	Polyhedron3* operator[](const std::string&) const; // need to "delete" return value
-	Polyhedron3* operator[](size_t) const;
+    Polyhedron3* operator[](const std::string&) const; // need to "delete" return value
+    Polyhedron3* operator[](size_t) const;
 };
 
 
 void write_obj_file(const char* filename, const std::map<std::string, Polyhedron3*>& P, bool as_objects = false,
-					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
+                    const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
 void write_obj_file(const char* filename, const std::vector<Polyhedron3*>& P, bool as_objects = false,
-					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
+                    const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
 void write_obj_file(std::ostream &out, const std::map<std::string, Polyhedron3*>& P, size_t& off, bool as_objects = false,
-					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
+                    const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
 void write_obj_file(std::ostream &out, const std::vector<Polyhedron3*>& P, size_t& off, bool as_objects = false,
-					const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
+                    const std::string& matfile = "", const std::vector<std::string>& mtls = std::vector<std::string>());
 void write_obj_file(const char* filename, const Polyhedron3* P);
 void write_obj(std::ostream &out, const Polyhedron3* P);
 void write_obj(std::ostream &out, const Polyhedron3* P, size_t& off);

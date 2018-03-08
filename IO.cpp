@@ -230,7 +230,7 @@ class P3Writer_OBJ : public P3Writer
 public:
     virtual void operator()(const Polyhedron3* P, std::ostream &out)
     {
-    	IteratorReverseLookup<Polyhedron3::Vertex_const_handle> vertex_lookup(P->vertices_begin(), P->size_of_vertices());
+        IteratorReverseLookup<Polyhedron3::Vertex_const_handle> vertex_lookup(P->vertices_begin(), P->size_of_vertices());
         CGAL::set_ascii_mode(out);
         for (Polyhedron3::Point_const_iterator i = P->points_begin(), end = P->points_end(); i != end; ++i) { out << "v " << *i << std::endl; }
         for (Polyhedron3::Facet_const_iterator i = P->facets_begin(), end = P->facets_end(); i != end; ++i)

@@ -123,224 +123,224 @@ namespace detail
 {
 #ifdef BOOST_NO_CXX11_VARIADIC_TEMPLATES
 #define Values(B, A) \
-	B V1  A, B V2  A, B V3  A, B V4  A, B V5  A, B V6  A, B V7  A, B V8  A, \
-	B V9  A, B V10 A, B V11 A, B V12 A, B V13 A, B V14 A, B V15 A, B V16 A, \
-	B V17 A, B V18 A, B V19 A, B V20 A, B V21 A, B V22 A, B V23 A, B V24 A, \
-	B V25 A, B V26 A, B V27 A, B V28 A, B V29 A, B V30 A, B V31 A, B V32 A
+    B V1  A, B V2  A, B V3  A, B V4  A, B V5  A, B V6  A, B V7  A, B V8  A, \
+    B V9  A, B V10 A, B V11 A, B V12 A, B V13 A, B V14 A, B V15 A, B V16 A, \
+    B V17 A, B V18 A, B V19 A, B V20 A, B V21 A, B V22 A, B V23 A, B V24 A, \
+    B V25 A, B V26 A, B V27 A, B V28 A, B V29 A, B V30 A, B V31 A, B V32 A
 #endif // BOOST_NO_CXX11_VARIADIC_TEMPLATES
 
 #ifdef BOOST_NO_CXX11_VARIADIC_TEMPLATES
-	template <class BaseType, class FlagsType, size_t Count, Values(BaseType, = 0)>
+    template <class BaseType, class FlagsType, size_t Count, Values(BaseType, = 0)>
 #else // BOOST_NO_CXX11_VARIADIC_TEMPLATES
-	template <class BaseType, class FlagsType, size_t      , BaseType... Values>
+    template <class BaseType, class FlagsType, size_t      , BaseType... Values>
 #endif // BOOST_NO_CXX11_VARIADIC_TEMPLATES
-	class flags_base
-	{
-	public:
-		typedef BaseType base_type;
-		typedef FlagsType type;
-		static const type None; // no flags set
+    class flags_base
+    {
+    public:
+        typedef BaseType base_type;
+        typedef FlagsType type;
+        static const type None; // no flags set
 
-	protected:
-		// Flag value (only non-static variable)
-		base_type _x;
+    protected:
+        // Flag value (only non-static variable)
+        base_type _x;
 
 #ifdef BOOST_NO_CXX11_VARIADIC_TEMPLATES
-		// Number of named flags
-		static BOOST_CONSTEXPR const size_t _count = Count;
+        // Number of named flags
+        static BOOST_CONSTEXPR const size_t _count = Count;
 
-		// OR flag values together to get the mask of all flags
-		static BOOST_CONSTEXPR const base_type _mask =
-			V1  | V2  | V3  | V4  | V5  | V6  | V7  | V8  |
-			V9  | V10 | V11 | V12 | V13 | V14 | V15 | V16 |
-			V17 | V18 | V19 | V20 | V21 | V22 | V23 | V24 |
-			V25 | V26 | V27 | V28 | V29 | V30 | V31 | V32 ;
+        // OR flag values together to get the mask of all flags
+        static BOOST_CONSTEXPR const base_type _mask =
+            V1  | V2  | V3  | V4  | V5  | V6  | V7  | V8  |
+            V9  | V10 | V11 | V12 | V13 | V14 | V15 | V16 |
+            V17 | V18 | V19 | V20 | V21 | V22 | V23 | V24 |
+            V25 | V26 | V27 | V28 | V29 | V30 | V31 | V32 ;
 
-		// Keep track of all flag values
-		static BOOST_CONSTEXPR const base_type _values[32]
-			FLAGS___INIT_IF_HAS_CONSTEXPR(Values(,));
+        // Keep track of all flag values
+        static BOOST_CONSTEXPR const base_type _values[32]
+            FLAGS___INIT_IF_HAS_CONSTEXPR(Values(,));
 #else // BOOST_NO_CXX11_VARIADIC_TEMPLATES
-		// Number of named flags
-		static BOOST_CONSTEXPR const size_t _count = sizeof...(Values);
+        // Number of named flags
+        static BOOST_CONSTEXPR const size_t _count = sizeof...(Values);
 
-		// Recursively OR flag values together to get the mask of all flags
-		template<base_type... Vs> struct _or;
-		template<base_type V>
-		struct _or<V>
-		{
-			static_assert(V != 0, "No flag may have a value of 0");
-			static BOOST_CONSTEXPR const base_type x = V;
-		};
-		template<base_type V, base_type... Vs>
-		struct _or<V, Vs...>
-		{
-			static_assert(V != 0, "No flag may have a value of 0");
-			static BOOST_CONSTEXPR const base_type x = V | _or<Vs...>::x;
-		};
-		static BOOST_CONSTEXPR const base_type _mask = _or<Values...>::x;
+        // Recursively OR flag values together to get the mask of all flags
+        template<base_type... Vs> struct _or;
+        template<base_type V>
+        struct _or<V>
+        {
+            static_assert(V != 0, "No flag may have a value of 0");
+            static BOOST_CONSTEXPR const base_type x = V;
+        };
+        template<base_type V, base_type... Vs>
+        struct _or<V, Vs...>
+        {
+            static_assert(V != 0, "No flag may have a value of 0");
+            static BOOST_CONSTEXPR const base_type x = V | _or<Vs...>::x;
+        };
+        static BOOST_CONSTEXPR const base_type _mask = _or<Values...>::x;
 
-		// Keep track of all flag values
-		static BOOST_CONSTEXPR const base_type _values[_count]
-			FLAGS___INIT_IF_HAS_CONSTEXPR(Values...);
+        // Keep track of all flag values
+        static BOOST_CONSTEXPR const base_type _values[_count]
+            FLAGS___INIT_IF_HAS_CONSTEXPR(Values...);
 #endif // BOOST_NO_CXX11_VARIADIC_TEMPLATES
-	public:
-		static const std::array<type, _count>& members()
-		{
+    public:
+        static const std::array<type, _count>& members()
+        {
 #ifdef BOOST_NO_CXX11_VARIADIC_TEMPLATES
-			static std::array<type, _count> m;
-			if (m[0] == type::None)
-			{
-				for (size_t i = 0; i < type::_count; ++i)
-				{
-					m[i] = type(type::_values[i]);
-				}
-			}
+            static std::array<type, _count> m;
+            if (m[0] == type::None)
+            {
+                for (size_t i = 0; i < type::_count; ++i)
+                {
+                    m[i] = type(type::_values[i]);
+                }
+            }
 #else // BOOST_NO_CXX11_VARIADIC_TEMPLATES
-			static const std::array<type, _count> m = { type(Values)... };
+            static const std::array<type, _count> m = { type(Values)... };
 #endif // BOOST_NO_CXX11_VARIADIC_TEMPLATES
-			return m;
-		}
+            return m;
+        }
 
-		///// Constructors and casts /////
-		inline BOOST_CONSTEXPR flags_base() : _x(0) { }
-		inline BOOST_CONSTEXPR flags_base(const type& b) : _x(b._x) { }
-		inline explicit flags_base(base_type b) : _x(b)
-		{
-			if ((b | type::_mask) != type::_mask)
-			{
-				throw std::domain_error("Flag value outside mask");
-			}
-		}
-		inline BOOST_CONSTEXPR base_type operator+() const { return this->_x; }
+        ///// Constructors and casts /////
+        inline BOOST_CONSTEXPR flags_base() : _x(0) { }
+        inline BOOST_CONSTEXPR flags_base(const type& b) : _x(b._x) { }
+        inline explicit flags_base(base_type b) : _x(b)
+        {
+            if ((b | type::_mask) != type::_mask)
+            {
+                throw std::domain_error("Flag value outside mask");
+            }
+        }
+        inline BOOST_CONSTEXPR base_type operator+() const { return this->_x; }
 
 #ifdef BOOST_NO_CXX11_EXPLICIT_CONVERSION_OPERATORS
-	private:
-		struct _dummy { void nonnull() {}; };
-		typedef void (_dummy::*_safe_bool)();
-	public:
-		inline BOOST_CONSTEXPR operator _safe_bool() const
-		{
-			return this->_x != 0 ? &_dummy::nonnull : 0;
-		}
-		// no cast to base_type since it can't be explicit, use unary + operator instead
+    private:
+        struct _dummy { void nonnull() {}; };
+        typedef void (_dummy::*_safe_bool)();
+    public:
+        inline BOOST_CONSTEXPR operator _safe_bool() const
+        {
+            return this->_x != 0 ? &_dummy::nonnull : 0;
+        }
+        // no cast to base_type since it can't be explicit, use unary + operator instead
 #else // BOOST_NO_CXX11_EXPLICIT_CONVERSION_OPERATORS
-		inline BOOST_CONSTEXPR explicit operator bool() const { return _x != 0; }
-		inline BOOST_CONSTEXPR explicit operator base_type() const { return _x; }
+        inline BOOST_CONSTEXPR explicit operator bool() const { return _x != 0; }
+        inline BOOST_CONSTEXPR explicit operator base_type() const { return _x; }
 #endif // BOOST_NO_CXX11_EXPLICIT_CONVERSION_OPERATORS
-		
-		///// Bit-wise operators /////
-		inline BOOST_CONSTEXPR bool operator!() const { return this->_x == 0; }
-		inline BOOST_CONSTEXPR bool operator==(const type b) const { return _x == b._x; }
-		inline BOOST_CONSTEXPR bool operator!=(const type b) const { return _x != b._x; }
-		inline BOOST_CONSTEXPR type operator ~() const { return type(~_x & type::_mask); }
-		inline BOOST_CONSTEXPR type operator & (const type b) const { return type(_x & b._x); }
-		inline BOOST_CONSTEXPR type operator | (const type b) const { return type(_x | b._x); }
-		inline BOOST_CONSTEXPR type operator ^ (const type b) const { return type(_x ^ b._x); }
-		inline type& operator &=(const type b) { _x &= b._x; return *static_cast<type*>(this); }
-		inline type& operator |=(const type b) { _x |= b._x; return *static_cast<type*>(this); }
-		inline type& operator ^=(const type b) { _x ^= b._x; return *static_cast<type*>(this); }
+        
+        ///// Bit-wise operators /////
+        inline BOOST_CONSTEXPR bool operator!() const { return this->_x == 0; }
+        inline BOOST_CONSTEXPR bool operator==(const type b) const { return _x == b._x; }
+        inline BOOST_CONSTEXPR bool operator!=(const type b) const { return _x != b._x; }
+        inline BOOST_CONSTEXPR type operator ~() const { return type(~_x & type::_mask); }
+        inline BOOST_CONSTEXPR type operator & (const type b) const { return type(_x & b._x); }
+        inline BOOST_CONSTEXPR type operator | (const type b) const { return type(_x | b._x); }
+        inline BOOST_CONSTEXPR type operator ^ (const type b) const { return type(_x ^ b._x); }
+        inline type& operator &=(const type b) { _x &= b._x; return *static_cast<type*>(this); }
+        inline type& operator |=(const type b) { _x |= b._x; return *static_cast<type*>(this); }
+        inline type& operator ^=(const type b) { _x ^= b._x; return *static_cast<type*>(this); }
 
-		///// String/flag conversions /////
+        ///// String/flag conversions /////
 
-		// Returns "None", a predefined name, or NULL
-		inline const char* const rawname() const
-		{
-			if (this->_x == 0) { return "None"; }
-			for (size_t i = 0; i < _count; ++i)
-			{
-				if (this->_x == type::_values[i]) { return type::_names[i]; }
-			}
-			return NULL;
-		}
+        // Returns "None", a predefined name, or NULL
+        inline const char* const rawname() const
+        {
+            if (this->_x == 0) { return "None"; }
+            for (size_t i = 0; i < _count; ++i)
+            {
+                if (this->_x == type::_values[i]) { return type::_names[i]; }
+            }
+            return NULL;
+        }
 
-		// Returns "None", a predefined name, or a string composed of predefined
-		// names separated by a pipe "|".
-		inline const std::string name() const
-		{
-			const char* const n = this->rawname();
-			if (n) { return n; }
-			std::string s = "";
-			for (size_t i = 0; i < type::_count; ++i)
-			{
-				if ((this->_x & type::_values[i]) == type::_values[i])
-				{
-					if (s.size()) { s += '|'; }
-					s += type::_names[i];
-				}
-			}
-			return s;
-		}
-		friend inline std::ostream& operator<< (std::ostream& s, const type& b)
-		{
-			return s << b.name();
-		}
+        // Returns "None", a predefined name, or a string composed of predefined
+        // names separated by a pipe "|".
+        inline const std::string name() const
+        {
+            const char* const n = this->rawname();
+            if (n) { return n; }
+            std::string s = "";
+            for (size_t i = 0; i < type::_count; ++i)
+            {
+                if ((this->_x & type::_values[i]) == type::_values[i])
+                {
+                    if (s.size()) { s += '|'; }
+                    s += type::_names[i];
+                }
+            }
+            return s;
+        }
+        friend inline std::ostream& operator<< (std::ostream& s, const type& b)
+        {
+            return s << b.name();
+        }
 
-		// Reverses "name()" accepting predefined names and "None" separated by
-		// a pipe "|" while ignoring whitespace before and after each name -
-		// throws std::invalid_argument if a name is not valid.
-		static inline type from_name(const char *name, size_t len)
-		{
-			// Remove leading and trailing whitespace
-			while (*name && std::isspace(*name)) { ++name; --len; }
-			while (len>0 && std::isspace(name[len - 1])) { --len; }
-			const char *pipe = (const char*)std::memchr(name, '|', len);
-			if (pipe == NULL)
-			{
-				// No "pipe", we have a single name
-				if (len == 4 && !std::strncmp(name, "None", 4)) { return type(0); }
-				for (size_t i = 0; i < type::_count; ++i)
-				{
-					const char* n = type::_names[i];
-					if (len == std::strlen(n) && !std::strncmp(name, n, len))
-					{
-						return type(type::_values[i]);
-					}
-				}
-				throw std::invalid_argument(
-					"Flags name '" + std::string(name, len) + "' not found");
-			}
-			// There is a pipe, split string up at pipes and process each part
-			type b = type::from_name(name, pipe - name);
-			len -= pipe - name;
-			name = pipe + 1;
-			while ((pipe = (const char*)std::memchr(name, '|', len)) != NULL)
-			{
-				b |= type::from_name(name, pipe - name);
-				len -= pipe - name;
-				name = pipe + 1;
-			}
-			b |= type::from_name(name, len - 1);
-			return b;
-		}
-		static inline type from_name(const char * name)
-		{
-			return type::from_name(name, std::strlen(name));
-		}
-		static inline type from_name(const std::string name)
-		{
-			return type::from_name(name.c_str(), name.size());
-		}
-	};
+        // Reverses "name()" accepting predefined names and "None" separated by
+        // a pipe "|" while ignoring whitespace before and after each name -
+        // throws std::invalid_argument if a name is not valid.
+        static inline type from_name(const char *name, size_t len)
+        {
+            // Remove leading and trailing whitespace
+            while (*name && std::isspace(*name)) { ++name; --len; }
+            while (len>0 && std::isspace(name[len - 1])) { --len; }
+            const char *pipe = (const char*)std::memchr(name, '|', len);
+            if (pipe == NULL)
+            {
+                // No "pipe", we have a single name
+                if (len == 4 && !std::strncmp(name, "None", 4)) { return type(0); }
+                for (size_t i = 0; i < type::_count; ++i)
+                {
+                    const char* n = type::_names[i];
+                    if (len == std::strlen(n) && !std::strncmp(name, n, len))
+                    {
+                        return type(type::_values[i]);
+                    }
+                }
+                throw std::invalid_argument(
+                    "Flags name '" + std::string(name, len) + "' not found");
+            }
+            // There is a pipe, split string up at pipes and process each part
+            type b = type::from_name(name, pipe - name);
+            len -= pipe - name;
+            name = pipe + 1;
+            while ((pipe = (const char*)std::memchr(name, '|', len)) != NULL)
+            {
+                b |= type::from_name(name, pipe - name);
+                len -= pipe - name;
+                name = pipe + 1;
+            }
+            b |= type::from_name(name, len - 1);
+            return b;
+        }
+        static inline type from_name(const char * name)
+        {
+            return type::from_name(name, std::strlen(name));
+        }
+        static inline type from_name(const std::string name)
+        {
+            return type::from_name(name.c_str(), name.size());
+        }
+    };
 
 
 #ifdef BOOST_NO_CXX11_VARIADIC_TEMPLATES
-	// Define values
-	template <class B, class F, size_t C, Values(B,)>
-	BOOST_CONSTEXPR const B flags_base<B,F,C,Values(,)>::_values[32]
-		FLAGS___INIT_IF_NO_CONSTEXPR(Values(,));
+    // Define values
+    template <class B, class F, size_t C, Values(B,)>
+    BOOST_CONSTEXPR const B flags_base<B,F,C,Values(,)>::_values[32]
+        FLAGS___INIT_IF_NO_CONSTEXPR(Values(,));
 
-	// Define the None flag
-	template <class B, class F, size_t C, Values(B, )> const F flags_base<B,F,C,Values(,)>::None;
+    // Define the None flag
+    template <class B, class F, size_t C, Values(B, )> const F flags_base<B,F,C,Values(,)>::None;
 
 #undef Values
 #else // BOOST_NO_CXX11_VARIADIC_TEMPLATES
-	// Define values
-	template <class B, class F, size_t C, B... V>
-	BOOST_CONSTEXPR const B flags_base<B,F,C,V...>::_values[flags_base<B,F,C,V...>::_count]
-		FLAGS___INIT_IF_NO_CONSTEXPR(V...);
+    // Define values
+    template <class B, class F, size_t C, B... V>
+    BOOST_CONSTEXPR const B flags_base<B,F,C,V...>::_values[flags_base<B,F,C,V...>::_count]
+        FLAGS___INIT_IF_NO_CONSTEXPR(V...);
 
-	// Define the None flag
-	template <class B, class F, size_t C, B... V> const F flags_base<B,F,C,V...>::None;
+    // Define the None flag
+    template <class B, class F, size_t C, B... V> const F flags_base<B,F,C,V...>::None;
 #endif // BOOST_NO_CXX11_VARIADIC_TEMPLATES
 }
 
@@ -351,33 +351,33 @@ namespace detail
 #define FLAGS___GET_ARG_64(X,X64,X63,X62,X61,X60,X59,X58,X57,X56,X55,X54,X53,X52,X51,X50,X49,X48,X47,X46,X45,X44,X43,X42,X41,X40,X39,X38,X37,X36,X35,X34,X33,X32,X31,X30,X29,X28,X27,X26,X25,X24,X23,X22,X21,X20,X19,X18,X17,X16,X15,X14,X13,X12,X11,X10,X9,X8,X7,X6,X5,X4,X3,X2,X1,N,...) N
 // NUM_ARGS(...) evaluates to the number of the passed-in arguments
 #define FLAGS___NUM_ARGS(...) \
-	FLAGS___EXPAND(FLAGS___GET_ARG_64(0,__VA_ARGS__, \
-		64,63,62,61,60,59,58,57,56,55,54,53,52,51,50,49, \
-		48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33, \
-		32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17, \
-		16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0))
+    FLAGS___EXPAND(FLAGS___GET_ARG_64(0,__VA_ARGS__, \
+        64,63,62,61,60,59,58,57,56,55,54,53,52,51,50,49, \
+        48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33, \
+        32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17, \
+        16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0))
 // BASE_TYPE(...) evaluates to the base type that will fit the number of flags given by the var args
 #define FLAGS___BASE_TYPE(...) \
-	FLAGS___EXPAND(FLAGS___GET_ARG_32(0,__VA_ARGS__, \
-		::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
-		::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
-		::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
-		::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
-		::std::uint16_t,::std::uint16_t,::std::uint16_t,::std::uint16_t, \
-		::std::uint16_t,::std::uint16_t,::std::uint16_t,::std::uint16_t, \
-		::std::uint8_t, ::std::uint8_t, ::std::uint8_t, ::std::uint8_t, \
-		::std::uint8_t, ::std::uint8_t, ::std::uint8_t, ::std::uint8_t)) /* TODO: last one as bool? */
+    FLAGS___EXPAND(FLAGS___GET_ARG_32(0,__VA_ARGS__, \
+        ::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
+        ::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
+        ::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
+        ::std::uint32_t,::std::uint32_t,::std::uint32_t,::std::uint32_t, \
+        ::std::uint16_t,::std::uint16_t,::std::uint16_t,::std::uint16_t, \
+        ::std::uint16_t,::std::uint16_t,::std::uint16_t,::std::uint16_t, \
+        ::std::uint8_t, ::std::uint8_t, ::std::uint8_t, ::std::uint8_t, \
+        ::std::uint8_t, ::std::uint8_t, ::std::uint8_t, ::std::uint8_t)) /* TODO: last one as bool? */
 // POW2(...) evaluates to the maximum power of 2 that will be given to a flag for the given var args
 #define FLAGS___POW2(...) \
-	FLAGS___EXPAND(FLAGS___GET_ARG_32(0,__VA_ARGS__, \
-		0x80000000, 0x40000000, 0x20000000, 0x10000000, \
-		0x08000000, 0x04000000, 0x02000000, 0x01000000, \
-		0x00800000, 0x00400000, 0x00200000, 0x00100000, \
-		0x00080000, 0x00040000, 0x00020000, 0x00010000, \
-		0x00008000, 0x00004000, 0x00002000, 0x00001000, \
-		0x00000800, 0x00000400, 0x00000200, 0x00000100, \
-		0x00000080, 0x00000040, 0x00000020, 0x00000010, \
-		0x00000008, 0x00000004, 0x00000002, 0x00000001))
+    FLAGS___EXPAND(FLAGS___GET_ARG_32(0,__VA_ARGS__, \
+        0x80000000, 0x40000000, 0x20000000, 0x10000000, \
+        0x08000000, 0x04000000, 0x02000000, 0x01000000, \
+        0x00800000, 0x00400000, 0x00200000, 0x00100000, \
+        0x00080000, 0x00040000, 0x00020000, 0x00010000, \
+        0x00008000, 0x00004000, 0x00002000, 0x00001000, \
+        0x00000800, 0x00000400, 0x00000200, 0x00000100, \
+        0x00000080, 0x00000040, 0x00000020, 0x00000010, \
+        0x00000008, 0x00000004, 0x00000002, 0x00000001))
 
 ////////// NVLIST: expands a list of name-values using an X macro //////////
 // X is a macro that takes the NAME of the class, and a flag name-value pair
@@ -434,44 +434,44 @@ namespace detail
 // N is the number of flags (== NUM_ARGS(__VA_ARGS__))
 // First stage of creation expands __VA_ARGS__ into all necessary forms
 #define FLAGS___CREATE_DECL(T, BT, N, ...) \
-	FLAGS___CREATE2_DECL(T, BT, N, \
-		FLAGS___NVLIST(FLAGS___XNAME, T, FLAGS___COMMA, N, __VA_ARGS__), \
-		FLAGS___NVLIST(FLAGS___XVALUE, T, FLAGS___COMMA, N, __VA_ARGS__), \
-		FLAGS___NVLIST(FLAGS___XDECLARE, T, FLAGS___SEMICOLON, N, __VA_ARGS__) \
-	)
+    FLAGS___CREATE2_DECL(T, BT, N, \
+        FLAGS___NVLIST(FLAGS___XNAME, T, FLAGS___COMMA, N, __VA_ARGS__), \
+        FLAGS___NVLIST(FLAGS___XVALUE, T, FLAGS___COMMA, N, __VA_ARGS__), \
+        FLAGS___NVLIST(FLAGS___XDECLARE, T, FLAGS___SEMICOLON, N, __VA_ARGS__) \
+    )
 #define FLAGS___CREATE_DEFN(T, BT, N, ...) \
-	FLAGS___CREATE2_DEFN(T, BT, N, \
-		FLAGS___NVLIST(FLAGS___XNAME, T, FLAGS___COMMA, N, __VA_ARGS__), \
-		FLAGS___NVLIST(FLAGS___XDEFINE, T, FLAGS___SEMICOLON, N, __VA_ARGS__) \
-	)
+    FLAGS___CREATE2_DEFN(T, BT, N, \
+        FLAGS___NVLIST(FLAGS___XNAME, T, FLAGS___COMMA, N, __VA_ARGS__), \
+        FLAGS___NVLIST(FLAGS___XDEFINE, T, FLAGS___SEMICOLON, N, __VA_ARGS__) \
+    )
 // Second stage no longer needs __VA_ARGS__
 #define FLAGS___CREATE2_DECL(T, BT, N, NAMES, VALS, DECS) \
-	class T : public ::detail::flags_base<BT, T, N / 2, VALS> \
-	{ \
-		typedef ::detail::flags_base<BT, T, N / 2, VALS> super_type; \
-		friend super_type; \
-		static_assert(std::is_integral<BT>::value, \
-			"Flags base type must be integral"); \
-		static_assert(N != 0, \
-			"Must have at least one flag name"); \
-		static_assert(((N&1)==0) && (super_type::_count*2==N), \
-			"Number of flag names and values must be the same"); \
-		static BOOST_CONSTEXPR const char* const _names[super_type::_count] \
-			FLAGS___INIT_IF_HAS_CONSTEXPR(NAMES); \
-	public: \
-		typedef BT base_type; \
-		typedef T type; \
-		inline BOOST_CONSTEXPR T() : super_type() { } \
-		inline BOOST_CONSTEXPR T(const type& b) : super_type(b) { } \
-		inline explicit T(base_type b) : super_type(b) { } \
-		inline type& operator=(const type& b) { this->_x = b._x; return *this; } \
-		DECS; \
-	};
+    class T : public ::detail::flags_base<BT, T, N / 2, VALS> \
+    { \
+        typedef ::detail::flags_base<BT, T, N / 2, VALS> super_type; \
+        friend super_type; \
+        static_assert(std::is_integral<BT>::value, \
+            "Flags base type must be integral"); \
+        static_assert(N != 0, \
+            "Must have at least one flag name"); \
+        static_assert(((N&1)==0) && (super_type::_count*2==N), \
+            "Number of flag names and values must be the same"); \
+        static BOOST_CONSTEXPR const char* const _names[super_type::_count] \
+            FLAGS___INIT_IF_HAS_CONSTEXPR(NAMES); \
+    public: \
+        typedef BT base_type; \
+        typedef T type; \
+        inline BOOST_CONSTEXPR T() : super_type() { } \
+        inline BOOST_CONSTEXPR T(const type& b) : super_type(b) { } \
+        inline explicit T(base_type b) : super_type(b) { } \
+        inline type& operator=(const type& b) { this->_x = b._x; return *this; } \
+        DECS; \
+    };
 #define FLAGS___CREATE2_DEFN(T, BT, N, NAMES, DEFS) \
-	template<> \
-	BOOST_CONSTEXPR const char* const T::_names [T::_count] \
-		FLAGS___INIT_IF_NO_CONSTEXPR(NAMES); \
-	DEFS
+    template<> \
+    BOOST_CONSTEXPR const char* const T::_names [T::_count] \
+        FLAGS___INIT_IF_NO_CONSTEXPR(NAMES); \
+    DEFS
 
 
 ////////// ADDVAL: Adds powers of two between each flag name //////////
@@ -510,39 +510,39 @@ namespace detail
 #define FLAGS___ADDVAL31(M,N,...) N,(M>>30),FLAGS___EXPAND(FLAGS___ADDVAL30(M,__VA_ARGS__))
 #define FLAGS___ADDVAL32(M,N,...) N,(M>>31),FLAGS___EXPAND(FLAGS___ADDVAL31(M,__VA_ARGS__))
 #define FLAGS___ADDVALS_AND_CREATE(X, TYPE_NAME, ...) \
-	FLAGS___EXPAND(X( \
-		TYPE_NAME, \
-		FLAGS___BASE_TYPE(__VA_ARGS__), \
-		FLAGS___ADDVAL(\
-			FLAGS___POW2(__VA_ARGS__), \
-			FLAGS___NUM_ARGS(__VA_ARGS__), \
-			__VA_ARGS__ \
-		) \
-	))
+    FLAGS___EXPAND(X( \
+        TYPE_NAME, \
+        FLAGS___BASE_TYPE(__VA_ARGS__), \
+        FLAGS___ADDVAL(\
+            FLAGS___POW2(__VA_ARGS__), \
+            FLAGS___NUM_ARGS(__VA_ARGS__), \
+            __VA_ARGS__ \
+        ) \
+    ))
 
 
 ////////// Create a set of flags with the given values //////////
 #define FLAGS_WITH_VALUES(TYPE_NAME, BASE_TYPE, ...) \
-	FLAGS___CREATE_DECL( \
-		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
-	) \
-	FLAGS___CREATE_DEFN( \
-		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
-	)
+    FLAGS___CREATE_DECL( \
+        TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
+    ) \
+    FLAGS___CREATE_DEFN( \
+        TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
+    )
 #define FLAGS_WITH_VALUES_DECL(TYPE_NAME, BASE_TYPE, ...) \
-	FLAGS___CREATE_DECL( \
-		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
-	)
+    FLAGS___CREATE_DECL( \
+        TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
+    )
 #define FLAGS_WITH_VALUES_DEFN(TYPE_NAME, BASE_TYPE, ...) \
-	FLAGS___CREATE_DEFN( \
-		TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
-	)
+    FLAGS___CREATE_DEFN( \
+        TYPE_NAME, BASE_TYPE, FLAGS___NUM_ARGS(__VA_ARGS__), __VA_ARGS__ \
+    )
 
 
 ////////// Create a set of flags with default powers-of-two values //////////
 #define FLAGS(TYPE_NAME, ...) \
-	FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES, TYPE_NAME, __VA_ARGS__)
+    FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES, TYPE_NAME, __VA_ARGS__)
 #define FLAGS_DECL(TYPE_NAME, ...) \
-	FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES_DECL, TYPE_NAME, __VA_ARGS__)
+    FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES_DECL, TYPE_NAME, __VA_ARGS__)
 #define FLAGS_DEFN(TYPE_NAME, ...) \
-	FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES_DEFN, TYPE_NAME, __VA_ARGS__)
+    FLAGS___ADDVALS_AND_CREATE(FLAGS_WITH_VALUES_DEFN, TYPE_NAME, __VA_ARGS__)

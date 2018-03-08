@@ -16,50 +16,50 @@
 
 struct GlPolyhedron
 {
-	size_t nverts, nedges, nfaces;
-	unsigned int bufs[2];
-	unsigned int* edges;
-	unsigned int* faces;
-	PolygonSorter* ps;
+    size_t nverts, nedges, nfaces;
+    unsigned int bufs[2];
+    unsigned int* edges;
+    unsigned int* faces;
+    PolygonSorter* ps;
 
-	GlPolyhedron(const Polyhedron3* P);
-	~GlPolyhedron();
-	void render_edges(const QColor& color);
-	void render_faces(const Ray3& view, const QColor& color);
+    GlPolyhedron(const Polyhedron3* P);
+    ~GlPolyhedron();
+    void render_edges(const QColor& color);
+    void render_faces(const Ray3& view, const QColor& color);
 };
 
 struct GlSkeleton
 {
-	size_t nverts, nedges;
-	unsigned int bufs[1];
-	unsigned int* edges;
+    size_t nverts, nedges;
+    unsigned int bufs[1];
+    unsigned int* edges;
 
-	GlSkeleton(const Skeleton3* S);
-	GlSkeleton(const SkeletonGraph3* SG);
-	~GlSkeleton();
-	void render(const double weight, const QColor& color);
+    GlSkeleton(const Skeleton3* S);
+    GlSkeleton(const SkeletonGraph3* SG);
+    ~GlSkeleton();
+    void render(const double weight, const QColor& color);
 };
 
 struct GlIntersection
 {
-	Point3 plane_corners[4];
-	size_t nintersections, *npoints;
-	unsigned int bufs[1];
-	unsigned int** polys;
+    Point3 plane_corners[4];
+    size_t nintersections, *npoints;
+    unsigned int bufs[1];
+    unsigned int** polys;
 
-	GlIntersection(const Intersection& I);
-	~GlIntersection();
-	void render_plane(const QColor& color);
-	void render_polygons(const QColor& color);
+    GlIntersection(const Intersection& I);
+    ~GlIntersection();
+    void render_plane(const QColor& color);
+    void render_polygons(const QColor& color);
 };
 
 struct GlPoint
 {
-	Point3 pt;
-	double radius;
-	GlPoint(const Point3& pt, double radius);
-	~GlPoint();
-	void render(const QColor& color);
+    Point3 pt;
+    double radius;
+    GlPoint(const Point3& pt, double radius);
+    ~GlPoint();
+    void render(const QColor& color);
 };
 
 void gl_setup();
