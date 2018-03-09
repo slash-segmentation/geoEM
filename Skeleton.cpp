@@ -2,7 +2,6 @@
 
 #include "GeometryUtils.hpp"
 
-#include <CGAL/boost/graph/split_graph_into_polylines.h>
 #include <CGAL/Mean_curvature_flow_skeletonization.h>
 
 #include <algorithm>
