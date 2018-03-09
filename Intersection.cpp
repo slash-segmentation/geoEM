@@ -271,3 +271,47 @@ Intersection::Intersection(const FacetTree& tree, const Plane3& h) : h(h)
     tree.all_intersected_primitives(h, std::back_inserter(pb));
     this->polys = pb.finish_up();
 }
+
+Intersection Intersection::keep_around_point(const Point3& pt)
+{
+    // Create a new intersection object that only has the parts of this intersection that
+    // surround the given point (or subtract from the areas that surround the given point).
+
+    Intersection intersection(this->h);
+    Point2 pt2 = to_2d(pt, this->h);
+    
+    // During the first pass add all of the positive polygons which contain the point to the list
+    // This really should just be a single polygon, but maybe not...
+    for (size_t i = 0; i < this->count(); ++i)
+    {
+        IntersectionPolygon2& p = (*this)[i];
+        if (p.orientation() == CGAL::COUNTERCLOCKWISE && p.bounded_side(pt2) != CGAL::ON_UNBOUNDED_SIDE)
+        {
+            intersection.add(p);
+        }
+    }
+
+    // Now add all polygons (positive or negative) which are contained within any of the already
+    // found polygons
+    size_t n_outside = intersection.count();
+    if (n_outside == 0) { return intersection; }
+    for (size_t i = 0; i < this->count(); ++i)
+    {
+        IntersectionPolygon2& p = (*this)[i];
+        bool already_added = false;
+        for (size_t j = 0; j < n_outside; ++j)
+        {
+            if (p == intersection[j]) { already_added = true; break; }
+        }
+        if (already_added) { continue; }
+        for (size_t j = 0; j < n_outside; ++j)
+        {
+            if (p.is_inside(intersection[j]))
+            {
+                intersection.add(p);
+                break;
+            }
+        }
+    }
+    return intersection;
+}

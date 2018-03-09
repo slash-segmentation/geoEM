@@ -61,4 +61,5 @@ public:
     size_t total_count() const; // The total number of vertices across all polygons
     Bbox2 bbox() const; // The 2D bounding box of all polygons
     Kernel::FT area() const; // The sum of all areas giving the overall cross-sectional area (since holes are negative)
+    Intersection keep_around_point(const Point3& pt);
 };
