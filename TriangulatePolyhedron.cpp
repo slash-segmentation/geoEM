@@ -10,6 +10,7 @@ void triangulate_polyhedron(Polyhedron3* P) { throw std::invalid_argument("Canno
 // Based on the undocumented CGAL/triangulate_polyhedron.h by Laurent Rineau
 
 #include "GeometryUtils.hpp"
+#include "Polyhedron3Utils.hpp"
 
 #include <CGAL/Modifier_base.h>
 #include <CGAL/HalfedgeDS_decorator.h>

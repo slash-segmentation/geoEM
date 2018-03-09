@@ -4,6 +4,7 @@
 
 #include "GeometryTypes.hpp"
 #include "GeometryUtils.hpp"
+#include "Polyhedron3Utils.hpp"
 #include "TriangulatePolyhedron.hpp"
 
 #include "Strings.hpp"

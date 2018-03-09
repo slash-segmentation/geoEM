@@ -168,58 +168,6 @@ inline bool is_inside(const Bbox3& out, const Point3& p) { return p.x() >= out.x
 inline double bbox_max_length(const Bbox3& bb) { return max3(bb.max(0)-bb.min(0), bb.max(1)-bb.min(1), bb.max(2)-bb.min(2)); }
 
 
-// Polyhedron part converters
-Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f);
-inline Plane3 facet_to_plane3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return Plane3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
-inline Triangle3 facet_to_triangle3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return Triangle3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
-inline Bbox3 facet_to_bbox3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return bbox3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
-inline Segment3 halfedge_to_segment3(Polyhedron3::Halfedge_const_handle he) { return Segment3(he->prev()->vertex()->point(), he->vertex()->point()); }
-
-
-// Polyhedron part normals
-inline Direction3 normal(const Polyhedron3::Facet_const_handle &f)
-{
-    // assumes triangle face
-    Polyhedron3::Halfedge_around_facet_const_circulator he = f->facet_begin();
-    Vector3 n = CGAL::normal(he->prev()->vertex()->point(), he->vertex()->point(), he->next()->vertex()->point());
-    return Direction3(normalized(n));
-}
-inline Direction3 normal(const Polyhedron3::Vertex_const_handle &v)
-{
-    Vector3 n = CGAL::NULL_VECTOR;
-    Polyhedron3::Halfedge_around_vertex_const_circulator he = v->vertex_begin(), end(he);
-    CGAL_For_all(he, end) { if (!he->is_border()) { n = n + to_vector(normal(he->facet())); } }
-    return Direction3(normalized(n));
-}
-
-
-// Polyhedron looping around a vertex/facet
-#define FOR_EDGES_AROUND_VERTEX(V, e) \
-    Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Halfedge_const_handle e = MAKE_UNIQUE(_he); \
-    for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), e = MAKE_UNIQUE(_he))
-#define FOR_FACETS_AROUND_VERTEX(V, f) \
-    Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Facet_const_handle f = MAKE_UNIQUE(_he)->facet(); \
-    for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), f = MAKE_UNIQUE(_he)->facet())
-#define FOR_VERTICES_AROUND_VERTEX(V, v) \
-    Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Vertex_const_handle v = MAKE_UNIQUE(_he)->prev()->vertex(); \
-    for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), v = MAKE_UNIQUE(_he)->prev()->vertex())
-#define FOR_EDGES_AROUND_FACET(F, e) \
-    Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Halfedge_const_handle e = MAKE_UNIQUE(_he); \
-    for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), e = MAKE_UNIQUE(_he))
-#define FOR_FACETS_AROUND_FACET(F, f) \
-    Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Facet_const_handle f = MAKE_UNIQUE(_he)->opposite()->facet(); \
-    for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), f = MAKE_UNIQUE(_he)->opposite()->facet())
-#define FOR_VERTICES_AROUND_FACET(F, v) \
-    Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Vertex_const_handle v = MAKE_UNIQUE(_he)->vertex(); \
-    for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), v = MAKE_UNIQUE(_he)->vertex())
-
-
 // Random constructs
 extern CGAL::Random Rand;
 inline Point3 random_point(const Bbox3& bbox) { return Point3(Rand.uniform_real(bbox.xmin(),bbox.xmax()),Rand.uniform_real(bbox.ymin(),bbox.ymax()),Rand.uniform_real(bbox.zmin(),bbox.zmax())); }
@@ -227,23 +175,17 @@ inline Vector3 random_vector() { return Vector3(Rand.uniform_real(0.0,1.0),Rand.
 inline Vector3 random_nonnull_vector() { Vector3 v = random_vector(); while (v == CGAL::NULL_VECTOR) { v = random_vector(); } return v; }
 
 
-// Other utilities
+// Graph utilities
 template <class Graph, class vd = typename Graph::vertex_descriptor, class ed = typename Graph::edge_descriptor>
 inline vd opposite(const Graph& g, const ed e, const vd v)
 {
     const vd& u = source(e, g);
     return (u != v) ? u : target(e, g);
 }
-inline Kernel::FT avg_edge_length(const Polyhedron3 *P)
+template <class Graph, class vd = typename Graph::vertex_descriptor>
+inline vd next_vertex(const Graph& g, const vd v)
 {
-    Kernel::FT length = 0;
-    for (auto e = P->edges_begin(), end = P->edges_end(); e != end; ++e)
-    {
-        length += distance(e->vertex()->point(), e->opposite()->vertex()->point());
-    }
-    return length / (P->size_of_halfedges() / 2);
+    // Assumes that the degree of v is 1
+    auto e = *out_edges(v, g).first; // the first outgoing edge
+    return opposite(g, e, v);
 }
-Kernel::FT volume(const Polyhedron3* P);
-bool is_not_degenerate(const Polyhedron3* P);
-bool is_manifold(const Polyhedron3* P); // currently extremely slow
-bool point_in_polyhedron(const Point3& p, const FacetTree& tree);
