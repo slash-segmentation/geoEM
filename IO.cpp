@@ -5,9 +5,12 @@
 #include "GeometryTypes.hpp"
 #include "GeometryUtils.hpp"
 #include "Polyhedron3Utils.hpp"
-#include "TriangulatePolyhedron.hpp"
 
 #include "Strings.hpp"
+
+#ifndef POLYHEDRON_USE_VECTOR
+#include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
+#endif
 
 #include <iostream>
 #include <fstream>
@@ -58,7 +61,7 @@ void check_mesh(Polyhedron3* P)
 #else
         // TODO: add check for planarity of faces?
         std::cerr << "Polyhedron has non-triangle facets, triangulating..." << std::endl;
-        triangulate_polyhedron(P);
+        CGAL::Polygon_mesh_processing::triangulate_faces(*P);
 #endif
     }
 }

@@ -184,7 +184,7 @@ endif (USE_PRECOMPILED_HEADERS)
 
 add_library(GeometryTypes STATIC GeometryTypes.hpp Polygons_3.hpp GeometryTypes.cpp)
 add_library(Utilities STATIC Flags.hpp Heap.hpp Iterators.hpp GeometryUtils.hpp GeometryUtils.cpp Polyhedron3Utils.hpp Polyhedron3Utils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Progress.hpp Progress.cpp Strings.hpp)
-add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp TriangulatePolyhedron.hpp TriangulatePolyhedron.cpp)
+add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp PolyBuilder.hpp)
 add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp)
 set(MY_LIBRARIES IO Intersection Skeleton GeometryTypes Utilities)
