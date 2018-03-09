@@ -17,7 +17,7 @@ private:
     void* glP;
     QColor edge_color, fill_color;
     
-    SkeletonGraph3* S;
+    Skeleton3* S;
     void* glS;
     double line_weight;
     QColor line_color;
@@ -42,7 +42,7 @@ public:
     Viewer();
     ~Viewer();
     void set_polyhedron(Polyhedron3* p, const QColor& fill_color = DefaultPolyhedronFillColor, const QColor& edge_color = DefaultPolyhedronEdgeColor);
-    void set_skeleton(SkeletonGraph3* S, const double line_weight = 5.0, const QColor& line_color = DefaultSkeletonColor);
+    void set_skeleton(Skeleton3* S, const double line_weight = 5.0, const QColor& line_color = DefaultSkeletonColor);
     void set_intersection(const Intersection& intersection, const QColor& intersection_color = DefaultIntersectionColor, const QColor& plane_color = DefaultIntersectionPlaneColor);
     void set_point(const Point3& pt, const double radius = 1.0, const QColor& color = DefaultPointColor);
 

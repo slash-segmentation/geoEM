@@ -49,7 +49,7 @@ void Viewer::set_polyhedron(Polyhedron3* P, const QColor& fill_color, const QCol
     cam->setFOVToFitScene();
 }
 
-void Viewer::set_skeleton(SkeletonGraph3* S, const double line_weight, const QColor& line_color)
+void Viewer::set_skeleton(Skeleton3* S, const double line_weight, const QColor& line_color)
 {
     if (this->glS) { delete (GlSkeleton*)this->glS; this->glS = nullptr; }
     this->S = S;

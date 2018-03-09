@@ -123,10 +123,6 @@ typedef CGAL::Polyhedron_3<Kernel, CGAL::Polyhedron_items_with_id_3, CGAL::Halfe
 //DECLARE_TEMPLATE(CGAL::Mean_curvature_flow_skeletonization<Polyhedron3>)
 typedef CGAL::Mean_curvature_flow_skeletonization<Polyhedron3>::Skeleton Skeleton3;
 
-#include "SkeletonGraph_3.hpp"
-DECLARE_TEMPLATE(SkeletonGraph_3<Kernel>)
-typedef SkeletonGraph_3<Kernel>     SkeletonGraph3;
-
 #include <CGAL/Bbox_3.h>
 typedef CGAL::Bbox_3                Bbox3;
 

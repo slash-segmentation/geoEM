@@ -35,7 +35,6 @@ struct GlSkeleton
     unsigned int* edges;
 
     GlSkeleton(const Skeleton3* S);
-    GlSkeleton(const SkeletonGraph3* SG);
     ~GlSkeleton();
     void render(const double weight, const QColor& color);
 };

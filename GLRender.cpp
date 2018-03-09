@@ -237,57 +237,6 @@ GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(boost::num_vertices(*S)), ne
     // Cleanup temporary data
     delete[] verts;
 }
-GlSkeleton::GlSkeleton(const SkeletonGraph3* SG) : nverts(0), nedges(0), edges(nullptr)
-{
-    // Note: we end up duplicating all branch point points with the current method, but that doesn't really matter
-
-    size_t i, j;
-    this->bufs[0] = 0;
-
-    // Get sizes of vertices and edges
-    for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), end = SG->branches_end(); B != end; ++B)
-    {
-        size_t s = B->size();
-        this->nverts += s;
-        this->nedges += s - 1;
-    }
-
-    // Get all vertices
-    GLdouble* verts = new GLdouble[this->nverts*3];
-    i = 0;
-    for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), end = SG->branches_end(); B != end; ++B)
-    {
-        for (SkeletonGraph3::Branch::const_iterator C = B->begin(), end = B->end(); C != end; ++C)
-        {
-            const Point3& v = *C;
-            verts[i++] = CGAL::to_double(v.x());
-            verts[i++] = CGAL::to_double(v.y());
-            verts[i++] = CGAL::to_double(v.z());
-        }
-    }
-    
-    // Get all edges
-    this->edges = new unsigned int[2*this->nedges];
-    i = 0; j = 0;
-    for (SkeletonGraph3::Branch_const_iterator B = SG->branches_begin(), end = SG->branches_end(); B != end; ++B)
-    {
-        for (SkeletonGraph3::Branch::const_iterator C = B->begin(), end = std::prev(B->end()); C != end; ++C)
-        {
-            this->edges[i++] = (unsigned int)j++;
-            this->edges[i++] = (unsigned int)j;
-        }
-        j++;
-    }
-    
-    // Save vertex data to the graphics card
-    glGenBuffers(1, this->bufs);
-    glBindBuffer(GL_ARRAY_BUFFER, this->bufs[0]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLdouble)*nverts*3, verts, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
-    // Cleanup temporary data
-    delete[] verts;
-}
 GlSkeleton::~GlSkeleton()
 {
     if (this->bufs) { glDeleteBuffers(1, this->bufs); this->bufs[0] = 0; }
