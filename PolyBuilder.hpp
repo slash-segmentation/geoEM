@@ -10,7 +10,7 @@
 #include <CGAL/Boolean_set_operations_2.h>
 #include <CGAL/circulator.h>
 
-template <typename Point, typename Polygon>
+template <class Point, class Polygon>
 class PolyBuilder
 {
 protected:
@@ -109,6 +109,31 @@ protected:
         remove_collinear_points(pts);
         this->polys.push_back(Polygon(pts->begin(), pts->end(), is_open));
     }
+    void fix_holes(const std::false_type &) { } // normally does nothing, specialization for 2D below
+    void fix_holes(const std::true_type &)
+    {
+        // Check to see which polygons are holes (and reverse them so they have negative area)
+        size_t n = this->polys.size();
+        std::vector<Bbox2>      boxes; boxes.reserve(n);
+        std::vector<Kernel::FT> areas; areas.reserve(n);
+        for (auto i = this->polys.begin(), end = this->polys.end(); i != end; ++i)
+        {
+            boxes.push_back(i->bbox()); areas.push_back(i->area());
+        }
+        for (size_t i = 0; i < n; ++i)
+        {
+            bool hole = false;
+            for (size_t j = 0; j < n; ++j)
+            {
+                if (is_inside(boxes[j], boxes[i]) && areas[j] > areas[i] &&
+                    this->polys[j].bounded_side(this->polys[i][0]) == CGAL::ON_BOUNDED_SIDE)
+                {
+                    hole = !hole;
+                }
+            }
+            if (hole) { this->polys[i].reverse_orientation(); }
+        }
+    }
     
 public:
     inline void add_seg(const Point& p, const Point& q) { this->add_seg(p < q ? simple_seg(p, q) : simple_seg(q, p)); }
@@ -121,33 +146,11 @@ public:
             this->add_polygon(s->second, true);
             delete s->second;
         }
-
-        // Check to see which polygons are holes (and reverse them so they have negative area)
-        /*TODO
-        if (Point::Ambient_dimension::value == 2)
-        {
-            size_t n = this->polys.size();
-            std::vector<Bbox2>      boxes; boxes.reserve(n);
-            std::vector<Kernel::FT> areas; areas.reserve(n);
-            for (auto i = this->polys.begin(), end = this->polys.end(); i != end; ++i)
-            {
-                boxes.push_back(i->bbox()); areas.push_back(i->area());
-            }
-            for (size_t i = 0; i < n; ++i)
-            {
-                bool hole = false;
-                for (size_t j = 0; j < n; ++j)
-                {
-                    if (is_inside(boxes[j], boxes[i]) && areas[j] > areas[i] &&
-                        this->polys[j].bounded_side(this->polys[i][0]) == CGAL::ON_BOUNDED_SIDE)
-                    {
-                        hole = !hole;
-                    }
-                }
-                if (hole) { this->polys[i].reverse_orientation(); }
-            }
-        }*/
         
+        // Possibly fix holes
+        this->fix_holes(std::is_base_of<Polygon2, Polygon>());
+        
+        // All done
         return this->polys;
     }
 };
