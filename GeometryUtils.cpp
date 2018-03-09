@@ -201,31 +201,3 @@ bool point_in_polyhedron(const Point3& p, const FacetTree& tree)
     tree.all_intersected_primitives(Ray3(p, q), std::back_inserter(pipc));
     return pipc.inside;
 }
-
-// Debugging method
-#include <iostream>
-void print_tri_of_unit_cube(const Triangle3& t)
-{
-    static std::map<std::string, Triangle3> cube_parts;
-    if (cube_parts.size() == 0)
-    {
-        cube_parts["a1"] = Triangle3(Point3(1,0,0), Point3(0,0,0), Point3(0,1,0));
-        cube_parts["a2"] = Triangle3(Point3(0,1,0), Point3(1,1,0), Point3(1,0,0));
-        cube_parts["b1"] = Triangle3(Point3(1,1,1), Point3(1,1,0), Point3(0,1,0));
-        cube_parts["b2"] = Triangle3(Point3(0,1,0), Point3(0,1,1), Point3(1,1,1));
-        cube_parts["c1"] = Triangle3(Point3(1,0,0), Point3(1,1,0), Point3(1,1,1));
-        cube_parts["c2"] = Triangle3(Point3(1,1,1), Point3(1,0,1), Point3(1,0,0));
-        cube_parts["d1"] = Triangle3(Point3(1,1,1), Point3(0,1,1), Point3(0,0,1));
-        cube_parts["d2"] = Triangle3(Point3(0,0,1), Point3(1,0,1), Point3(1,1,1));
-        cube_parts["e1"] = Triangle3(Point3(0,0,0), Point3(0,0,1), Point3(0,1,1));
-        cube_parts["e2"] = Triangle3(Point3(0,1,1), Point3(0,1,0), Point3(0,0,0));
-        cube_parts["f1"] = Triangle3(Point3(1,0,0), Point3(1,0,1), Point3(0,0,1));
-        cube_parts["f2"] = Triangle3(Point3(0,0,1), Point3(0,0,0), Point3(1,0,0));
-    }
-
-    for (std::map<std::string, Triangle3>::iterator i = cube_parts.begin(), end = cube_parts.end(); i != end; ++i)
-    {
-        if (i->second == t) { std::cout << i->first << std::endl; return; }
-    }
-    std::cout << t << std::endl;
-}

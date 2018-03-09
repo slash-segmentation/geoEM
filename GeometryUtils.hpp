@@ -141,7 +141,7 @@ inline std::string tostr(const Vector3& v) { std::stringstream s; s << v; return
 
 
 // Bbox3 creation from points (significantly faster than adding the bboxes of each point)
-// There are specializations for 1, 2, and 3 points, and a general function that takes an iterator or points
+// There are specializations for 1, 2, and 3 points, and a general function that takes an iterator of points
 inline Bbox3 bbox3(const Point3& p) { return p.bbox(); }
 #define RETURN_BBOX3 return Bbox3(min_x, min_y, min_z, max_x, max_y, max_z)
 #define PT3_TO_DBL(P) P##x = CGAL::to_double(P.x()), P##y = CGAL::to_double(P.y()), P##z = CGAL::to_double(P.z())
@@ -228,8 +228,22 @@ inline Vector3 random_nonnull_vector() { Vector3 v = random_vector(); while (v =
 
 
 // Other utilities
+template <class Graph, class vd = typename Graph::vertex_descriptor, class ed = typename Graph::edge_descriptor>
+vd opposite(const Graph& g, const ed e, const vd v)
+{
+    const vd& u = source(e, g);
+    return (u != v) ? u : target(e, g);
+}
+Kernel::FT avg_edge_length(const Polyhedron3 *P)
+{
+    Kernel::FT length = 0;
+    for (auto e = P->edges_begin(), end = P->edges_end(); e != end; ++e)
+    {
+        length += distance(e->vertex()->point(), e->opposite()->vertex()->point());
+    }
+    return length / (P->size_of_halfedges() / 2);
+}
 Kernel::FT volume(const Polyhedron3* P);
 bool is_not_degenerate(const Polyhedron3* P);
 bool is_manifold(const Polyhedron3* P); // currently extremely slow
 bool point_in_polyhedron(const Point3& p, const FacetTree& tree);
-void print_tri_of_unit_cube(const Triangle3& t); // for debugging
