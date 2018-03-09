@@ -229,12 +229,12 @@ inline Vector3 random_nonnull_vector() { Vector3 v = random_vector(); while (v =
 
 // Other utilities
 template <class Graph, class vd = typename Graph::vertex_descriptor, class ed = typename Graph::edge_descriptor>
-vd opposite(const Graph& g, const ed e, const vd v)
+inline vd opposite(const Graph& g, const ed e, const vd v)
 {
     const vd& u = source(e, g);
     return (u != v) ? u : target(e, g);
 }
-Kernel::FT avg_edge_length(const Polyhedron3 *P)
+inline Kernel::FT avg_edge_length(const Polyhedron3 *P)
 {
     Kernel::FT length = 0;
     for (auto e = P->edges_begin(), end = P->edges_end(); e != end; ++e)
