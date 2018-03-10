@@ -4,7 +4,6 @@
 #include "IO.hpp"
 #include "IO_OBJ.hpp"
 #include "PolyBuilder.hpp"
-#include "Intersection.hpp"
 #include "Skeleton.hpp"
 #include "Segments2Cylinders.hpp"
 #include "Points2Spheres.hpp"
@@ -26,7 +25,7 @@
 #include <CGAL/Polygon_mesh_processing/remesh.h>
 #include <CGAL/subdivision_method_3.h>
 
-typedef Skeleton3::vertex_descriptor S3VertexDesc
+typedef Skeleton3::vertex_descriptor S3VertexDesc;
 typedef handle_map<Polyhedron3::Vertex_const_handle, S3VertexDesc> VertexMap;
 
 std::vector<Point3> get_bp_mesh_points(const Polyhedron3* P, const Skeleton3* S)
@@ -157,7 +156,7 @@ std::vector<std::tuple<S3VertexDesc, S3VertexDesc, Polyhedron3*> > break_into_se
     std::vector<std::tuple<S3VertexDesc, S3VertexDesc, Polyhedron3*> > segs;
     skeleton_enum_branches(S, [&segs, S] (const std::vector<S3VertexDesc>& verts) mutable
     {
-        for (size_t i = 0; i < verts.size() - 1;)
+        for (size_t i = 0; i < verts.size() - 1; ++i)
         {
             auto& v = (*S)[verts[i]];
             auto& u = (*S)[verts[i+1]];
@@ -176,13 +175,13 @@ bool is_cyclic(const Graph& g)
     return false;
 }
 
-typedef boost::property_map<Skeleton3, boost::vertex_index_t>::const_type Skel_vert_index_map_t;
-typedef boost::vector_property_map<Kernel::FT, Skel_vert_index_map_t> Skel_vert_number_map;
-typedef boost::vector_property_map<double, Skel_vert_index_map_t> Skel_vert_double_map;
-typedef boost::vector_property_map<bool, Skel_vert_index_map_t> Skel_vert_bool_map;
-typedef boost::vector_property_map<S3VertexDesc, Skel_vert_index_map_t> Skel_vert_vert_map;
+typedef boost::property_map<Skeleton3, boost::vertex_index_t>::const_type S3_vert_index_map_t;
+typedef boost::vector_property_map<Kernel::FT, S3_vert_index_map_t> S3_vert_number_map;
+typedef boost::vector_property_map<double, S3_vert_index_map_t> S3_vert_double_map;
+typedef boost::vector_property_map<bool, S3_vert_index_map_t> S3_vert_bool_map;
+typedef boost::vector_property_map<S3VertexDesc, S3_vert_index_map_t> S3_vert_vert_map;
 
-Skel_vert_double_map calc_distances_to_soma(const Polyhedron3* P, const Skeleton3* S)
+S3_vert_double_map calc_distances_to_soma(const Polyhedron3* P, const Skeleton3* S)
 {
     // Find the endpoint that represents the "soma" (which has largest normalized volume)
     bool first = true;
@@ -204,8 +203,8 @@ Skel_vert_double_map calc_distances_to_soma(const Polyhedron3* P, const Skeleton
     }
     
     // Calcualte the distance for each skeleton point
-    Skel_vert_double_map distances(get(boost::vertex_index, *S));
-    Skel_vert_bool_map discovered(get(boost::vertex_index, *S));
+    S3_vert_double_map distances(get(boost::vertex_index, *S));
+    S3_vert_bool_map discovered(get(boost::vertex_index, *S));
     std::vector<std::pair<S3VertexDesc, double> > stack;
     stack.push_back(std::make_pair(soma, 0.0));
     discovered[soma] = true;
@@ -228,10 +227,10 @@ Skel_vert_double_map calc_distances_to_soma(const Polyhedron3* P, const Skeleton
     return distances;
 }
 
-Skel_vert_vert_map calc_next_bps(const Polyhedron3* P, const Skeleton3* S, const Skel_vert_double_map& dist_to_soma)
+S3_vert_vert_map calc_next_bps(const Polyhedron3* P, const Skeleton3* S, const S3_vert_double_map& dist_to_soma)
 {
-    Skel_vert_vert_map next_bp(get(boost::vertex_index, *S));
-    Skel_vert_bool_map valid(get(boost::vertex_index, *S));
+    S3_vert_vert_map next_bp(get(boost::vertex_index, *S));
+    S3_vert_bool_map valid(get(boost::vertex_index, *S));
     
     // Recursive function
     std::function<S3VertexDesc(S3VertexDesc)> f = [&] (S3VertexDesc v) -> S3VertexDesc
@@ -271,7 +270,7 @@ Skel_vert_vert_map calc_next_bps(const Polyhedron3* P, const Skeleton3* S, const
 }
 
 void write_obj_cmap_segments(std::ofstream& f, std::vector<Polyhedron3*>& segs, std::vector<double>& values,
-                             size_t& off = 0, const std::string& cmap = "hot")
+                             size_t& off, const std::string& cmap = "hot")
 {
     double max = *std::max_element(values.begin(), values.end());
     double min = *std::min_element(values.begin(), values.end());
@@ -428,8 +427,8 @@ int main(int argc, char **argv)
 
     
     auto segments = break_into_segments(P, S);
-    Skel_vert_double_map dists = calc_distances_to_soma(P, S);
-    Skel_vert_vert_map next_bps = calc_next_bps(P, S, dists);
+    S3_vert_double_map dists = calc_distances_to_soma(P, S);
+    S3_vert_vert_map next_bps = calc_next_bps(P, S, dists);
     
     std::vector<Polyhedron3*> segs;
     std::vector<double> values;
@@ -471,29 +470,6 @@ int main(int argc, char **argv)
 
     // Close the OBJ file
     f.close();
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Calculate the intersection of planes along the skeleton
-    ///////////////////////////////////////////////////////////////////////////
-    /*FacetTree ft(P->facets_begin(), P->facets_end(), *P);
-    std::ofstream out("output.csv");
-    skeleton_enum_branches_as_pts(S, [&ft, &out] (const std::vector<Point3>& pts) mutable
-    {
-        out << "Branch," << pts.front() << "," << pts.back() << std::endl;
-        auto i = pts.begin(), end = pts.end();
-        Point3 pt_end = *i++;
-        const char* sep = "";
-        while (i != end)
-        {
-            Point3 pt = pt_end; pt_end = *i++;
-            Point3 mid = CGAL::midpoint(pt, pt_end);
-            Intersection intrstn = Intersection(ft, Plane3(mid, normalized(pt_end - pt))).keep_around_point(mid);
-            out << sep << intrstn.area();
-            sep = ",";
-        }
-        out << std::endl;
-    });
-    out.close();*/
 
 
 #ifdef CREATE_GUI
