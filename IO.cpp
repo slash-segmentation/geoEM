@@ -61,7 +61,10 @@ void check_mesh(Polyhedron3* P)
 #else
         // TODO: add check for planarity of faces?
         std::cerr << "Polyhedron has non-triangle facets, triangulating..." << std::endl;
-        CGAL::Polygon_mesh_processing::triangulate_faces(*P);
+        if (!CGAL::Polygon_mesh_processing::triangulate_faces(*P))
+        {
+            throw std::invalid_argument("Error: Polyhedron has non-triangle facets and unable to triangulate");
+        }
 #endif
     }
 }
