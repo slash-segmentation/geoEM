@@ -3,8 +3,6 @@
 #include <vector>
 #include <unordered_set>
 
-#include "Progress.hpp"
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // These are utilities for Polyhedron3 objects. Many of the utilities are complex and take multiple
 // lines.
@@ -93,8 +91,6 @@ bool is_manifold(const Polyhedron3* P)
     // * All normals face inside or outside, but not both (given)
     // * Faces only intersect each other in common edges/vertices
     // TODO: make faster
-    Progress progress("Checking manifold...", P->size_of_facets());
-    progress.start();
     for (Polyhedron3::Face_const_iterator f = P->facets_begin(), end = P->facets_end(); f != end; ++f)
     {
         const Bbox3 bb = facet_to_bbox3(f);
@@ -104,10 +100,7 @@ bool is_manifold(const Polyhedron3* P)
             if (CGAL::do_overlap(bb, bbox3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point())) &&
                 (edge_intersects_face(a, f) || edge_intersects_face(b, f) || edge_intersects_face(c, f))) { return false; }
         }
-        progress.update();
     }
-    progress.done();
-
     return true;
 }
 
