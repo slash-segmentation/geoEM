@@ -67,7 +67,7 @@ inline Kernel::FT avg_edge_length(const Polyhedron3 *P)
     {
         length += distance(e->vertex()->point(), e->opposite()->vertex()->point());
     }
-    return length / (P->size_of_halfedges() / 2);
+    return length / Kernel::FT(P->size_of_halfedges() / 2);
 }
 Kernel::FT volume(const Polyhedron3* P);
 bool is_not_degenerate(const Polyhedron3* P);
