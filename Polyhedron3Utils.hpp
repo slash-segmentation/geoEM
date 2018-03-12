@@ -71,7 +71,6 @@ inline Kernel::FT avg_edge_length(const Polyhedron3 *P)
 }
 Kernel::FT volume(const Polyhedron3* P);
 bool is_not_degenerate(const Polyhedron3* P);
-bool is_manifold(const Polyhedron3* P); // currently extremely slow
 bool point_in_polyhedron(const Point3& p, const FacetTree& tree);
 
 

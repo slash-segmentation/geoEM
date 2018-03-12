@@ -56,53 +56,6 @@ bool is_not_degenerate(const Polyhedron3* P)
 
     return true;
 }
-static bool get_vertex_he(const Polyhedron3::Vertex_const_handle v, Polyhedron3::Halfedge_around_facet_const_circulator& e)
-{
-    const Polyhedron3::Halfedge_around_facet_const_circulator end = e;
-    do { if (e->vertex() == v) { return true; } } while (++e != end);
-    return false;
-}
-static bool edge_intersects_face(const Polyhedron3::Halfedge_const_handle e, const Polyhedron3::Facet_const_handle f)
-{
-    if (e->opposite()->facet() == f) { return false; }
-    const Polyhedron3::Vertex_const_handle vE1 = e->vertex(), vE2 = e->prev()->vertex();
-    Polyhedron3::Halfedge_around_facet_const_circulator a = f->facet_begin();
-    bool has_vertex = get_vertex_he(vE1, a) || get_vertex_he(vE2, a);
-    const Polyhedron3::Halfedge_const_handle b = a->next(), c = b->next();
-    const Point3 &A = a->vertex()->point(), &B = b->vertex()->point(), &C = c->vertex()->point(), &E1 = vE1->point(), &E2 = vE2->point();
-    if (has_vertex)
-    {
-        const Point3 &E = (A == E1) ? E2 : E1;
-        const Vector3 &CE = C-E, &EA = E-A;
-        return CGAL::coplanar(A, B, C, E) && CGAL::cross_product(CE,EA)*CGAL::cross_product(B-E,EA) <= 0.0 && CGAL::cross_product(CE,C-B)*CGAL::cross_product(C-A,C-B) <= 0.0;
-    }
-    else if (CGAL::orientation(A, B, C, E1) != CGAL::orientation(A, B, C, E2))
-    {
-        CGAL::Orientation e2 = CGAL::orientation(A, B, E1, E2), e3 = CGAL::orientation(B, C, E1, E2), e1 = CGAL::orientation(C, A, E1, E2);
-        return (e1 != CGAL::COPLANAR || e2 != CGAL::COPLANAR || e3 != CGAL::COPLANAR) && ((e1 >= CGAL::COPLANAR && e2 >= CGAL::COPLANAR && e3 >= CGAL::COPLANAR) || (e1 <= CGAL::COPLANAR && e2 <= CGAL::COPLANAR && e3 <= CGAL::COPLANAR));
-    }
-    return false;
-}
-bool is_manifold(const Polyhedron3* P)
-{
-    // Manifold requirements that are given and checked with P->is_valid()
-    // * Every edge belongs to two faces
-    // * Every vertex is surrounded by one sequence of edges and faces
-    // * All normals face inside or outside, but not both (given)
-    // * Faces only intersect each other in common edges/vertices
-    // TODO: make faster
-    for (Polyhedron3::Face_const_iterator f = P->facets_begin(), end = P->facets_end(); f != end; ++f)
-    {
-        const Bbox3 bb = facet_to_bbox3(f);
-        for (Polyhedron3::Face_const_iterator g = std::next(f); g != end; ++g)
-        {
-            const Polyhedron3::Halfedge_const_handle a = g->facet_begin(), b = a->next(), c = b->next();
-            if (CGAL::do_overlap(bb, bbox3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point())) &&
-                (edge_intersects_face(a, f) || edge_intersects_face(b, f) || edge_intersects_face(c, f))) { return false; }
-        }
-    }
-    return true;
-}
 
 // Point-in-Polyhedron Algorithm
 // Based on Shulin et al. Point-in-polyhera test with direct handling of degeneracies. Geo-spatial Information Science. 2001.

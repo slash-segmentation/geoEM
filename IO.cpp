@@ -8,9 +8,13 @@
 
 #include "Strings.hpp"
 
+#include <CGAL/Polygon_mesh_processing/self_intersections.h>
+
 #ifndef POLYHEDRON_USE_VECTOR
 #include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
 #endif
+
+namespace PMP = CGAL::Polygon_mesh_processing;
 
 #include <iostream>
 #include <fstream>
@@ -51,9 +55,10 @@ void check_mesh(Polyhedron3* P)
 {
     // expensive operations that won't be necessary, usually
     // TODO: add check for isolated vertices
+    if (!P->is_valid())        { throw std::invalid_argument("Error: invalid polyhedron."); }
     if (!P->is_closed())       { throw std::invalid_argument("Error: non-closed polyhedron."); }
     if (!is_not_degenerate(P)) { throw std::invalid_argument("Error: degenerate polyhedron."); }
-    if (!is_manifold(P))       { throw std::invalid_argument("Error: non-manifold polyhedron."); }
+    if (PMP::does_self_intersect(*P)) { throw std::invalid_argument("Error: non-manifold polyhedron."); }
     if (!P->is_pure_triangle())
     {
 #ifdef POLYHEDRON_USE_VECTOR
@@ -61,7 +66,7 @@ void check_mesh(Polyhedron3* P)
 #else
         // TODO: add check for planarity of faces?
         std::cerr << "Polyhedron has non-triangle facets, triangulating..." << std::endl;
-        if (!CGAL::Polygon_mesh_processing::triangulate_faces(*P))
+        if (!PMP::triangulate_faces(*P))
         {
             throw std::invalid_argument("Error: Polyhedron has non-triangle facets and unable to triangulate");
         }
