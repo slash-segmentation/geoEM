@@ -11,8 +11,7 @@
 Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f)
 {
     // Assumes the facet is planar
-    const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
-    const Plane3 h = Plane3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
+    const Plane3 h = facet_to_plane3(f);
     std::vector<Point2> pts;
     FOR_VERTICES_AROUND_FACET(f, v) { pts.push_back(h.to_2d(v->point())); }
     return Polygon2(pts.begin(), pts.end());
