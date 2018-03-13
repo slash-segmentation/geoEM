@@ -50,8 +50,23 @@ bool is_not_degenerate(const Polyhedron3* P)
     // Check geometry of facets
     for (Polyhedron3::Facet_const_iterator f = P->facets_begin(), end = P->facets_end(); f != end; ++f)
     {
-        const Polygon2& p = facet_to_polygon2(f);
-        if (!p.is_simple() || p.area() == 0) { return false; }
+        if (f->is_triangle())
+        {
+            // This is significantly more accurate and faster then the other method
+            const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
+            if (CGAL::collinear(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            const Polygon2& p = facet_to_polygon2(f);
+            if (!p.is_simple() || p.area() == 0)
+            {
+                return false;
+            }
+        }
     }
 
     return true;
