@@ -44,28 +44,28 @@ inline void fix_ids(Polyhedron3* P)
 
 // Polyhedron looping around a vertex/facet
 #define FOR_EDGES_AROUND_VERTEX(V, e) \
-    Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Halfedge_const_handle e = MAKE_UNIQUE(_he); \
+    auto MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+    auto e = MAKE_UNIQUE(_he); \
     for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), e = MAKE_UNIQUE(_he))
 #define FOR_FACETS_AROUND_VERTEX(V, f) \
-    Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Facet_const_handle f = MAKE_UNIQUE(_he)->facet(); \
+    auto MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+    auto f = MAKE_UNIQUE(_he)->facet(); \
     for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), f = MAKE_UNIQUE(_he)->facet())
 #define FOR_VERTICES_AROUND_VERTEX(V, v) \
-    Polyhedron3::Halfedge_around_vertex_const_circulator MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Vertex_const_handle v = MAKE_UNIQUE(_he)->prev()->vertex(); \
+    auto MAKE_UNIQUE(_he) = V->vertex_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+    auto v = MAKE_UNIQUE(_he)->prev()->vertex(); \
     for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), v = MAKE_UNIQUE(_he)->prev()->vertex())
 #define FOR_EDGES_AROUND_FACET(F, e) \
-    Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Halfedge_const_handle e = MAKE_UNIQUE(_he); \
+    auto MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+    auto e = MAKE_UNIQUE(_he); \
     for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), e = MAKE_UNIQUE(_he))
 #define FOR_FACETS_AROUND_FACET(F, f) \
-    Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Facet_const_handle f = MAKE_UNIQUE(_he)->opposite()->facet(); \
+    auto MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+    auto f = MAKE_UNIQUE(_he)->opposite()->facet(); \
     for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), f = MAKE_UNIQUE(_he)->opposite()->facet())
 #define FOR_VERTICES_AROUND_FACET(F, v) \
-    Polyhedron3::Halfedge_around_facet_const_circulator MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
-    Polyhedron3::Vertex_const_handle v = MAKE_UNIQUE(_he)->vertex(); \
+    auto MAKE_UNIQUE(_he) = F->facet_begin(), MAKE_UNIQUE(_end) = MAKE_UNIQUE(_he); \
+    auto v = MAKE_UNIQUE(_he)->vertex(); \
     for (bool _circ_loop_flag = ! ::CGAL::is_empty_range(MAKE_UNIQUE(_he), MAKE_UNIQUE(_end)); _circ_loop_flag; _circ_loop_flag = (++MAKE_UNIQUE(_he) != MAKE_UNIQUE(_end)), v = MAKE_UNIQUE(_he)->vertex())
 
 
