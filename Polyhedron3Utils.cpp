@@ -56,34 +56,3 @@ bool is_not_degenerate(const Polyhedron3* P)
 
     return true;
 }
-
-// Point-in-Polyhedron Algorithm
-// Based on Shulin et al. Point-in-polyhera test with direct handling of degeneracies. Geo-spatial Information Science. 2001.
-struct pip_calculator
-{
-    typedef Polyhedron3::Facet_const_handle value_type;
-    typedef const value_type& const_reference;
-    const Point3 &p, &q;
-    const Plane3 h;
-    bool inside;
-    pip_calculator(const Point3& p, const Point3& q, const Point3& vf) : p(p), q(q), h(p, q, vf), inside(false) { }
-    void push_back(const Polyhedron3::Facet_const_handle& f)
-    {
-        const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next();
-        const Point3 &A = b->vertex()->point(), &B = c->vertex()->point(), &C = a->vertex()->point();
-        const bool AA = h.has_on_negative_side(A), AB = h.has_on_negative_side(B), AC = h.has_on_negative_side(C);
-        inside = inside != ((((AA != AB) && (AA ? Plane3(q,B,A).has_on_negative_side(p) : Plane3(q,A,B).has_on_negative_side(p)))  !=
-                             ((AB != AC) && (AB ? Plane3(q,C,B).has_on_negative_side(p) : Plane3(q,B,C).has_on_negative_side(p)))) !=
-                             ((AC != AA) && (AC ? Plane3(q,A,C).has_on_negative_side(p) : Plane3(q,C,A).has_on_negative_side(p))));
-    }
-};
-bool point_in_polyhedron(const Point3& p, const FacetTree& tree)
-{
-    const static Vector3 dir = random_nonnull_vector();
-    const Point3 q = p + dir;
-    static Point3 vf(1.0,1.0,1.0);
-    while (CGAL::collinear(p, q, vf)) { vf = random_point(tree.bbox()); } // arbitrary point not collinear with p and q to define h
-    pip_calculator pipc(p, q, vf);
-    tree.all_intersected_primitives(Ray3(p, q), std::back_inserter(pipc));
-    return pipc.inside;
-}
