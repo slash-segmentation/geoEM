@@ -10,7 +10,8 @@
 
 Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f)
 {
-    const Polyhedron3::Halfedge_const_handle &a = f->halfedge(), &b = a->next(), &c = b->next();
+    // Assumes the facet is planar
+    const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
     const Plane3 h = Plane3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
     std::vector<Point2> pts;
     FOR_VERTICES_AROUND_FACET(f, v) { pts.push_back(h.to_2d(v->point())); }
@@ -18,6 +19,7 @@ Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f)
 }
 
 // Calculate the volume of a polyhedron using Gauss's theorem / divergence theorem
+// Polyhedron must be pure triangular
 Kernel::FT volume(const Polyhedron3* P)
 {
     // To increase numerical stability make the 4th point in every tetrahedron the centriod of the
@@ -33,11 +35,9 @@ Kernel::FT volume(const Polyhedron3* P)
     Kernel::FT volume = 0;
     for (auto f = P->facets_begin(), f_end = P->facets_end(); f != f_end; ++f)
     {
-        auto he = f->facet_begin();
-        volume += CGAL::volume((he++)->vertex()->point(),
-                               (he++)->vertex()->point(),
-                               (he++)->vertex()->point(), center);
-        assert(he == f->facet_begin()); // must be a triangular mesh
+        const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
+        volume += CGAL::volume(center, a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
+        assert(a == c->next()); // must be a triangular mesh
     }
     return volume;
 }
