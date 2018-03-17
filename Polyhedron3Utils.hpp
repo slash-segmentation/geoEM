@@ -31,16 +31,6 @@ inline Direction3 normal(const Polyhedron3::Vertex_const_handle &v)
     return Direction3(normalized(n));
 }
 
-inline void fix_ids(Polyhedron3* P)
-{
-    // Make sure all of the facets and vertices have correct ids
-    // This is needed for several PMP functions
-    std::size_t i = 0;
-    for (auto itr = P->facets_begin(), end = P->facets_end(); itr != end; ++itr, ++i) { itr->id() = i; }
-    i = 0;
-    for (auto itr = P->vertices_begin(), end = P->vertices_end(); itr != end; ++itr, ++i) { itr->id() = i; }
-}
-
 
 // Polyhedron looping around a vertex/facet
 #define FOR_EDGES_AROUND_VERTEX(V, e) \
