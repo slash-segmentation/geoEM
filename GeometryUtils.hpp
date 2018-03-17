@@ -88,6 +88,23 @@ inline size_t hash_value(const Point3& p) { std::size_t h = 0; boost::hash_combi
 }
 
 
+// Common Types and Sets for Skeleton and Polyhedron parts
+typedef Skeleton3::vertex_descriptor S3VertexDesc;
+typedef Skeleton3::edge_descriptor   S3EdgeDesc;
+typedef Polyhedron3::Vertex_const_handle    P3CVertex;
+typedef Polyhedron3::Halfedge_const_handle  P3CHalfedge;
+typedef Polyhedron3::Facet_const_handle     P3CFacet;
+typedef Polyhedron3::Vertex_handle    P3Vertex;
+typedef Polyhedron3::Halfedge_handle  P3Halfedge;
+typedef Polyhedron3::Facet_handle     P3Facet;
+typedef handle_set<P3CVertex>   P3CVertexSet;
+typedef handle_set<P3Vertex>    P3VertexSet;
+typedef handle_set<P3CHalfedge> P3CHalfedgeSet;
+typedef handle_set<P3Halfedge>  P3HalfedgeSet;
+typedef handle_set<P3CFacet>    P3CFacetSet;
+typedef handle_set<P3Facet>     P3FacetSet;
+
+
 // Get vertex and facet indices from Polyhedron3 and Polygon3 data structures.
 // When marked DEPRECATED they should only be used in debugging since they are really, really slow (using list iterators).
 //template <class I> DEPRECATED(inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::input_iterator_tag)) { return std::distance(a, b); }
