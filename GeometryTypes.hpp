@@ -108,14 +108,24 @@ typedef CGAL::Plane_3<Kernel>       Plane3;
 #include <CGAL/Polyhedron_items_with_id_3.h>
 #include <CGAL/boost/graph/graph_traits_Polyhedron_3.h>
 #include <CGAL/IO/Polyhedron_iostream.h>
+class Polyhedron_items_with_id_3 : public CGAL::Polyhedron_items_with_id_3
+{
+public:
+    template < class Refs, class Traits>
+    struct Face_wrapper {
+        typedef typename Traits::Plane_3 Plane;
+		typedef CGAL::Tag_true Supports_face_plane;
+        typedef CGAL::HalfedgeDS_face_max_base_with_id<Refs, Plane, std::size_t> Face;
+    };
+};
 #if defined(POLYHEDRON_USE_VECTOR)
 #include <CGAL/HalfedgeDS_vector.h>
 //DECLARE_TEMPLATE(CGAL::Polyhedron_3<Kernel, ...>)
-typedef CGAL::Polyhedron_3<Kernel, CGAL::Polyhedron_items_with_id_3, CGAL::HalfedgeDS_vector> Polyhedron3;
+typedef CGAL::Polyhedron_3<Kernel, Polyhedron_items_with_id_3, CGAL::HalfedgeDS_vector> Polyhedron3;
 #else
 #include <boost/pool/pool_alloc.hpp>
 //DECLARE_TEMPLATE(CGAL::Polyhedron_3<Kernel, ...>)
-typedef CGAL::Polyhedron_3<Kernel, CGAL::Polyhedron_items_with_id_3, CGAL::HalfedgeDS_default, boost::fast_pool_allocator<int>> Polyhedron3;
+typedef CGAL::Polyhedron_3<Kernel, Polyhedron_items_with_id_3, CGAL::HalfedgeDS_default, boost::fast_pool_allocator<int>> Polyhedron3;
 #endif
 
 #include <boost/graph/adjacency_list.hpp>

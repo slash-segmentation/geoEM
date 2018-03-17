@@ -3,6 +3,8 @@
 #include "GeometryTypes.hpp"
 #include "GeometryUtils.hpp"
 
+#include <algorithm>
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // These are utilities for Polyhedron3 objects.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,6 +31,19 @@ inline Direction3 normal(const Polyhedron3::Vertex_const_handle &v)
     Polyhedron3::Halfedge_around_vertex_const_circulator he = v->vertex_begin(), end(he);
     CGAL_For_all(he, end) { if (!he->is_border()) { n = n + to_vector(normal(he->facet())); } }
     return Direction3(normalized(n));
+}
+
+
+// Calculate polyhedron facet planes
+template <class Facet>
+inline typename Facet::Plane_3 __facet_to_plane3(Facet& f)
+{
+	const Polyhedron3::Halfedge_const_handle &a = f.facet_begin(), &b = a->next(), &c = b->next(); 
+	return typename Facet::Plane_3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
+}
+inline void calculate_facet_planes(Polyhedron3* P)
+{
+    std::transform(P->facets_begin(), P->facets_end(), P->planes_begin(), __facet_to_plane3<Polyhedron3::Facet>);
 }
 
 
