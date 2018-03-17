@@ -40,6 +40,27 @@ Kernel::FT volume(const Polyhedron3* P)
     }
     return volume;
 }
+
+// Calculate the surface area of a polyhedron by summing up the areas of each facet
+Kernel::FT surface_area(const Polyhedron3* P)
+{
+    Kernel::FT sa = 0;
+    for (auto f = P->facets_begin(), f_end = P->facets_end(); f != f_end; ++f)
+    {
+        //if (f->is_triangle())
+        //{
+        //    const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
+        //    sa += CGAL::squared_area(a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
+        //}
+        //else
+        //{
+            sa += facet_to_polygon2(f).area();
+        //}
+    }
+    return CGAL::abs(sa);
+}
+
+// Checks uniqueness of vertex points and if each face is a simple polygon
 bool is_not_degenerate(const Polyhedron3* P)
 {
     // Check uniqueness of vertices
