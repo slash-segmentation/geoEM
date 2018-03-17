@@ -50,7 +50,8 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
             groups.push_back({{sv}});
             BOOST_FOREACH(auto e, out_edges(sv, *S))
             {
-                groups.back().push_back(opposite(*S, e, sv));
+                auto sv_n = opposite(*S, e, sv);
+                if (degree(sv_n, *S) <= 2) { groups.back().push_back(sv_n); }
             }
             groups.back().shrink_to_fit();
         }
@@ -428,8 +429,8 @@ static void facets_for_groups(/*const*/ Polyhedron3* P, const Skeleton3* S,
 Slices slice(const int group_sz, const Polyhedron3* P, const Skeleton3* S,
     const P3CVertexSet& facet_verts, bool verbose)
 {
-	Polyhedron3* P_ = const_cast<Polyhedron3*>(P); // the Face_filtered_graph doesn't cooperate well with the const...
-	
+    Polyhedron3* P_ = const_cast<Polyhedron3*>(P); // the Face_filtered_graph doesn't cooperate well with the const...
+    
     Groups groups;
     create_groups(group_sz, S, groups);
 
