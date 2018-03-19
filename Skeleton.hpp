@@ -47,7 +47,7 @@ void skeleton_enum_branches_as_pts(const Skeleton3* S, F callback)
     {
         std::vector<Point3> pts;
         pts.reserve(vertices.size());
-        BOOST_FOREACH(Skeleton3::vertex_descriptor v, vertices) { pts.push_back((*S)[v].point); }
+        for (Skeleton3::vertex_descriptor v : vertices) { pts.push_back((*S)[v].point); }
         callback(pts);
     });
 }

@@ -38,8 +38,8 @@ inline Direction3 normal(const Polyhedron3::Vertex_const_handle &v)
 template <class Facet>
 inline typename Facet::Plane_3 __facet_to_plane3(Facet& f)
 {
-	const Polyhedron3::Halfedge_const_handle &a = f.facet_begin(), &b = a->next(), &c = b->next(); 
-	return typename Facet::Plane_3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
+    const Polyhedron3::Halfedge_const_handle &a = f.facet_begin(), &b = a->next(), &c = b->next(); 
+    return typename Facet::Plane_3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
 }
 inline void calculate_facet_planes(Polyhedron3* P)
 {
@@ -91,7 +91,7 @@ bool is_not_degenerate(const Polyhedron3* P);
 
 // Mesh Extracting
 template <class Polyhedron_3, class VertexCollection>
-class MeshExtractorV : public CGAL::Modifier_base<typename Polyhedron3::HalfedgeDS>
+class MeshExtractorV : public CGAL::Modifier_base<typename Polyhedron_3::HalfedgeDS>
 {
     typedef typename CGAL::Polyhedron_incremental_builder_3<typename Polyhedron_3::HalfedgeDS> Builder;
     typedef handle_map<typename Polyhedron_3::Vertex_const_handle, size_t> Vertex_int_map;
@@ -110,7 +110,7 @@ public:
 
         // Add all of the vertices
         Vertex_int_map lookup;
-        BOOST_FOREACH(Vertex v, this->verts)
+        for (Vertex v : this->verts)
         {
             B.add_vertex(v->point());
             lookup.insert({{v, lookup.size()}});
@@ -119,7 +119,7 @@ public:
         // Add faces (all faces that have all vertices in the lookup table)
         Facet_set faces; // only add each face once
         std::vector<size_t> v_inds;
-        BOOST_FOREACH(Vertex v, this->verts)
+        for (Vertex v : this->verts)
         {
             FOR_FACETS_AROUND_VERTEX(v, f)
             {

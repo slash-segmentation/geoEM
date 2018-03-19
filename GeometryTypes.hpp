@@ -114,7 +114,7 @@ public:
     template < class Refs, class Traits>
     struct Face_wrapper {
         typedef typename Traits::Plane_3 Plane;
-		typedef CGAL::Tag_true Supports_face_plane;
+        typedef CGAL::Tag_true Supports_face_plane;
         typedef CGAL::HalfedgeDS_face_max_base_with_id<Refs, Plane, std::size_t> Face;
     };
 };
