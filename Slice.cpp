@@ -41,26 +41,47 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
     // branches cannot be evenly divided by group_sz the groups will be made smaller while trying to
     // keep all of the groups roughly the same size (at most different by 1).
 
+    static const int BP_DISTANCE = 2;
+
     groups.reserve(num_vertices(*S) / group_sz);
     // First add all of the branch points with their neighbors
     BOOST_FOREACH(auto sv, vertices(*S))
     {
         if (degree(sv, *S) > 2)
         {
-            groups.push_back({{sv}});
-            BOOST_FOREACH(auto e, out_edges(sv, *S))
+            std::unordered_set<S3VertexDesc> svs;
+            svs.reserve(degree(sv, *S)*BP_DISTANCE + 1);
+            std::unordered_set<S3VertexDesc> next;
+            next.insert(sv);
+            for (int distance = 1; distance <= BP_DISTANCE; ++distance)
             {
-                auto sv_n = opposite(*S, e, sv);
-                if (degree(sv_n, *S) <= 2) { groups.back().push_back(sv_n); }
+                std::unordered_set<S3VertexDesc> now(next);
+                svs.insert(next.begin(), next.end());
+                next.clear();
+                for (auto sv : now)
+                {
+                    BOOST_FOREACH(auto e, out_edges(sv, *S))
+                    {
+                        auto sv_n = opposite(*S, e, sv);
+                        // TODO: how to deal with BPs close together?
+                        if (!svs.count(sv_n) && degree(sv_n, *S) <= 2)
+                        {
+                            next.insert(sv_n);
+                        }
+                    }
+                }
             }
-            groups.back().shrink_to_fit();
+            svs.insert(next.begin(), next.end());
+            groups.push_back(std::vector<S3VertexDesc>(svs.begin(), svs.end()));
         }
     }
     // Then add all others
     skeleton_enum_branches(S, [&, S, group_sz] (const std::vector<S3VertexDesc>& verts) mutable
     {
-        int start = (degree(verts.front(), *S) != 1)*2, end = (degree(verts.back(), *S) != 1)*2;
-        size_t total = verts.size()-end-start;
+        int start = (degree(verts.front(), *S) != 1)*(BP_DISTANCE+1);
+        int end = (degree(verts.back(), *S) != 1)*(BP_DISTANCE+1);
+        ssize_t total = (ssize_t)verts.size()-end-start;
+        if (total <= 0) { return; }
         std::vector<int> sizes(total/group_sz, group_sz);
         // Distribute the remainder
         int rem = total%group_sz;
@@ -77,7 +98,7 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
         }
         // Add the groups of the correct sizes
         auto itr = verts.begin() + start;
-        BOOST_FOREACH(size_t sz, sizes)
+        for (size_t sz : sizes)
         {
             groups.push_back(std::vector<S3VertexDesc>(itr, itr + sz));
             itr += sz;
@@ -115,10 +136,16 @@ static size_t __find_facets_to_skip(/*const*/ Polyhedron3* P, handle_map<P3CVert
                 if (v2grp.at(e->prev()->opposite()->next()->vertex()) == itr->second) { any_same = true; break; }
             }
             if (!any_same) { skip_facets.insert(v); itr->second = SKIPPED; } // we are isolated
+            /*size_t count = 0;
+            FOR_EDGES_AROUND_VERTEX(v, e)
+            {
+                if (v2grp.at(e->prev()->opposite()->next()->vertex()) == itr->second) { count += 1; }
+            }
+            if (count <= 1) { skip_facets.insert(v); itr->second = SKIPPED; } // we are isolated*/
         }
         else
         {
-            // Check if vertex has a non-continous set of group facets around it
+            // Check if vertex has a non-continuous set of group facets around it
             std::vector<size_t> around; // contains the group ids as we go around the vertex with repeats removed
             FOR_VERTICES_AROUND_VERTEX(v, u)
             {
@@ -128,7 +155,7 @@ static size_t __find_facets_to_skip(/*const*/ Polyhedron3* P, handle_map<P3CVert
             // Correct for the fact that it is a cycle around
             if (around.back() == around.front()) { around.erase(around.end()-1); }
             // around is now a list of hopefully unique values - check it
-            std::sort(around.begin(), around.end()); // moves any non-adjecent duplicates next to each other
+            std::sort(around.begin(), around.end()); // moves any non-adjacent duplicates next to each other
             for (size_t i = 1; i < around.size(); ++i)
             {
                 if (around[i] != SKIPPED && around[i] == around[i-1])
@@ -159,9 +186,9 @@ static void _find_facets_to_skip(/*const*/ Polyhedron3* P, const Skeleton3* S,
     handle_map<P3CVertex, size_t> v2grp;
     for(size_t gid = 0; gid < groups.size(); ++gid)
     {
-        BOOST_FOREACH(S3VertexDesc sv, groups[gid])
+        for (S3VertexDesc sv : groups[gid])
         {
-            BOOST_FOREACH(P3CVertex v, (*S)[sv].vertices)
+            for (P3CVertex v : (*S)[sv].vertices)
             {
                 if (facet_verts.count(v)) { v2grp.insert({{v, gid}}); }
             }
@@ -187,9 +214,9 @@ static void _primary_facets_for_groups(/*const*/ Polyhedron3* P, const Skeleton3
     for (size_t gid = 0; gid < groups.size(); ++gid)
     {
         facets.clear();
-        BOOST_FOREACH(S3VertexDesc sv, groups[gid])
+        for (S3VertexDesc sv : groups[gid])
         {
-            BOOST_FOREACH(P3Vertex v, (*S)[sv].vertices)
+            for (P3Vertex v : (*S)[sv].vertices)
             {
                 if (facet_verts.count(v) && !skip_facets.count(v))
                 {
@@ -242,8 +269,13 @@ static void __get_neighbor_claims(P3Vertex v, handle_map<P3Vertex, size_t>& clai
     }
 }
 
+const int MAJORITY = 0x01;
+const int SINGLE   = 0x02;
+const int RANDOM   = 0x04;
+const int ANY = MAJORITY | SINGLE | RANDOM;
+
 static bool _expand_facets_for_groups(/*const*/ Polyhedron3* P, P3VertexSet& unclaimed,
-    handle_map<P3Vertex, size_t>& claimed, GroupFacets& group_facets, bool force_random=false)
+    handle_map<P3Vertex, size_t>& claimed, GroupFacets& group_facets, const int allowed=ANY)
 {
     // Expands the facets claimed by the groups of skeletal vertices. This is done by taking any
     // facet which has a majority of neighbors claimed by the same group and assigning it to that
@@ -258,7 +290,7 @@ static bool _expand_facets_for_groups(/*const*/ Polyhedron3* P, P3VertexSet& unc
     handle_map<P3Vertex, size_t> to_claim, to_claim_1;
     to_claim.reserve(unclaimed.size());
     std::vector<size_t> claims;
-    if (!force_random)
+    if (allowed & (MAJORITY | SINGLE))
     {
         for (auto v = unclaimed.begin(), end = unclaimed.end(); v != end; ++v)
         {
@@ -275,7 +307,7 @@ static bool _expand_facets_for_groups(/*const*/ Polyhedron3* P, P3VertexSet& unc
         }
     }
 
-    bool randomly = to_claim.size() == 0 && to_claim_1.size() == 0;
+    bool randomly = (allowed & RANDOM) && to_claim.size() == 0 && to_claim_1.size() == 0;
     if (randomly)
     {
         // At this point randomly assign each unclaimed facet to one of its neighbors that is
@@ -291,12 +323,12 @@ static bool _expand_facets_for_groups(/*const*/ Polyhedron3* P, P3VertexSet& unc
     }
 
     // Actually claim the facets
-    if (to_claim.size() == 0)
+    if ((allowed & (SINGLE | RANDOM)) && to_claim.size() == 0)
     {
         // Use to_claim_1 but with checking of the results after each addition that the facets are valid
         bool all_thrown_out = true;
         Filtered_P3 P_filtered(*P, handle_set<P3Facet>());
-        BOOST_FOREACH(auto c, to_claim_1)
+        for (auto c : to_claim_1)
         {
             P3Vertex v = c.first;
             size_t gid = c.second;
@@ -315,14 +347,14 @@ static bool _expand_facets_for_groups(/*const*/ Polyhedron3* P, P3VertexSet& unc
         }
         if (all_thrown_out && !randomly)
         {
-            // Try again with random forced
-            return _expand_facets_for_groups(P, unclaimed, claimed, group_facets, true);
+            // Try again only supporting random
+            return _expand_facets_for_groups(P, unclaimed, claimed, group_facets, RANDOM);
         }
     }
-    else
+    else if (allowed & MAJORITY)
     {
         // Use to_claim and quickly add all of the claims
-        BOOST_FOREACH(auto c, to_claim)
+        for (auto c : to_claim)
         {
             P3Vertex v = c.first;
             size_t gid = c.second;
@@ -339,11 +371,11 @@ static void __declaim(P3VertexSet& unclaimed, handle_map<P3Vertex, size_t>& clai
 {
     // Goes through each unclaimed vertex and "de-claims" all of its neighbors.
     P3VertexSet declaim;
-    BOOST_FOREACH (auto v, unclaimed)
+    for (auto v : unclaimed)
     {
         FOR_EDGES_AROUND_VERTEX(v, e) { declaim.insert(e->prev()->opposite()->next()->vertex()); }
     }
-    BOOST_FOREACH (auto v, declaim)
+    for (auto v : declaim)
     {
         unclaimed.insert(v);
         auto itr = claimed.find(v);
@@ -376,9 +408,9 @@ static void facets_for_groups(/*const*/ Polyhedron3* P, const Skeleton3* S,
         if (facet_verts.count(v)) { unclaimed.insert(v); }
     }
     handle_map<P3Vertex, size_t> claimed;
-    BOOST_FOREACH(auto& gid_facets, group_facets)
+    for (auto& gid_facets : group_facets)
     {
-        BOOST_FOREACH(auto f, gid_facets.second)
+        for (auto f : gid_facets.second)
         {
             P3Vertex v = f->halfedge()->vertex();
             unclaimed.erase(v);
@@ -392,7 +424,7 @@ static void facets_for_groups(/*const*/ Polyhedron3* P, const Skeleton3* S,
         std::cout << unclaimed.size() << " (" << (unclaimed.size() * 100.0 * 3 / P->size_of_facets()) << "%) unclaimed facets after connected components" << std::endl;
     }
 
-    int no_progress_iterations = 0, num_rewinds = 0;
+    int no_progress_iterations = 0, num_rewinds = 0, allowed = ANY; //MAJORITY;
     for (size_t iterations = 1; unclaimed.size(); ++iterations)
     {
         if (no_progress_iterations >= 2)
@@ -413,9 +445,38 @@ static void facets_for_groups(/*const*/ Polyhedron3* P, const Skeleton3* S,
 
         // Perform the expansion of groups
         size_t before = unclaimed.size();
-        bool randomly = _expand_facets_for_groups(P, unclaimed, claimed, group_facets);
+        bool randomly = _expand_facets_for_groups(P, unclaimed, claimed, group_facets, allowed);
         no_progress_iterations = (before == unclaimed.size()) ? no_progress_iterations + 1 : 0;
 
+        /*if (allowed == MAJORITY && no_progress_iterations == 1)
+        {
+            std::cout << "Switching to ANY (" << unclaimed.size() << " -> ";
+            
+            // Remove facets that have only 1 same claimed neighbor
+            for (P3Vertex v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
+            {
+                auto itr = claimed.find(v);
+                if (itr != claimed.end())
+                {
+                    size_t count = 0;
+                    FOR_EDGES_AROUND_VERTEX(v, e)
+                    {
+                        auto itr2 = claimed.find(e->prev()->opposite()->next()->vertex());
+                        if (itr2 != claimed.end() && itr2->second == itr->second) { count += 1; }
+                    }
+                    if (count <= 1)
+                    {
+                        unclaimed.insert(v);
+                        FOR_FACETS_AROUND_VERTEX(v, f) { group_facets[itr->second].erase(f); }
+                        claimed.erase(itr);
+                    }
+                }
+            }
+            no_progress_iterations = 0;
+            allowed = ANY;
+            std::cerr << unclaimed.size() << ")" << std::endl;
+        }*/
+        
         // Display information
         if (verbose)
         {
@@ -441,17 +502,19 @@ Slices slice(const int group_sz, const Polyhedron3* P, const Skeleton3* S,
     Filtered_P3 P_filtered(*P_, handle_set<P3Facet>());
     Slices slices;
     slices.reserve(groups.size());
-    BOOST_FOREACH(auto& gid_facets, group_facets)
+    for (auto& gid_facets : group_facets)
     {
         if (gid_facets.second.size() == 0) { continue; }
         // Extract the facets into a new mesh
         P_filtered.set_selected_faces(gid_facets.second);
         if (!P_filtered.is_selection_valid()) { std::cerr << "ERROR: An invalid facet arrangement was generated for a group" << std::endl; }
-        Polyhedron3* slc = new Polyhedron3();
-        CGAL::copy_face_graph(P_filtered, *slc);
+        auto& group = groups[gid_facets.first];
+        Slice* s = new Slice(S, group.begin(), group.end());
+        CGAL::copy_face_graph(P_filtered, *s->mesh());
         // Add the slice
-        slices.push_back(std::make_pair(groups[gid_facets.first], slc));
+        slices.push_back(s);
     }
     slices.shrink_to_fit();
+    Slice::set_neighbors(slices);
     return slices;
 }
