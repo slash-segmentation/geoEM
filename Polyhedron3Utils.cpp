@@ -41,20 +41,50 @@ Kernel::FT volume(const Polyhedron3* P)
     return volume;
 }
 
+// Calculate the surface area of a single facet
+inline Kernel::FT surface_area(P3CFacet f)
+{
+    if (f->is_triangle())
+    {
+        const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
+        return ft_sqrt(CGAL::squared_area(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()));
+    }
+    else
+    {
+        return CGAL::abs(facet_to_polygon2(f).area());
+    }
+}
+
 // Calculate the surface area of a polyhedron by summing up the areas of each facet
 Kernel::FT surface_area(const Polyhedron3* P)
 {
     Kernel::FT sa = 0;
     for (auto f = P->facets_begin(), f_end = P->facets_end(); f != f_end; ++f)
     {
-        if (f->is_triangle())
+        sa += surface_area(f);
+    }
+    return sa;
+}
+
+// Calculate the surface area of a polyhedron covered by the given vertices (where every facet that
+// has all vertices in verts in counted).
+Kernel::FT surface_area_covered(const Polyhedron3* P, P3CVertexSet verts)
+{
+    Kernel::FT sa = 0;
+    P3CFacetSet processed;
+    for (P3CVertex v : verts)
+    {
+        FOR_FACETS_AROUND_VERTEX(v, f)
         {
-            const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
-            sa += ft_sqrt(CGAL::squared_area(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()));
-        }
-        else
-        {
-            sa += CGAL::abs(facet_to_polygon2(f).area());
+            if (processed.count(f)) { continue; } // facet already processed
+            processed.insert(f); // now mark it as processed
+            bool count = true;
+            FOR_VERTICES_AROUND_FACET(f, vf)
+            {
+                if (!verts.count(vf)) { count = false; break; } // do not count facet - not all vertices are present
+            }
+            // Count it
+            if (count) { sa += surface_area(f); }
         }
     }
     return sa;
