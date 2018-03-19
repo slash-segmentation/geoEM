@@ -36,42 +36,42 @@ void Slice::init()
     // is filled in with nullptrs after this and must be corrected with set_neighbors.
     for (auto sv : svs)
     {
-    if (boost::degree(sv, *S) > deg) { deg = boost::degree(sv, *S); }
-    // If the vertex sv has an outgoing edge to a vertex not in svs it is an endpoint
-    BOOST_FOREACH(auto e, out_edges(sv, *S))
-    {
-    S3VertexDesc op = opposite(*S, e, sv);
-    if (!svs.count(op))
-    {
-    end_verts.push_back(sv);
-    Point3 p = (*S)[op].point, q = (*S)[sv].point;
-    end_planes.push_back(Plane3(CGAL::midpoint(p, q), q - p));
-    end_neighbors.push_back(nullptr);
-    break;
-    }
-    }
+        if (boost::degree(sv, *S) > deg) { deg = boost::degree(sv, *S); }
+        // If the vertex sv has an outgoing edge to a vertex not in svs it is an endpoint
+        BOOST_FOREACH(auto e, out_edges(sv, *S))
+        {
+            S3VertexDesc op = opposite(*S, e, sv);
+            if (!svs.count(op))
+            {
+                end_verts.push_back(sv);
+                Point3 p = (*S)[op].point, q = (*S)[sv].point;
+                end_planes.push_back(Plane3(CGAL::midpoint(p, q), q - p));
+                end_neighbors.push_back(nullptr);
+                break;
+            }
+        }
     }
     if (deg > 2)
     {
-    // Setup aux planes at branch points
-    for (auto& h : end_planes)
-    {
-    std::vector<Plane3> aux;
-    for (auto& h2 : end_planes)
-    {
-    if (h == h2) { continue; }
+        // Setup aux planes at branch points
+        for (auto& h : end_planes)
+        {
+            std::vector<Plane3> aux;
+            for (auto& h2 : end_planes)
+            {
+                if (h == h2) { continue; }
 
-    Vector3 n = h2.orthogonal_vector() - h.orthogonal_vector();
-    auto result = CGAL::intersection(h2, h);
-    Line3* l;
-    if (result && (l = boost::get<Line3>(&*result)))
-    {
-    aux.push_back(Plane3(l->point(0), n));
-    }
-    // else: planes are parallel and we will ignore them
-    }
-    aux_planes.push_back(aux);
-    }
+                Vector3 n = h2.orthogonal_vector() - h.orthogonal_vector();
+                auto result = CGAL::intersection(h2, h);
+                Line3* l;
+                if (result && (l = boost::get<Line3>(&*result)))
+                {
+                    aux.push_back(Plane3(l->point(0), n));
+                }
+                // else: planes are parallel and we will ignore them
+            }
+            aux_planes.push_back(aux);
+        }
     }
 }
 std::vector<Plane3> Slice::all_planes() const
@@ -84,25 +84,25 @@ std::vector<Plane3> Slice::all_planes() const
     stack.insert(this);
     while (!stack.empty())
     {
-    const Slice* slc = pop(stack);
-    processed.insert(slc);
-    for (Slice* neighbor : slc->end_neighbors)
-    {
-    if (processed.count(neighbor) || stack.count(neighbor) || neighbor->deg == 1) { continue; }
-    if (neighbor->deg == 2) { stack.insert(neighbor); continue; }
+        const Slice* slc = pop(stack);
+        processed.insert(slc);
+        for (Slice* neighbor : slc->end_neighbors)
+        {
+            if (processed.count(neighbor) || stack.count(neighbor) || neighbor->deg == 1) { continue; }
+            if (neighbor->deg == 2) { stack.insert(neighbor); continue; }
 
-    // Found a branch point
-    // Look for which of its neighbor slc is
-    size_t i;
-    for (i = 0; i < neighbor->end_neighbors.size(); ++i)
-    {
-    if (slc == neighbor->end_neighbors[i]) { break; }
-    }
-    assert(i != neighbor->end_neighbors.size());
+            // Found a branch point
+            // Look for which of its neighbor slc is
+            size_t i;
+            for (i = 0; i < neighbor->end_neighbors.size(); ++i)
+            {
+                if (slc == neighbor->end_neighbors[i]) { break; }
+            }
+            assert(i != neighbor->end_neighbors.size());
 
-    // Add the BP's respective auxilary planes
-    planes.insert(planes.end(), neighbor->aux_planes[i].begin(), neighbor->aux_planes[i].end());
-    }
+            // Add the BP's respective auxilary planes
+            planes.insert(planes.end(), neighbor->aux_planes[i].begin(), neighbor->aux_planes[i].end());
+        }
     }
     return planes;
 }
@@ -114,18 +114,18 @@ Kernel::FT Slice::length() const
     std::unordered_set<S3VertexDesc> processed;
     for (auto sv : svs)
     {
-    const Point3& p = (*S)[sv].point;
-    BOOST_FOREACH (auto e, out_edges(sv, *S))
-    {
-    auto sv2 = opposite(*S, e, sv);
-    if (!processed.count(sv2))
-    {
-    Kernel::FT dist = distance(p, (*S)[sv2].point);
-    if (!svs.count(sv2)) { dist /= 2; }  // part of other group, half distance (to midpoint)
-    len += dist;
-    }
-    }
-    processed.insert(sv);
+        const Point3& p = (*S)[sv].point;
+        BOOST_FOREACH (auto e, out_edges(sv, *S))
+        {
+            auto sv2 = opposite(*S, e, sv);
+            if (!processed.count(sv2))
+            {
+                Kernel::FT dist = distance(p, (*S)[sv2].point);
+                if (!svs.count(sv2)) { dist /= 2; }  // part of other group, half distance (to midpoint)
+                len += dist;
+            }
+        }
+        processed.insert(sv);
     }
     return len;
 }
@@ -140,15 +140,15 @@ void Slice::set_neighbors(std::vector<Slice*> slices)
     // Now fill in all neighbors of every endpoint
     for (Slice* slc : slices)
     {
-    for (size_t i = 0; i < slc->end_verts.size(); ++i)
-    {
-    S3VertexDesc sv = slc->end_verts[i];
-    BOOST_FOREACH (auto e, out_edges(sv, *slc->S))
-    {
-    S3VertexDesc op = opposite(*slc->S, e, sv);
-    if (!slc->svs.count(op)) { slc->end_neighbors[i] = sv2slc[op]; }
-    }
-    }
+        for (size_t i = 0; i < slc->end_verts.size(); ++i)
+        {
+            S3VertexDesc sv = slc->end_verts[i];
+            BOOST_FOREACH (auto e, out_edges(sv, *slc->S))
+            {
+                S3VertexDesc op = opposite(*slc->S, e, sv);
+                if (!slc->svs.count(op)) { slc->end_neighbors[i] = sv2slc[op]; }
+            }
+        }
     }
 }
 
@@ -170,7 +170,7 @@ Slice* Slice::capped() const
     Slice* slc = new Slice(this);
     for (auto he = slc->_mesh->halfedges_begin(); he != slc->_mesh->halfedges_end(); ++he)
     {
-    if (he->is_border()) { PMP::triangulate_hole(*slc->_mesh, he, null_output_iterator()); }
+        if (he->is_border()) { PMP::triangulate_hole(*slc->_mesh, he, null_output_iterator()); }
     }
 
     // Check mesh
@@ -188,10 +188,10 @@ inline static P3CVertex find_vertex_with_pt(const Polyhedron3* P, const Point3& 
 {
     for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
     {
-    if (p == v->point())
-    {
-    return v;
-    }
+        if (p == v->point())
+        {
+            return v;
+        }
     }
     throw std::invalid_argument("point not found in polyhedron");
 }
@@ -399,11 +399,11 @@ void Slice::build_mesh(const Polyhedron3* P)
     {
         for (P3CVertex v : (*S)[sv].vertices)
         {
-    if (on_all_pos_sides(planes, v->point()))
-    {
-    seeds.insert({{v->point(), v}});
-    }
-    }
+            if (on_all_pos_sides(planes, v->point()))
+            {
+                seeds.insert({{v->point(), v}});
+            }
+        }
     }
 
     // Cut up the mesh into a new mesh
@@ -413,29 +413,29 @@ void Slice::build_mesh(const Polyhedron3* P)
     std::tie(p, seed) = pop(seeds);
     for (auto& h : planes)
     {
-    if (first)
-    {
-    // First cut - uses original mesh
-    CutAtPlane cut(P, h, seed);
-    mesh->delegate(cut);
-    first = false;
-    }
-    else
-    {
-    // All other cuts - use previous result
-    P3CVertex v = find_vertex_with_pt(mesh, p);
-    Polyhedron3* temp = new Polyhedron3();
-    CutAtPlane cut(mesh, h, v);
-    temp->delegate(cut);
-    delete mesh;
-    mesh = temp;
-    }
+        if (first)
+        {
+            // First cut - uses original mesh
+            CutAtPlane cut(P, h, seed);
+            mesh->delegate(cut);
+            first = false;
+        }
+        else
+        {
+            // All other cuts - use previous result
+            P3CVertex v = find_vertex_with_pt(mesh, p);
+            Polyhedron3* temp = new Polyhedron3();
+            CutAtPlane cut(mesh, h, v);
+            temp->delegate(cut);
+            delete mesh;
+            mesh = temp;
+        }
     }
 
     // Update the seeds, removing any that are in the mesh
     for (auto v = mesh->vertices_begin(), end = mesh->vertices_end(); v != end; ++v)
     {
-    seeds.erase(v->point());
+        seeds.erase(v->point());
     }
     if (!seeds.empty()) { std::cerr << "Error: not all points ended up in final mesh" << std::endl; }
 
