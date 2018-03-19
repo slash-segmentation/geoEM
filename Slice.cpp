@@ -319,7 +319,7 @@ public:
                     const P3CHalfedge& he_cross = this->on_pos_side(he->next()) ? he->next() : he;
                     v_inds.push_back(this->get_int_pt_id(he_cross));
                     // Record the edge as part of the hole
-                    // TODO: this->add_hole_edge(?, v_inds[2]);
+                    this->add_hole_edge(this->get_pt_id(he_cross->next()), v_inds[2]);
                     // Add neighboring facets
                     this->add_op_facet(he_cross);
                 }
