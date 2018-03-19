@@ -10,16 +10,33 @@
 #include <CGAL/Boolean_set_operations_2.h>
 #include <CGAL/circulator.h>
 
-template <class Point, class Polygon>
+// Simple helper for PolyBuilder to be used as the default Polygon type
+template <class Point>
+class Polyline3 : public std::vector<Point>
+{
+    bool _open;
+    typedef typename std::vector<Point> Base;
+public:
+    Polyline3(bool is_open=false) : Base(), _open(is_open) {}
+    Polyline3(const Polyline3& p) : Base(p.begin(), p.end()), _open(p._open) {}
+    template <class InputIterator> Polyline3(InputIterator first, InputIterator last, bool is_open=false) : Base(first, last), _open(is_open) {}
+    bool is_open() const { return this->_open; }
+};
+
+template <class Point, class Polygon=Polyline3<Point>>
 class PolyBuilder
 {
+    // The only requirement for Point is that it is comparable.
+    // The only requirement for Polygon is that there is a constructor:
+    // Polygon(InputIterator begin, InputIterator pts, bool is_open)
+    // where InputIterator has a value_type of Point. A default is provided.
 protected:
     typedef std::list<Point> PartialPolygon;
     typedef std::unordered_map<Point, PartialPolygon*, boost::hash<Point>> pt2partialpoly;
     pt2partialpoly starters, enders; // the partial polygons
 
     std::vector<Polygon> polys;
-    
+
     typedef std::pair<const Point&, const Point&> simple_seg; // just a pair of points, should be "smaller" point first then "larger" (as defined by <).
     std::unordered_set<simple_seg, boost::hash<simple_seg>> have_processed; // for finding duplicates
 
@@ -76,7 +93,7 @@ protected:
                 //starters[p2->front()] = p2; // already valid
                 enders[p2->back()] = p2;
             }
-            else { p->push_back(seg.second); enders[seg.second] = p; } // add the target to the end of the partial polygon 
+            else { p->push_back(seg.second); enders[seg.second] = p; } // add the target to the end of the partial polygon
         }
         else if (st != starters.end())
         {
@@ -106,7 +123,7 @@ protected:
     }
     virtual void add_polygon(std::list<Point>* pts, bool is_open)
     {
-        remove_collinear_points(pts);
+        // TODO: remove_collinear_points(pts);
         this->polys.push_back(Polygon(pts->begin(), pts->end(), is_open));
     }
     void fix_holes(const std::false_type &) { } // normally does nothing, specialization for 2D below
@@ -134,7 +151,7 @@ protected:
             if (hole) { this->polys[i].reverse_orientation(); }
         }
     }
-    
+
 public:
     inline void add_seg(const Point& p, const Point& q) { this->add_seg(p < q ? simple_seg(p, q) : simple_seg(q, p)); }
 
@@ -146,10 +163,10 @@ public:
             this->add_polygon(s->second, true);
             delete s->second;
         }
-        
+
         // Possibly fix holes
         this->fix_holes(std::is_base_of<Polygon2, Polygon>());
-        
+
         // All done
         return this->polys;
     }
