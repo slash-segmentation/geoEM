@@ -7,7 +7,6 @@
 
 #include "IO.hpp"
 #include "IO_OBJ.hpp"
-#include "PolyBuilder.hpp"
 #include "Segments2Cylinders.hpp"
 #include "Points2Spheres.hpp"
 
@@ -47,33 +46,37 @@ typedef boost::vector_property_map<double, S3_vert_index_map_t> S3_vert_double_m
 typedef boost::vector_property_map<bool, S3_vert_index_map_t> S3_vert_bool_map;
 typedef boost::vector_property_map<S3VertexDesc, S3_vert_index_map_t> S3_vert_vert_map;
 
-S3_vert_double_map calc_distances_to_soma(const Polyhedron3* P, const Skeleton3* S)
+Slice* find_largest_endpoint_slice(Slices slices, S3VertexDesc& sv)
 {
-    // Find the endpoint that represents the "soma" (which has largest normalized surface area)
-    bool first = true;
+    // Finds the endpoint that has largest normalized volume
     Kernel::FT max = 0;
-    S3VertexDesc soma = 0; // 0 is to suppress warnings about possible uninitialized variables
-    BOOST_FOREACH (S3VertexDesc v, vertices(*S))
+    Slice* max_slc = nullptr;
+    for (Slice* slc : slices)
     {
-        if (degree(v, *S) == 1)
+        if (slc->degree() > 2) { continue; }
+        for (S3VertexDesc _sv : slc->skeleton_vertices())
         {
-            // Endpoint found
-            // Calculate the surface area
-            Kernel::FT sa = surface_area_covered(P, P3CVertexSet((*S)[v].vertices.begin(), (*S)[v].vertices.end()));
-            // Normalize
-            Point3 a = (*S)[v].point, b = (*S)[next_vertex(*S, v)].point;
-            sa /= distance(a, CGAL::midpoint(a, b));
-            // Check if it is a new maximum
-            if (first || sa > max) { soma = v; max = sa; first = false; }
+            if (degree(_sv, *slc->skeleton()) == 1)
+            {
+                // Calculate the normalized volume
+                Kernel::FT vol = volume(slc->mesh()) / slc->length();
+                // Check if it is a new maximum
+                if (max_slc == nullptr || vol > max) { max_slc = slc; max = vol; sv = _sv; }
+                break;
+            }
         }
     }
+    return max_slc;
+}
 
-    // Calculate the distance for each skeleton point
+S3_vert_double_map calc_distances(const Skeleton3* S, S3VertexDesc target)
+{
+    // Calculate the distance for each skeleton point to the given target
     S3_vert_double_map distances(get(boost::vertex_index, *S));
     S3_vert_bool_map discovered(get(boost::vertex_index, *S));
     std::vector<std::pair<S3VertexDesc, double>> stack;
-    stack.push_back(std::make_pair(soma, 0.0));
-    discovered[soma] = true;
+    stack.push_back(std::make_pair(target, 0.0));
+    discovered[target] = true;
     while (!stack.empty())
     {
         S3VertexDesc v = stack.back().first;
@@ -89,11 +92,10 @@ S3_vert_double_map calc_distances_to_soma(const Polyhedron3* P, const Skeleton3*
             discovered[u] = true;
         }
     }
-
     return distances;
 }
 
-S3_vert_vert_map calc_next_bps(const Polyhedron3* P, const Skeleton3* S, const S3_vert_double_map& dist_to_soma)
+S3_vert_vert_map calc_next_bps(const Skeleton3* S, const S3_vert_double_map& dist_to_soma)
 {
     S3_vert_vert_map next_bp(get(boost::vertex_index, *S));
     S3_vert_bool_map valid(get(boost::vertex_index, *S));
@@ -180,6 +182,7 @@ int main(int argc, char **argv)
     ///////////////////////////////////////////////////////////////////////////
     double remesh_size = 0.75; // perform isotropic remeshing to make the size of triangles more equal
     int loop_subdivisions = 1; // add extra vertices to the input mesh
+    int slice_sz = 3, bp_slice_sz = 7; // number of skeleton vertices to group together to form a slice
     const char* output_obj = "output.obj"; // the output OBJ file
     const char* output_skel = "skel.cgal"; // the output CGAL file for the skeleton points
 
@@ -253,39 +256,30 @@ int main(int argc, char **argv)
 
 
     ///////////////////////////////////////////////////////////////////////////
-    // Calculate skeleton vertex information
-    ///////////////////////////////////////////////////////////////////////////
-    S3_vert_double_map dists;
-    S3_vert_vert_map next_bps;
-    {
-        std::cout << "Calculating skeleton vertex information..." << std::endl;
-        boost::timer::auto_cpu_timer t;
-        dists = calc_distances_to_soma(P, S);
-        next_bps = calc_next_bps(P, S, dists);
-    }
-    std::cout << std::endl;
-
-
-    ///////////////////////////////////////////////////////////////////////////
     // Slice
     ///////////////////////////////////////////////////////////////////////////
     Slices slices;
     {
         std::cout << "Slicing..." << std::endl;
         boost::timer::auto_cpu_timer t;
-        slices = slice(5, P, S);
+        slices = slice(slice_sz, bp_slice_sz, P, S);
     }
     std::cout << std::endl;
 
 
     ///////////////////////////////////////////////////////////////////////////
-    // Cap slices
+    // Calculate skeleton vertex information
     ///////////////////////////////////////////////////////////////////////////
-    Slices capped_slices;
+    S3VertexDesc soma_sv;
+    Slice* soma_slc;
+    S3_vert_double_map dists;
+    S3_vert_vert_map next_bps;
     {
-        std::cout << "Capping slices..." << std::endl;
+        std::cout << "Calculating skeleton vertex information..." << std::endl;
         boost::timer::auto_cpu_timer t;
-        capped_slices = cap_slices(slices);
+        soma_slc = find_largest_endpoint_slice(slices, soma_sv);
+        dists = calc_distances(S, soma_sv);
+        next_bps = calc_next_bps(S, dists);
     }
     std::cout << std::endl;
 
@@ -318,7 +312,7 @@ int main(int argc, char **argv)
     // The mesh as a series of colored segments based on their "value"
     std::vector<Polyhedron3*> segs;
     std::vector<double> values;
-    for (auto& slc : capped_slices)
+    for (auto& slc : slices)
     {
         // Volume:
         //double val = CGAL::to_double(volume(slc->mesh()));
@@ -331,10 +325,9 @@ int main(int argc, char **argv)
         for (auto sv : slc->skeleton_vertices()) { val += dists[sv]; }
         val /= slc->skeleton_vertices().size();
 
-        // Distance to branch point:
-        S3VertexDesc near = *slc->skeleton_vertices().begin();
-        for (auto sv : slc->skeleton_vertices()) { if (dists[sv] < dists[near]) { near = sv; }  }
-        val -= dists[next_bps[near]];
+        // Distance to branch point:    (modifies distance to soma)
+        if (slc->degree() > 2) { val = 0; }
+        else { val -= dists[next_bps[*slc->skeleton_vertices().begin()]]; }
 
         values.push_back(val);
         segs.push_back(slc->mesh());
@@ -368,11 +361,11 @@ int main(int argc, char **argv)
     std::cout << "    " << total_vertices << " vertices" << std::endl;
     std::cout << "The volume of the entire mesh is: " << volume(P) << std::endl;
     Kernel::FT total_volume = 0;
-    for (auto& slc : capped_slices) { total_volume += volume(slc->mesh()); }
-    std::cout << "The volume of the sum of the capped slices is: " << total_volume << std::endl;
+    for (auto& slc : slices) { total_volume += volume(slc->mesh()); }
+    std::cout << "The volume of the sum of the slices is: " << total_volume << std::endl;
     std::cout << "The surface area of the entire mesh is: " << surface_area(P) << std::endl;
     Kernel::FT total_sa = 0;
-    for (auto& slc : slices) { total_sa += surface_area(slc->mesh()); }
+    for (auto& slc : slices) { total_sa += surface_area(slc->mesh()); } // TODO: should be from UNCAPPED
     std::cout << "The surface area of the sum of the slices is: " << total_sa << std::endl;
 
 
