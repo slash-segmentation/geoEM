@@ -429,7 +429,16 @@ void Slice::build_mesh(const Polyhedron3* P)
         }
         if (seed != P->vertices_end()) { break; }
     }
-    if (seed == P->vertices_end()) { std::cerr << "ERROR: no seed found to start building mesh from" << std::endl; }
+    if (seed == P->vertices_end())
+    {
+        // TODO: this is occuring lots - why?
+        std::cerr << "Warning: no seed found using shortcut, using fallback..." << std::endl;
+        for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
+        {
+            if (on_all_pos_sides(planes, v->point())) { seed = v; break; }
+        }
+        if (seed == P->vertices_end()) { std::cerr << "ERROR: no seed found to start building mesh from" << std::endl; }
+    }
 
     // Cut up the mesh into a new mesh
     Polyhedron3* mesh = new Polyhedron3();
