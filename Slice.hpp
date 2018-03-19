@@ -7,8 +7,13 @@
 #include <vector>
 #include <unordered_set>
 
+#include <CGAL/boost/graph/Face_filtered_graph.h>
+
 class Slice
 {
+public:
+    typedef CGAL::Face_filtered_graph<Polyhedron3> UncappedMesh;
+private:
     // Note: the ends of a slice must only have one outgoing edge each
     const Skeleton3* S;
     std::unordered_set<S3VertexDesc> svs;
@@ -20,7 +25,8 @@ class Slice
     // Branch points cause additional planes for each end to be passed on along the branches
     // Same order as end_* if available (i.e a branch point)
     std::vector<std::vector<Plane3>> aux_planes;
-    Polyhedron3* _mesh = nullptr;
+    Polyhedron3* _mesh;
+    UncappedMesh* uncapped = nullptr;
 
     void init();
 
@@ -31,6 +37,7 @@ public:
 
     // Copy constructors copy the mesh unless given a new mesh
     // Neighbors are not copied, must call set_neighbors
+    // TODO: copy uncapped?
     inline Slice(const Slice& slc, Polyhedron3* mesh=nullptr)
         : S(slc.S), svs(slc.svs), deg(slc.deg),
         end_verts(slc.end_verts), end_planes(slc.end_planes), end_neighbors(slc.end_neighbors.size(), nullptr), aux_planes(slc.aux_planes),
@@ -40,9 +47,15 @@ public:
         end_verts(slc->end_verts), end_planes(slc->end_planes), end_neighbors(slc->end_neighbors.size(), nullptr), aux_planes(slc->aux_planes),
         _mesh(mesh == nullptr ? new Polyhedron3(*slc->_mesh) : mesh) { }
     Slice& operator=(const Slice&) = delete;
-    inline ~Slice() { delete _mesh; }
+    inline ~Slice() { delete _mesh; delete uncapped; }
 
+    void build_mesh(const Polyhedron3* P);
+    static void set_neighbors(std::vector<Slice*> slices);
+
+    Kernel::FT length() const;
     inline size_t degree() const { return this->deg; }
+    inline const Skeleton3* skeleton() const { return this->S; }
+
     inline std::unordered_set<S3VertexDesc>& skeleton_vertices() { return this->svs; }
     inline const std::unordered_set<S3VertexDesc>& skeleton_vertices() const { return this->svs; }
 
@@ -63,15 +76,10 @@ public:
     inline Polyhedron3* mesh() { return this->_mesh; }
     inline const Polyhedron3* mesh() const { return this->_mesh; }
 
-    Kernel::FT length() const;
-
-    void build_mesh(const Polyhedron3* P);
-    Slice* capped() const;
-
-    static void set_neighbors(std::vector<Slice*> slices);
+    inline UncappedMesh* uncapped_mesh() { return this->uncapped; }
+    inline const UncappedMesh* uncapped_mesh() const { return this->uncapped; }
 };
 
 typedef std::vector<Slice*> Slices;
 
-Slices slice(const int group_sz, const Polyhedron3* P, const Skeleton3* S);
-Slices cap_slices(const Slices& slices);
+Slices slice(const int group_sz, const int bp_group_sz, const Polyhedron3* P, const Skeleton3* S);

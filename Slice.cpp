@@ -1,6 +1,7 @@
 #include "Slice.hpp"
 
 #include "Skeleton.hpp"
+#include "PolyBuilder.hpp"
 #include "Polyhedron3Utils.hpp"
 
 #include <vector>
@@ -76,6 +77,7 @@ void Slice::init()
 }
 std::vector<Plane3> Slice::all_planes() const
 {
+    // This include this->end_planes along with auxilary planes from branch points
     if (deg > 2) { return this->end_planes; } // branch points don't try to grab any other planes
     std::vector<Plane3> planes = this->end_planes;
 
@@ -155,35 +157,6 @@ void Slice::set_neighbors(std::vector<Slice*> slices)
 ///////////////////////////////////////////////////////////////////////////////
 // Slice class meshing methods
 ///////////////////////////////////////////////////////////////////////////////
-struct null_output_iterator : std::iterator<std::output_iterator_tag, null_output_iterator>
-{
-    // An output iterator that discards all data, useful for PMP::triangulate_hole.
-    // From: https://stackoverflow.com/questions/335930/discarding-the-output-of-a-function-that-needs-an-output-iterator
-    template<typename T> void operator=(T const&) { }
-    null_output_iterator & operator++() { return *this; }
-    null_output_iterator operator++(int) { return *this; }
-    null_output_iterator & operator*() { return *this; }
-};
-Slice* Slice::capped() const
-{
-    // Creates a new slice that has all holes capped using PMP::triangulate_hole()
-    Slice* slc = new Slice(this);
-    for (auto he = slc->_mesh->halfedges_begin(); he != slc->_mesh->halfedges_end(); ++he)
-    {
-        if (he->is_border()) { PMP::triangulate_hole(*slc->_mesh, he, null_output_iterator()); }
-    }
-
-    // Check mesh
-    if (!slc->_mesh->is_valid())         { std::cerr << "Warning: slice is not valid" << std::endl; }
-    if (!slc->_mesh->is_closed())        { std::cerr << "Warning: slice is not closed" << std::endl; }
-    if (!is_not_degenerate(slc->_mesh))  { std::cerr << "Warning: slice is degenerate" << std::endl; }
-    if (PMP::does_self_intersect(*slc->_mesh)) { std::cerr << "Warning: slice is self-intersecting" << std::endl; }
-    //if (!PMP::does_bound_a_volume(*slc->_mesh)) { std::cerr << "Warning: slice does not bound a volume" << std::endl; } // crashes in some cases...
-    if (!slc->_mesh->is_pure_triangle()) { std::cerr << "Warning: slice is not pure triangle" << std::endl; }
-
-    return slc;
-}
-
 inline static P3CVertex find_vertex_with_pt(const Polyhedron3* P, const Point3& p)
 {
     for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
@@ -205,6 +178,7 @@ class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
     typedef CGAL::Polyhedron_incremental_builder_3<Polyhedron3::HalfedgeDS> Builder;
     typedef std::unordered_map<Point3, size_t, boost::hash<Point3>> PointMap;
     typedef handle_map<P3CHalfedge, size_t> EdgeMap;
+    typedef std::vector<std::pair<size_t, size_t>> HoleEdges;
 
     const Polyhedron3* P;
     const Plane3 h;
@@ -212,6 +186,9 @@ class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
     Builder* B;
     PointMap lookup;
     EdgeMap edge_lookup;
+    PolyBuilder<size_t, Polyline3<size_t>> hole_edges;
+    std::vector<Builder::Halfedge_handle> additions;
+
     handle_set<P3CFacet> finished, stack;
 
     inline bool on_pos_side(const P3CVertex& v) const { return this->h.has_on_positive_side(v->point()); }
@@ -280,6 +257,10 @@ class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
             this->stack.insert(e->facet());
         }
     }
+    inline void add_hole_edge(size_t v, size_t u)
+    {
+        this->hole_edges.add_seg(v, u);
+    }
 public:
     // Polyhedron must be pure triangle
     // Keep positive side of plane
@@ -309,8 +290,7 @@ public:
         std::vector<size_t> v_inds;
         while (!this->stack.empty())
         {
-            P3CFacet f = *this->stack.begin();
-            this->stack.erase(this->stack.begin());
+            P3CFacet f = pop(this->stack);
             this->finished.insert(f);
             size_t n_neg = this->n_verts_on_neg_side(f);
             assert(n_neg < 3);
@@ -338,6 +318,9 @@ public:
                     v_inds.push_back(a); v_inds.push_back(b);
                     const P3CHalfedge& he_cross = this->on_pos_side(he->next()) ? he->next() : he;
                     v_inds.push_back(this->get_int_pt_id(he_cross));
+                    // Record the edge as part of the hole
+                    // TODO: this->add_hole_edge(?, v_inds[2]);
+                    // Add neighboring facets
                     this->add_op_facet(he_cross);
                 }
                 else // if (n_pos == 2)
@@ -348,6 +331,8 @@ public:
                     // The two vertices on the plane
                     size_t c = this->get_int_pt_id(he);
                     size_t d = this->get_int_pt_id(he->next());
+                    // Record the edge as part of the hole
+                    this->add_hole_edge(c, d);
                     // Add the first facet
                     v_inds.push_back(b); v_inds.push_back(c); v_inds.push_back(d);
                     B.add_facet(v_inds.begin(), v_inds.end());
@@ -373,6 +358,8 @@ public:
                 // The vertices on the plane
                 v_inds.push_back(this->get_int_pt_id(he->next()));
                 v_inds.push_back(this->get_int_pt_id(he));
+                // Record the edge as part of the hole
+                this->add_hole_edge(v_inds[1], v_inds[2]);
                 // Add neighboring facets
                 this->add_op_facet(he);
                 this->add_op_facet(he->next());
@@ -383,8 +370,47 @@ public:
                 v_inds.clear();
             }
         }
+
+        // Finish up with filling the holes
+        for (auto& hole : this->hole_edges.finish_up())
+        {
+            std::reverse(hole.begin(), hole.end()); // TODO: always necessary? or use B.test_facet?
+            std::vector<Point3> points;
+            points.reserve(hole.size());
+            for (size_t i : hole) { points.push_back(B.vertex(i)->point()); }
+            PMP::triangulate_hole_polyline(points, triangle_output_iterator(this, points));
+        }
+
         B.end_surface();
     }
+    const std::vector<Builder::Halfedge_handle>& get_additions() const { return this->additions; }
+private:
+    struct triangle_output
+    {
+        int a, b, c;
+        triangle_output() : a(0), b(0), c(0) { }
+        triangle_output(int a, int b, int c) : a(a), b(b), c(c) { }
+    };
+    struct triangle_output_iterator : std::iterator<std::output_iterator_tag, triangle_output>
+    {
+        CutAtPlane* cut;
+        std::vector<Point3>& points;
+        triangle_output_iterator(CutAtPlane* cut, std::vector<Point3>& points) : cut(cut), points(points)
+        {
+            cut->additions.reserve(cut->additions.size() + points.size() - 2);
+        }
+        void operator=(triangle_output const& t)
+        {
+            cut->B->begin_facet();
+            cut->B->add_vertex_to_facet(cut->get_pt_id(points[t.a]));
+            cut->B->add_vertex_to_facet(cut->get_pt_id(points[t.b]));
+            cut->B->add_vertex_to_facet(cut->get_pt_id(points[t.c]));
+            cut->additions.push_back(cut->B->end_facet());
+        }
+        triangle_output_iterator& operator++() { return *this; }
+        triangle_output_iterator operator++(int) { return *this; }
+        triangle_output_iterator& operator*() { return *this; }
+    };
 };
 void Slice::build_mesh(const Polyhedron3* P)
 {
@@ -394,23 +420,21 @@ void Slice::build_mesh(const Polyhedron3* P)
     std::vector<Plane3> planes = all_planes();
 
     // Find all of the polyhedron vertices that should be in the final result
-    std::unordered_map<Point3, P3CVertex, boost::hash<Point3>> seeds;
+    P3CVertex seed = P->vertices_end();
     for (S3VertexDesc sv : svs)
     {
         for (P3CVertex v : (*S)[sv].vertices)
         {
-            if (on_all_pos_sides(planes, v->point()))
-            {
-                seeds.insert({{v->point(), v}});
-            }
+            if (on_all_pos_sides(planes, v->point())) { seed = v; break; }
         }
+        if (seed != P->vertices_end()) { break; }
     }
+    if (seed == P->vertices_end()) { std::cerr << "ERROR: no seed found to start building mesh from" << std::endl; }
 
     // Cut up the mesh into a new mesh
     Polyhedron3* mesh = new Polyhedron3();
     bool first = true;
-    Point3 p; P3CVertex seed;
-    std::tie(p, seed) = pop(seeds);
+    Point3 p = seed->point();
     for (auto& h : planes)
     {
         if (first)
@@ -418,6 +442,7 @@ void Slice::build_mesh(const Polyhedron3* P)
             // First cut - uses original mesh
             CutAtPlane cut(P, h, seed);
             mesh->delegate(cut);
+            //TODO: use cut->get_additions();
             first = false;
         }
         else
@@ -426,24 +451,26 @@ void Slice::build_mesh(const Polyhedron3* P)
             P3CVertex v = find_vertex_with_pt(mesh, p);
             Polyhedron3* temp = new Polyhedron3();
             CutAtPlane cut(mesh, h, v);
+            //TODO: use cut->get_additions();
             temp->delegate(cut);
             delete mesh;
             mesh = temp;
         }
     }
-
-    // Update the seeds, removing any that are in the mesh
-    for (auto v = mesh->vertices_begin(), end = mesh->vertices_end(); v != end; ++v)
-    {
-        seeds.erase(v->point());
-    }
-    if (!seeds.empty()) { std::cerr << "Error: not all points ended up in final mesh" << std::endl; }
+    CGAL::set_halfedgeds_items_id(*mesh);
 
     // Check mesh
     if (!mesh->is_valid())         { std::cerr << "Warning: slice is not valid" << std::endl; }
+    if (!mesh->is_closed())        { std::cerr << "Warning: slice is not closed" << std::endl; }
     if (!is_not_degenerate(mesh))  { std::cerr << "Warning: slice is degenerate" << std::endl; }
     if (PMP::does_self_intersect(*mesh)) { std::cerr << "Warning: slice is self-intersecting" << std::endl; }
+    //if (!PMP::does_bound_a_volume(*P)) { std::cerr << "Warning: slice does not bound a volume" << std::endl; } // crashes in manny cases...
     if (!mesh->is_pure_triangle()) { std::cerr << "Warning: slice is not pure triangle" << std::endl; }
+
+    // TODO: Create uncapped view of mesh
+    if (uncapped) { delete uncapped; }
+    std::unordered_set<P3Facet> facets;
+    uncapped = new UncappedMesh(*_mesh, facets);
 
     // Set the class's mesh
     delete _mesh;
@@ -453,17 +480,17 @@ void Slice::build_mesh(const Polyhedron3* P)
 ///////////////////////////////////////////////////////////////////////////////
 // Group creation
 ///////////////////////////////////////////////////////////////////////////////
-static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups)
+static void create_groups(const int group_sz, const int bp_group_sz, const Skeleton3* S, Groups& groups)
 {
-    // Creates groups of skeleton vertices. The branch points in the skeleton will always be in
-    // groups of one more than the degree of the branch point, including the branch point itself and
-    // a single neighboring point in each direction.
+    // Creates groups of skeleton vertices. The branch points in the skeleton will always be in put
+    // into groups so that the distance from one endpoint to another is bp_group_sz (or
+    // bp_group_sz+1 is bp_group_sz is even). This means that the branch part groups will contain
+    // 1 + (bp_group_sz/2*deg) skeleton vertices where deg is the degree of the branch point.
     //
     // Other groups will contain at most group_sz consecutive skeleton vertices. In the case
     // branches cannot be evenly divided by group_sz the groups will be made smaller while trying to
     // keep all of the groups roughly the same size (at most different by 1).
-
-    static const int BP_DISTANCE = 2; // TODO: based on group_sz?
+    const int bp_size = bp_group_sz / 2;
 
     groups.reserve(num_vertices(*S) / group_sz);
     // First add all of the branch points with their neighbors
@@ -472,10 +499,10 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
         if (degree(sv, *S) > 2)
         {
             std::unordered_set<S3VertexDesc> svs;
-            svs.reserve(degree(sv, *S)*BP_DISTANCE + 1);
+            svs.reserve(degree(sv, *S)*bp_size + 1);
             std::unordered_set<S3VertexDesc> next;
             next.insert(sv);
-            for (int distance = 1; distance <= BP_DISTANCE; ++distance)
+            for (int distance = 1; distance <= bp_size; ++distance)
             {
                 std::unordered_set<S3VertexDesc> now(next);
                 svs.insert(next.begin(), next.end());
@@ -500,8 +527,8 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
     // Then add all others
     skeleton_enum_branches(S, [&, S, group_sz] (const std::vector<S3VertexDesc>& verts) mutable
     {
-        int start = (degree(verts.front(), *S) != 1)*(BP_DISTANCE+1);
-        int end = (degree(verts.back(), *S) != 1)*(BP_DISTANCE+1);
+        int start = (degree(verts.front(), *S) != 1)*(bp_size+1);
+        int end = (degree(verts.back(), *S) != 1)*(bp_size+1);
         ssize_t total = (ssize_t)verts.size()-end-start;
         if (total <= 0) { return; }
         std::vector<int> sizes(total/group_sz, group_sz);
@@ -532,11 +559,11 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
 ///////////////////////////////////////////////////////////////////////////////
 // Function that takes a mesh and skeleton and creates the slices
 ///////////////////////////////////////////////////////////////////////////////
-Slices slice(const int group_sz, const Polyhedron3* P, const Skeleton3* S)
+Slices slice(const int group_sz, const int bp_group_sz, const Polyhedron3* P, const Skeleton3* S)
 {
     // Create the groups
     Groups groups;
-    create_groups(group_sz, S, groups);
+    create_groups(group_sz, bp_group_sz, S, groups);
 
     // Create each slice
     Slices slices;
@@ -547,22 +574,10 @@ Slices slice(const int group_sz, const Polyhedron3* P, const Skeleton3* S)
     Slice::set_neighbors(slices);
 
     // Finally the meshes for each of the slices can be built
-    for (Slice* slc : slices) { slc->build_mesh(P); }
-
-    return slices;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Function that takes slices and creates capped version of all of them
-///////////////////////////////////////////////////////////////////////////////
-Slices cap_slices(const Slices& slices)
-{
-    Slices capped;
-    capped.reserve(slices.size());
     for (Slice* slc : slices)
     {
-        capped.push_back(slc->capped());
+        slc->build_mesh(P);
     }
-    Slice::set_neighbors(capped);
-    return capped;
+
+    return slices;
 }
