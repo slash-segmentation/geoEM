@@ -65,7 +65,10 @@ bool is_not_degenerate(const Polyhedron3* P)
 {
     // Check uniqueness of vertices
     std::unordered_set<Point3, boost::hash<Point3>> points;
-    for (Polyhedron3::Point_const_iterator p = P->points_begin(), end = P->points_end(); p != end; ++p) { if (!points.insert(*p).second) { return false; } }
+    for (Polyhedron3::Point_const_iterator p = P->points_begin(), end = P->points_end(); p != end; ++p)
+    {
+        if (!points.insert(*p).second) { return false; }
+    }
 
     // Check geometry of facets
     for (Polyhedron3::Facet_const_iterator f = P->facets_begin(), end = P->facets_end(); f != end; ++f)
