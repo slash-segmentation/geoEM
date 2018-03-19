@@ -123,10 +123,30 @@ protected:
     }
     virtual void add_polygon(std::list<Point>* pts, bool is_open)
     {
-        // TODO: remove_collinear_points(pts);
+        this->remove_collinear_points(pts);
         this->polys.push_back(Polygon(pts->begin(), pts->end(), is_open));
     }
-    void fix_holes(const std::false_type &) { } // normally does nothing, specialization for 2D below
+    inline void remove_collinear_points(std::list<Point>* pts)
+    {
+        // does nothing unless we have Point2 or Point3
+        typedef std::integral_constant<bool, std::is_base_of<Point2, Point>::value || std::is_base_of<Point3, Point>::value> is_point23;
+        this->remove_collinear_points(pts, is_point23());
+    }
+    inline void remove_collinear_points(std::list<Point>* pts, const std::false_type &) { }
+    void remove_collinear_points(std::list<Point>* pts, const std::true_type &)
+    {
+        typedef std::list<Point2>::iterator iter;
+        if (pts->size() < 3) { return; }
+        // The three points we are considering at one point in time are p, q, r (in that order)
+        // If collinear we remove q and make: <p,q,r> = <p,r,r+1>
+        // If not collinear we advance each: <p,q,r> = <q,r,r+1>
+        // We need to make sure to also consider the triplets that cross the ends (at least two to check - more if one of those is collinear)
+        iter r = pts->begin(), p = std::prev(pts->end()), q = r++; // <p,q,r> starts out with the last item and the first two items of the list (if cyclic)
+        for (; r != pts->end(); ++r) { if (CGAL::collinear(*p, *q, *r)) { q = r = pts->erase(q); } else { p = q; q = r; } }
+        if (pts->size() >= 3 && CGAL::collinear(*p, *q, pts->front())) { pts->erase(q); }
+    }
+    inline void fix_holes() { this->fix_holes(std::is_base_of<Polygon2, Polygon>()); } // does nothing unless we have a Polygon2
+    inline void fix_holes(const std::false_type &) { }
     void fix_holes(const std::true_type &)
     {
         // Check to see which polygons are holes (and reverse them so they have negative area)
@@ -165,7 +185,7 @@ public:
         }
 
         // Possibly fix holes
-        this->fix_holes(std::is_base_of<Polygon2, Polygon>());
+        this->fix_holes();
 
         // All done
         return this->polys;
