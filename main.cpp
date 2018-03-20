@@ -182,7 +182,7 @@ int main(int argc, char **argv)
     ///////////////////////////////////////////////////////////////////////////
     double remesh_size = 0.75; // perform isotropic remeshing to make the size of triangles more equal
     int loop_subdivisions = 1; // add extra vertices to the input mesh
-    int slice_sz = 3, bp_slice_sz = 7; // number of skeleton vertices to group together to form a slice
+    int slice_sz = 4, bp_slice_sz = 7; // number of skeleton vertices to group together to form a slice
     const char* output_obj = "output.obj"; // the output OBJ file
     const char* output_skel = "skel.cgal"; // the output CGAL file for the skeleton points
 
@@ -326,11 +326,12 @@ int main(int argc, char **argv)
         val /= slc->skeleton_vertices().size();
 
         // Distance to branch point:    (modifies distance to soma)
-        if (slc->degree() > 2) { val = 0; }
+        if (slc->degree() > 2) { val = 0; } // branch point
         else { val -= dists[next_bps[*slc->skeleton_vertices().begin()]]; }
 
         values.push_back(val);
-        segs.push_back(slc->mesh());
+        //segs.push_back(slc->mesh());
+        segs.push_back(slc->uncapped_mesh());
     }
     write_obj_cmap_segments(f, segs, values, off);
 
@@ -365,8 +366,18 @@ int main(int argc, char **argv)
     std::cout << "The volume of the sum of the slices is: " << total_volume << std::endl;
     std::cout << "The surface area of the entire mesh is: " << surface_area(P) << std::endl;
     Kernel::FT total_sa = 0;
-    for (auto& slc : slices) { total_sa += surface_area(slc->mesh()); } // TODO: should be from UNCAPPED
+    for (auto& slc : slices) { total_sa += surface_area(slc->uncapped_mesh()); }
     std::cout << "The surface area of the sum of the slices is: " << total_sa << std::endl;
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Intersection of meshes
+    ///////////////////////////////////////////////////////////////////////////
+    // Both meshes must be non-self-intersecting and must bound a volume
+    // Both input meshes will end up "refined" I believe
+    //Polyhedron3* intersection = new Polyhedron();
+    //bool result = PMP::corefine_and_compute_intersection(
+    //    Polyhedron3(*slc->mesh()), Polyhedron3(*component->mesh()), intersection);
 
 
 #ifdef CREATE_GUI
