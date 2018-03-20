@@ -44,9 +44,9 @@ Kernel::FT volume(const Polyhedron3* P)
 // Calculate the surface area of a single facet
 inline Kernel::FT surface_area(P3CFacet f)
 {
-    if (f->is_triangle())
+    const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
+    if (c->next() == a) // f->is_triangle()
     {
-        const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
         return ft_sqrt(CGAL::squared_area(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()));
     }
     else
@@ -103,10 +103,10 @@ bool is_not_degenerate(const Polyhedron3* P)
     // Check geometry of facets
     for (Polyhedron3::Facet_const_iterator f = P->facets_begin(), end = P->facets_end(); f != end; ++f)
     {
-        if (f->is_triangle())
+        const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
+        if (c->next() == a) // f->is_triangle()
         {
             // This is significantly more accurate and faster then the other method
-            const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
             if (CGAL::collinear(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()))
             {
                 return false;
