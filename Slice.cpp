@@ -80,11 +80,13 @@ void Slice::init()
 }
 std::vector<Plane3> Slice::all_planes() const
 {
-    // This include this->end_planes along with auxilary planes from branch points
+    // This includes this->end_planes along with auxilary planes from branch points
     if (deg > 2) { return this->end_planes; } // branch points don't try to grab any other planes
     std::vector<Plane3> planes = this->end_planes;
 
     // Look for branch points by hopping along neighbors
+    // TODO: there should likely be a limit on how many jumps to look so that hair-pin branches
+    // don't get destroyed. However the limit needs to be more than 1, just not sure how much more.
     std::unordered_set<const Slice*> processed, stack;
     stack.insert(this);
     while (!stack.empty())
@@ -164,10 +166,7 @@ inline static P3CVertex find_vertex_with_pt(const Polyhedron3* P, const Point3& 
 {
     for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
     {
-        if (p == v->point())
-        {
-            return v;
-        }
+        if (p == v->point()) { return v; }
     }
     throw std::invalid_argument("point not found in polyhedron");
 }
@@ -179,21 +178,18 @@ inline static bool on_all_pos_sides(const std::vector<Plane3> planes, const Poin
 class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
 {
     typedef CGAL::Polyhedron_incremental_builder_3<Polyhedron3::HalfedgeDS> Builder;
-    typedef std::unordered_map<Point3, size_t, boost::hash<Point3>> PointMap;
-    typedef handle_map<P3CHalfedge, size_t> EdgeMap;
 
     const Polyhedron3* P;
     const Plane3 h;
     const P3CVertex v;
     Builder* B;
-    PointMap lookup;
-    EdgeMap edge_lookup;
+    std::unordered_map<Point3, size_t, boost::hash<Point3>> lookup;
+    handle_map<P3CHalfedge, size_t> edge_lookup;
     PolyBuilder<size_t> hole_edges;
-
     handle_set<P3CFacet> finished, stack;
 
     //mutable handle_map<P3CVertex, CGAL::Oriented_side> side_cache;
-    inline CGAL::Oriented_side side(P3CVertex v) const
+    inline CGAL::Oriented_side side(const P3CVertex& v) const
     {
         return this->h.oriented_side(v->point());
         // TODO: Caching the calculation of the side values seems to make the times more
@@ -254,7 +250,7 @@ class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
             if (intrsctn)
             {
                 const Point3* p = boost::get<Point3>(&*intrsctn);
-                if (!p) { throw std::domain_error("intersection was a segment"); }
+                if (!p) { throw std::domain_error("intersection was a segment"); } // TODO: handle this situation?
                 size_t id = this->get_pt_id(*p);
                 this->edge_lookup.insert({{he, id}});
                 this->edge_lookup.insert({{he->opposite(), id}});
@@ -320,7 +316,7 @@ public:
             if (n_neg == 0)
             {
                 // Add the entire facet
-                const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
+                const P3CHalfedge &a = f->halfedge(), &b = a->next(), &c = b->next();
                 assert(a == c->next());
                 create_facet(this->get_pt_id(a), this->get_pt_id(b), this->get_pt_id(c), f->plane());
                 this->add_op_facet(a); this->add_op_facet(b); this->add_op_facet(c);
@@ -337,7 +333,7 @@ public:
                 else if (n_pos == 1)
                 {
                     // 1 negative, 1 on the plane, 1 positive -> single facet
-                    const P3CHalfedge& he_cross = this->on_pos_side(he->next()) ? he->next() : he;
+                    const P3CHalfedge he_cross = this->on_pos_side(he->next()) ? he->next() : he;
                     size_t c = this->get_int_pt_id(he_cross);
                     create_facet(a, b, c, f->plane());
                     // Record the edge as part of the hole
@@ -417,7 +413,7 @@ private:
 };
 void Slice::build_mesh(const Polyhedron3* P)
 {
-    assert(_mesh->empty());
+    assert(_mesh == nullptr || _mesh->empty());
 
     // Get all planes that will restrict the mesh
     std::vector<Plane3> planes = all_planes();
@@ -426,7 +422,7 @@ void Slice::build_mesh(const Polyhedron3* P)
     P3CVertex seed = P->vertices_end();
     for (S3VertexDesc sv : svs)
     {
-        for (P3CVertex v : (*S)[sv].vertices)
+        for (const P3CVertex& v : (*S)[sv].vertices)
         {
             if (on_all_pos_sides(planes, v->point())) { seed = v; break; }
         }
@@ -440,13 +436,21 @@ void Slice::build_mesh(const Polyhedron3* P)
         {
             if (on_all_pos_sides(planes, v->point())) { seed = v; break; }
         }
-        if (seed == P->vertices_end()) { std::cerr << "ERROR: no seed found to start building mesh from" << std::endl; }
+        if (seed == P->vertices_end())
+        {
+            std::cerr << "ERROR: no seed found to start building mesh from" << std::endl;
+            if (_mesh) { delete _mesh; _mesh = nullptr; }
+            _mesh = new Polyhedron3();
+            if (uncapped) { delete uncapped; uncapped = nullptr; }
+            uncapped = new Polyhedron3();
+            return;
+        }
     }
 
     // Cut up the mesh into a new mesh
     Polyhedron3* mesh = new Polyhedron3();
     bool first = true;
-    Point3 p = seed->point();
+    const Point3& p = seed->point();
     for (auto& h : planes)
     {
         if (first)
@@ -478,7 +482,7 @@ void Slice::build_mesh(const Polyhedron3* P)
     if (!mesh->is_pure_triangle()) { std::cerr << "Warning: slice is not pure triangle" << std::endl; }
 
     // Set the class's mesh
-    delete _mesh;
+    if (_mesh) { delete _mesh; }
     _mesh = mesh;
 
     // Create uncapped version of mesh
@@ -510,6 +514,9 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
     // Other groups will contain at most group_sz consecutive skeleton vertices. In the case
     // branches cannot be evenly divided by group_sz the groups will be made smaller while trying to
     // keep all of the groups roughly the same size (at most different by 1).
+
+    // TODO: instead of a fixed size this should be a bit dynamic so that large branch points can
+    // get completely covered without forcing smaller ones to get overwhelmed.
     const int bp_size = bp_group_sz / 2;
 
     groups.reserve(num_vertices(*S) / group_sz);
@@ -545,7 +552,7 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
         }
     }
     // Then add all others
-    skeleton_enum_branches(S, [&, S, group_sz] (const std::vector<S3VertexDesc>& verts) mutable
+    skeleton_enum_branches(S, [&, S, group_sz, bp_group_sz] (const std::vector<S3VertexDesc>& verts) mutable
     {
         int start = (degree(verts.front(), *S) != 1)*(bp_size+1);
         int end = (degree(verts.back(), *S) != 1)*(bp_size+1);

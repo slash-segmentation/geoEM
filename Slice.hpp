@@ -9,8 +9,15 @@
 
 class Slice
 {
+    // Represents a slice of the mesh corresponding to several skeleton vertices. The slice()
+    // function will create the slices based on a Polyhedron3 and Skeleton3. If creating manually
+    // the general order is Slice constructor for each slice, then set_neighbors(), then finally
+    // build_mesh() for each slice.
+
 private:
-    // Note: the ends of a slice must only have one outgoing edge each
+    // TODO: the ends of a slice can only have one outgoing edge each for the moment (i.e. branch
+    // points cannot be at the ends and unless the vertex is degree 1 it cannot have a single
+    // vertex).
     const Skeleton3* S;
     std::unordered_set<S3VertexDesc> svs;
     size_t deg = 0;
@@ -21,57 +28,52 @@ private:
     // Branch points cause additional planes for each end to be passed on along the branches
     // Same order as end_* if available (i.e a branch point)
     std::vector<std::vector<Plane3>> aux_planes;
-    Polyhedron3* _mesh;
+    Polyhedron3* _mesh = nullptr;
     Polyhedron3* uncapped = nullptr;
 
     void init();
 
-public:
-    template <class ForwardIterator>
-    inline Slice(const Skeleton3* S, ForwardIterator begin, ForwardIterator end, Polyhedron3* mesh=nullptr)
-        : S(S), svs(begin, end), _mesh(mesh == nullptr ? new Polyhedron3() : mesh) { init(); }
+    // Used by copy constructor to either take a, copy b, or just give nullptr.
+    inline static Polyhedron3* get_mesh(Polyhedron3* a, Polyhedron3* b) { return a ? a : b ? new Polyhedron3(*b) : nullptr; }
 
-    // Copy constructors copy the mesh unless given a new mesh
-    // Neighbors are not copied, must call set_neighbors
-    // TODO: copy uncapped?
-    inline Slice(const Slice& slc, Polyhedron3* mesh=nullptr)
-        : S(slc.S), svs(slc.svs), deg(slc.deg),
-        end_verts(slc.end_verts), end_planes(slc.end_planes), end_neighbors(slc.end_neighbors.size(), nullptr), aux_planes(slc.aux_planes),
-        _mesh(mesh == nullptr ? new Polyhedron3(*slc._mesh) : mesh) { }
-    inline Slice(const Slice* slc, Polyhedron3* mesh=nullptr)
+public:
+    // Create a slice from the skeleton vertices given by the iterators. If a mesh or uncapped mesh
+    // is provided then it will become owned by this object (i.e. will be tied to the lifetime of
+    // this object).
+    template <class ForwardIterator>
+    inline Slice(const Skeleton3* S, ForwardIterator begin, ForwardIterator end,
+                 Polyhedron3* mesh=nullptr, Polyhedron3* uncapped=nullptr)
+        : S(S), svs(begin, end), _mesh(mesh), uncapped(uncapped) { init(); }
+
+    // Copy constructors copy the mesh and uncapped unless given a new mesh/uncapped in which case
+    // this becomes the owner of those meshes like the regular constructor. Neighbors are not
+    // copied, you must still call set_neighbors.
+    inline Slice(const Slice* slc, Polyhedron3* mesh=nullptr, Polyhedron3* uncapped=nullptr)
         : S(slc->S), svs(slc->svs), deg(slc->deg),
         end_verts(slc->end_verts), end_planes(slc->end_planes), end_neighbors(slc->end_neighbors.size(), nullptr), aux_planes(slc->aux_planes),
-        _mesh(mesh == nullptr ? new Polyhedron3(*slc->_mesh) : mesh) { }
+        _mesh(get_mesh(mesh, slc->_mesh)), uncapped(get_mesh(uncapped, slc->uncapped)) { }
+    Slice(const Slice&) = delete;
     Slice& operator=(const Slice&) = delete;
-    inline ~Slice() { delete _mesh; if (uncapped != nullptr) { delete uncapped; } }
+    inline ~Slice() { if (_mesh) { delete _mesh; } if (uncapped) { delete uncapped; } }
 
+    // Setup functions
     void build_mesh(const Polyhedron3* P);
     static void set_neighbors(std::vector<Slice*> slices);
 
+    // Access to basic properties (a few of these are calculated, but most just return a field)
     Kernel::FT length() const;
     inline size_t degree() const { return this->deg; }
     inline const Skeleton3* skeleton() const { return this->S; }
-
-    inline std::unordered_set<S3VertexDesc>& skeleton_vertices() { return this->svs; }
     inline const std::unordered_set<S3VertexDesc>& skeleton_vertices() const { return this->svs; }
-
-    inline std::vector<S3VertexDesc>& ends() { return this->end_verts; }
+    inline const std::vector<Slice*>& neighbors() const { return this->end_neighbors; }
     inline const std::vector<S3VertexDesc>& ends() const { return this->end_verts; }
-
-    inline std::vector<Plane3>& planes() { return this->end_planes; }
     inline const std::vector<Plane3>& planes() const { return this->end_planes; }
-
-    inline std::vector<std::vector<Plane3>>& bp_aux_planes() { return this->aux_planes; }
     inline const std::vector<std::vector<Plane3>>& bp_aux_planes() const { return this->aux_planes; }
-
     std::vector<Plane3> all_planes() const; // planes for this slice and some of the aux planes from neighboring branch points
 
-    inline std::vector<Slice*>& neighbors() { return this->end_neighbors; }
-    inline const std::vector<Slice*>& neighbors() const { return this->end_neighbors; }
-
+    // Access to the meshes which are returned as mutable objects
     inline Polyhedron3* mesh() { return this->_mesh; }
     inline const Polyhedron3* mesh() const { return this->_mesh; }
-
     inline Polyhedron3* uncapped_mesh() { return this->uncapped; }
     inline const Polyhedron3* uncapped_mesh() const { return this->uncapped; }
 };
