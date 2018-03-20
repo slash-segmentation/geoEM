@@ -7,12 +7,8 @@
 #include <vector>
 #include <unordered_set>
 
-#include <CGAL/boost/graph/Face_filtered_graph.h>
-
 class Slice
 {
-public:
-    typedef CGAL::Face_filtered_graph<Polyhedron3> UncappedMesh;
 private:
     // Note: the ends of a slice must only have one outgoing edge each
     const Skeleton3* S;
@@ -26,7 +22,7 @@ private:
     // Same order as end_* if available (i.e a branch point)
     std::vector<std::vector<Plane3>> aux_planes;
     Polyhedron3* _mesh;
-    UncappedMesh* uncapped = nullptr;
+    Polyhedron3* uncapped = nullptr;
 
     void init();
 
@@ -47,7 +43,7 @@ public:
         end_verts(slc->end_verts), end_planes(slc->end_planes), end_neighbors(slc->end_neighbors.size(), nullptr), aux_planes(slc->aux_planes),
         _mesh(mesh == nullptr ? new Polyhedron3(*slc->_mesh) : mesh) { }
     Slice& operator=(const Slice&) = delete;
-    inline ~Slice() { delete _mesh; delete uncapped; }
+    inline ~Slice() { delete _mesh; if (uncapped != nullptr) { delete uncapped; } }
 
     void build_mesh(const Polyhedron3* P);
     static void set_neighbors(std::vector<Slice*> slices);
@@ -76,8 +72,8 @@ public:
     inline Polyhedron3* mesh() { return this->_mesh; }
     inline const Polyhedron3* mesh() const { return this->_mesh; }
 
-    inline UncappedMesh* uncapped_mesh() { return this->uncapped; }
-    inline const UncappedMesh* uncapped_mesh() const { return this->uncapped; }
+    inline Polyhedron3* uncapped_mesh() { return this->uncapped; }
+    inline const Polyhedron3* uncapped_mesh() const { return this->uncapped; }
 };
 
 typedef std::vector<Slice*> Slices;
