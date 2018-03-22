@@ -229,11 +229,17 @@ int main(int argc, char **argv)
             CGAL::Subdivision_method_3::Loop_subdivision(*P, loop_subdivisions);
             std::cout << "    After subdivision: " << num_faces(*P) << " faces and an average edge length of " << avg_edge_length(P) << std::endl;
         }
+        CGAL::set_halfedgeds_items_id(*P); // must be performed again after refinement
+        calculate_facet_planes(P);
+        #ifdef _DEBUG // these checks are incredibly unlikely to fail after using the built-in refining method so usually don't do them
         if (!P->is_valid())         { std::cerr << "WARNING: mesh is not valid after refining" << std::endl; }
         if (!P->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
         if (!is_not_degenerate(P))  { std::cerr << "WARNING: mesh is degenerate after refining" << std::endl; }
-        if (PMP::does_self_intersect(*P))  { std::cerr << "WARNING: mesh is self-intersecting after refining" << std::endl; }
         if (!P->is_pure_triangle()) { std::cerr << "WARNING: mesh is not pure triangle after refining" << std::endl; }
+        #endif
+        // This last check, while expensive, is important as changing meshing settings can cause
+        // it to be triggered.
+        if (PMP::does_self_intersect(*P))  { std::cerr << "WARNING: mesh is self-intersecting after refining" << std::endl; }
     }
     std::cout << std::endl;
 
