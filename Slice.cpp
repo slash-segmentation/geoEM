@@ -10,6 +10,7 @@
 #include <iterator>
 
 #include <boost/foreach.hpp>
+#include <boost/range/adaptor/transformed.hpp>
 
 #include <CGAL/boost/graph/properties.h>
 #include <CGAL/boost/graph/Face_filtered_graph.h>
@@ -17,8 +18,16 @@
 
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
+#include <CGAL/Polygon_mesh_processing/connected_components.h>
 #include <CGAL/Polygon_mesh_processing/corefinement.h>
 namespace PMP = CGAL::Polygon_mesh_processing;
+
+// Incremental builder
+typedef CGAL::Polyhedron_incremental_builder_3<Polyhedron3::HalfedgeDS> Builder;
+
+// Polyhedron Property Map for connected components
+typedef boost::property_map<Polyhedron3, boost::face_index_t>::const_type P3_facet_index_map_t;
+typedef boost::vector_property_map<size_t, P3_facet_index_map_t> P3_facet_int_map;
 
 // Groups
 typedef std::vector<std::vector<S3VertexDesc>> Groups;
@@ -170,39 +179,73 @@ inline static P3CVertex find_vertex_with_pt(const Polyhedron3* P, const Point3& 
     }
     throw std::invalid_argument("point not found in polyhedron");
 }
-inline static bool on_all_pos_sides(const std::vector<Plane3> planes, const Point3& p)
+inline static bool on_all_pos_sides(const std::vector<Plane3>& planes, const Point3& p)
 {
     for (auto& h : planes) { if (!h.has_on_positive_side(p)) { return false; } }
     return true;
 }
+
+// These are for triangulating holes during building
+struct triangle_output
+{
+    const int a, b, c;
+    triangle_output(int a, int b, int c) : a(a), b(b), c(c) { }
+};
+struct triangle_output_iterator : std::iterator<std::output_iterator_tag, triangle_output>
+{
+    Builder& B;
+    const Plane3& h;
+    const std::vector<size_t>& hole;
+    triangle_output_iterator(Builder& B, const Plane3& h, const std::vector<size_t>& hole)
+        : B(B), h(h), hole(hole) { }
+    void operator=(triangle_output const& t)
+    {
+        B.begin_facet()->plane() = h;
+        B.add_vertex_to_facet(hole[t.a]);
+        B.add_vertex_to_facet(hole[t.b]);
+        B.add_vertex_to_facet(hole[t.c]);
+        B.end_facet();
+    }
+    triangle_output_iterator& operator++() { return *this; }
+    triangle_output_iterator operator++(int) { return *this; }
+    triangle_output_iterator& operator*() { return *this; }
+};
+enum struct Reverse { no, yes, check };
+void triangulate_hole(Builder& B, const Plane3& h, std::vector<size_t>& hole, Reverse rev=Reverse::check)
+{
+    if (rev == Reverse::yes || (rev == Reverse::check && !B.test_facet(hole.begin(), hole.end())))
+    {
+        std::reverse(hole.begin(), hole.end());
+    }
+    auto get_pt = [&B] (size_t i) -> const Point3& { return B.vertex(i)->point(); };
+    PMP::triangulate_hole_polyline(boost::adaptors::transform(hole, get_pt),
+                                   triangle_output_iterator(B, h, hole));
+}
+
+// For triangulating holes outside of building (don't need the output)
+struct null_output_iterator : std::iterator<std::output_iterator_tag, null_output_iterator>
+{
+    template<typename T> void operator=(T const&) { }
+    null_output_iterator & operator++() { return *this; }
+    null_output_iterator operator++(int) { return *this; }
+    null_output_iterator & operator*() { return *this; }
+};
+
+
 class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
 {
-    typedef CGAL::Polyhedron_incremental_builder_3<Polyhedron3::HalfedgeDS> Builder;
-
     const Polyhedron3* P;
     const Plane3 h;
     const P3CVertex v;
     Builder* B;
-    std::unordered_map<Point3, size_t, boost::hash<Point3>> lookup;
-    handle_map<P3CHalfedge, size_t> edge_lookup;
+    size_t lookup_count = 0;
+    std::vector<size_t> lookup, edge_lookup; // (size_t)-1 indicates a point/edge that hasn't been added to the mesh yet
+    std::vector<char> reached; // not <bool> since that has odd behaviors
+    std::vector<P3CFacet> stack;
     PolyBuilder<size_t> hole_edges;
-    handle_set<P3CFacet> finished, stack;
 
-    //mutable handle_map<P3CVertex, CGAL::Oriented_side> side_cache;
-    inline CGAL::Oriented_side side(const P3CVertex& v) const
-    {
-        return this->h.oriented_side(v->point());
-        // TODO: Caching the calculation of the side values seems to make the times more
-        // consistently in the 8 sec range, without it the time range from 6.5 to 10.5 seconds...
-        // I really don't know which way to go for this.
-        /*auto itr = side_cache.find(v);
-        if (itr != side_cache.end()) { return itr->second; }
-        CGAL::Oriented_side side = this->h.oriented_side(v->point());
-        side_cache.insert({{v, side}});
-        return side;*/
-    }
-    inline bool on_pos_side(const P3CVertex& v) const { return this->side(v) == CGAL::Oriented_side::ON_POSITIVE_SIDE; }
-    inline bool on_neg_side(const P3CVertex& v) const { return this->side(v) == CGAL::Oriented_side::ON_NEGATIVE_SIDE; }
+    std::vector<CGAL::Oriented_side> side_cache;
+    inline CGAL::Oriented_side side(const P3CVertex& v) const { return this->side_cache[v->id()]; }
     inline bool on_pos_side(const P3CHalfedge& he) const { return this->side(he->vertex()) == CGAL::Oriented_side::ON_POSITIVE_SIDE; }
     inline bool on_neg_side(const P3CHalfedge& he) const { return this->side(he->vertex()) == CGAL::Oriented_side::ON_NEGATIVE_SIDE; }
 
@@ -228,48 +271,41 @@ class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
         FOR_EDGES_AROUND_FACET(f, he) { if (this->on_pos_side(he)) { return he; } }
         throw std::invalid_argument("positive-side vertex not found");
     }
-    inline size_t get_pt_id(const Point3& p)
+    inline size_t get_pt_id(const P3CHalfedge& he)
     {
-        auto itr = this->lookup.find(p);
-        if (itr == this->lookup.end())
+        const P3CVertex& v = he->vertex();
+        size_t id = v->id(), i = this->lookup[id];
+        if (i == (size_t)-1)
         {
-            B->add_vertex(p);
-            itr = this->lookup.insert(std::make_pair(p, this->lookup.size())).first;
+            B->add_vertex(v->point());
+            this->lookup[id] = i = this->lookup_count++;
         }
-        return itr->second;
+        return i;
     }
-    inline size_t get_pt_id(const P3CVertex& v) { return this->get_pt_id(v->point()); }
-    inline size_t get_pt_id(const P3CHalfedge& he) { return this->get_pt_id(he->vertex()->point()); }
     inline size_t get_int_pt_id(const P3CHalfedge& he)
     {
-        auto itr = this->edge_lookup.find(he);
-        if (itr != this->edge_lookup.end()) { return itr->second; }
-        for (;;)
+        size_t id = he->id(), i = this->edge_lookup[id];
+        if (i == (size_t)-1)
         {
             auto intrsctn = CGAL::intersection(h, halfedge_to_segment3(he));
-            if (intrsctn)
-            {
-                const Point3* p = boost::get<Point3>(&*intrsctn);
-                if (!p) { throw std::domain_error("intersection was a segment"); } // TODO: handle this situation?
-                size_t id = this->get_pt_id(*p);
-                this->edge_lookup.insert({{he, id}});
-                this->edge_lookup.insert({{he->opposite(), id}});
-                return id;
-            }
+            if (!intrsctn) { throw std::domain_error("no intersection"); }
+            const Point3* p = boost::get<Point3>(&*intrsctn);
+            if (!p) { throw std::domain_error("intersection was a segment"); } // TODO: handle this situation?
+            B->add_vertex(*p);
+            this->edge_lookup[id] = i = this->lookup_count++;
+            this->edge_lookup[he->opposite()->id()] =  i;
         }
-        throw std::domain_error("no intersection");
+        return i;
     }
     inline void add_op_facet(const P3CHalfedge& he)
     {
-        auto e = he->opposite();
-        if (!e->is_border() && !this->finished.count(e->facet()))
+        const P3CFacet& f = he->opposite()->facet();
+        size_t id = f->id();
+        if (!this->reached[id])
         {
-            this->stack.insert(e->facet());
+            this->reached[id] = true;
+            this->stack.push_back(f);
         }
-    }
-    inline void add_hole_edge(size_t v, size_t u)
-    {
-        this->hole_edges.add_seg(v, u);
     }
     inline void create_facet(size_t a, size_t b, size_t c, const Plane3& h)
     {
@@ -280,44 +316,49 @@ class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
         B->end_facet();
     }
 public:
-    // Polyhedron must be pure triangle
+    // Polyhedron must be pure triangle and closed
     // Keep positive side of plane
     // The vertex must be on positive side of plane
-    CutAtPlane(const Polyhedron3* P, Plane3 h, P3CVertex v) : P(P), h(h), v(v) {}
+    // The resulting mesh will be pure triangle and closed
+    CutAtPlane(const Polyhedron3* P, Plane3 h, P3CVertex v) : P(P), h(h), v(v)
+    {
+        assert(P->is_closed());
+        assert(P->is_pure_triangle());
+        assert(h.has_on_positive_side(v->point()));
+        this->side_cache.resize(this->P->size_of_vertices());
+        for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
+        {
+            this->side_cache[v->id()] = this->h.oriented_side(v->point());
+        }
+    }
     void operator()(Polyhedron3::HalfedgeDS& hds)
     {
-        assert(P->is_pure_triangle());
-        assert(this->on_pos_side(v));
-
         // Start building the polyhedron
         Builder B(hds, true);
         this->B = &B;
-        size_t facet_count = 0, vertex_count = 0;
-        for (auto f = P->facets_begin(), end = P->facets_end(); f != end; ++f)
-        {
-            size_t n = this->n_verts_on_pos_side(f);
-            if (n == 1) { facet_count += 1; vertex_count += 1; }
-            else if (n == 2) { facet_count += 2; vertex_count += 2; }
-            else if (n == 3) { facet_count += 1; }
-        }
-        this->edge_lookup.reserve(vertex_count);
-        for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v) { vertex_count += this->on_pos_side(v); }
-        B.begin_surface(vertex_count, facet_count, this->P->size_of_halfedges());
-        this->lookup.reserve(vertex_count);
+        B.begin_surface(P->size_of_vertices(), P->size_of_facets()*2); // *2 for the caps
 
-        // Start processing based on the given seed vertex
-        FOR_EDGES_AROUND_VERTEX(this->v, he) { if (!he->is_border()) { this->stack.insert(he->facet()); } }
+        // Start processing based on the given sees, pre-adding it as vertex
+        this->lookup.resize(P->size_of_vertices(), (size_t)-1);
+        this->edge_lookup.resize(P->size_of_halfedges(), (size_t)-1);
+        this->reached.resize(P->size_of_facets(), false);
+        B.add_vertex(this->v->point());
+        this->lookup[this->v->id()] = this->lookup_count++;
+        FOR_FACETS_AROUND_VERTEX(this->v, f)
+        {
+            this->reached[f->id()] = true;
+            this->stack.push_back(f);
+        }
+
+        // Process the stack until empty
         while (!this->stack.empty())
         {
-            P3CFacet f = pop(this->stack);
-            this->finished.insert(f);
+            const P3CFacet f = this->stack.back(); this->stack.pop_back();
             size_t n_neg = this->n_verts_on_neg_side(f);
-            assert(n_neg < 3);
             if (n_neg == 0)
             {
                 // Add the entire facet
                 const P3CHalfedge &a = f->halfedge(), &b = a->next(), &c = b->next();
-                assert(a == c->next());
                 create_facet(this->get_pt_id(a), this->get_pt_id(b), this->get_pt_id(c), f->plane());
                 this->add_op_facet(a); this->add_op_facet(b); this->add_op_facet(c);
             }
@@ -337,7 +378,7 @@ public:
                     size_t c = this->get_int_pt_id(he_cross);
                     create_facet(a, b, c, f->plane());
                     // Record the edge as part of the hole
-                    this->add_hole_edge(this->get_pt_id(he_cross->next()), c);
+                    this->hole_edges.add_seg(this->get_pt_id(he_cross->next()), c);
                     // Add neighboring facets
                     this->add_op_facet(he_cross);
                 }
@@ -353,7 +394,7 @@ public:
                     create_facet(b, c, d, f->plane());
                     create_facet(b, d, a, f->plane());
                     // Record the edge as part of the hole
-                    this->add_hole_edge(c, d);
+                    this->hole_edges.add_seg(c, d);
                     // Add neighboring facets
                     this->add_op_facet(he);
                     this->add_op_facet(he->next());
@@ -371,7 +412,7 @@ public:
                 size_t a = this->get_pt_id(he), b = this->get_int_pt_id(he->next()), c = this->get_int_pt_id(he);
                 create_facet(a, b, c, f->plane());
                 // Record the edge as part of the hole
-                this->add_hole_edge(b, c);
+                this->hole_edges.add_seg(b, c);
                 // Add neighboring facets
                 this->add_op_facet(he);
                 this->add_op_facet(he->next());
@@ -379,37 +420,116 @@ public:
         }
 
         // Finish up with filling the holes
-        for (auto& hole : this->hole_edges.finish_up())
-        {
-            std::reverse(hole.begin(), hole.end()); // TODO: always necessary? or use B.test_facet?
-            std::vector<Point3> points;
-            points.reserve(hole.size());
-            for (size_t i : hole) { points.push_back(B.vertex(i)->point()); }
-            PMP::triangulate_hole_polyline(points, triangle_output_iterator(this, points));
-        }
+        for (auto& hole : this->hole_edges.finish_up()) { triangulate_hole(B, h, hole, Reverse::yes); }
 
+        // Done
         B.end_surface();
     }
-private:
-    struct triangle_output
+};
+class QuickCutAtPlanes : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
+{
+    const Polyhedron3* P;
+    const std::vector<Plane3>& planes;
+    const std::vector<P3CVertex>& seeds;
+    Builder* B;
+    size_t lookup_count = 0;
+    std::vector<size_t> lookup; // (size_t)-1 indicates a point that hasn't been added to the mesh yet
+    std::vector<char> reached; // not <bool> since that has odd behaviors
+    std::vector<P3CFacet> stack;
+
+    inline bool on_pos_side(const P3CHalfedge& he) const
     {
-        int a, b, c;
-        triangle_output() : a(0), b(0), c(0) { }
-        triangle_output(int a, int b, int c) : a(a), b(b), c(c) { }
-    };
-    struct triangle_output_iterator : std::iterator<std::output_iterator_tag, triangle_output>
+        const Point3& p = he->vertex()->point();
+        for (const Plane3& h : this->planes) { if (!h.has_on_positive_side(p)) { return false; } }
+        return true;
+    }
+    inline bool any_vert_on_pos_side(const P3CFacet& f) const
     {
-        CutAtPlane* cut;
-        std::vector<Point3>& pts;
-        triangle_output_iterator(CutAtPlane* cut, std::vector<Point3>& points) : cut(cut), pts(points) { }
-        void operator=(triangle_output const& t)
+        FOR_EDGES_AROUND_FACET(f, he) { if (this->on_pos_side(he)) { return true; } }
+        return false;
+    }
+    inline size_t get_pt_id(const P3CHalfedge& he)
+    {
+        const P3CVertex& v = he->vertex();
+        size_t id = v->id();
+        size_t i = this->lookup[id];
+        if (i == (size_t)-1)
         {
-            cut->create_facet(cut->get_pt_id(pts[t.a]), cut->get_pt_id(pts[t.b]), cut->get_pt_id(pts[t.c]), cut->h);
+            B->add_vertex(v->point());
+            this->lookup[id] = i = this->lookup_count++;
         }
-        triangle_output_iterator& operator++() { return *this; }
-        triangle_output_iterator operator++(int) { return *this; }
-        triangle_output_iterator& operator*() { return *this; }
-    };
+        return i;
+    }
+    inline void add_op_facet(const P3CHalfedge& he)
+    {
+        const P3CFacet& f = he->opposite()->facet();
+        size_t id = f->id();
+        if (!this->reached[id])
+        {
+            this->reached[id] = true;
+            this->stack.push_back(f);
+        }
+    }
+    // The quick-and-dirty version of CutAtPlane that can deal with multiple planes but lets facets
+    // cross the planes a little bit and does not close the holes.
+public:
+    // Polyhedron must be pure triangle and closed
+    // Keep positive side of all given planes (along with some parts of facets on the negative sides)
+    // The seed vertices must be on positive sides of all planes
+    // The resulting mesh will be pure triangle and NOT closed (all attempts at fixing it failed so just doing triangulation outside of the cutter)
+    QuickCutAtPlanes(const Polyhedron3* P, const std::vector<Plane3>& planes, const std::vector<P3CVertex>& seeds)
+        : P(P), planes(planes), seeds(seeds)
+    {
+        assert(P->is_closed());
+        assert(P->is_pure_triangle());
+        #ifdef _DEBUG
+        for (const P3CVertex& v : seeds) { assert(this->on_pos_side(v->halfedge())); }
+        #endif
+    }
+    void operator()(Polyhedron3::HalfedgeDS& hds)
+    {
+        // Start building the polyhedron
+        Builder B(hds, true);
+        this->B = &B;
+        B.begin_surface(P->size_of_vertices(), P->size_of_facets(), P->size_of_halfedges()); // very conservative estimate
+
+        // Start processing based on the given seeds, pre-adding them as vertices
+        this->lookup.resize(P->size_of_vertices(), (size_t)-1);
+        this->reached.resize(P->size_of_facets(), false);
+        this->stack.reserve(seeds.size()*2);
+        for (P3CVertex v : this->seeds)
+        {
+            B.add_vertex(v->point());
+            this->lookup[v->id()] = this->lookup_count++;
+            FOR_FACETS_AROUND_VERTEX(v, f)
+            {
+                size_t id = f->id();
+                if (!this->reached[id])
+                {
+                    this->reached[id] = true;
+                    this->stack.push_back(f);
+                }
+            }
+        }
+
+        // Process the stack until empty
+        while (!this->stack.empty())
+        {
+            const P3CFacet f = this->stack.back(); this->stack.pop_back();
+            const P3CHalfedge &a = f->halfedge(), &b = a->next(), &c = b->next();
+            const size_t ai = this->get_pt_id(a), bi = this->get_pt_id(b), ci = this->get_pt_id(c);
+            B.begin_facet()->plane() = f->plane();
+            B.add_vertex_to_facet(ai); B.add_vertex_to_facet(bi); B.add_vertex_to_facet(ci);
+            B.end_facet();
+            if (this->any_vert_on_pos_side(f))
+            {
+                this->add_op_facet(a); this->add_op_facet(b); this->add_op_facet(c);
+            }
+        }
+
+        // Done
+        B.end_surface();
+    }
 };
 void Slice::build_mesh(const Polyhedron3* P)
 {
@@ -419,37 +539,63 @@ void Slice::build_mesh(const Polyhedron3* P)
     std::vector<Plane3> planes = all_planes();
 
     // Find all of the polyhedron vertices that should be in the final result
-    P3CVertex seed = P->vertices_end();
+    std::vector<P3CVertex> seeds;
+    seeds.reserve(512);
     for (S3VertexDesc sv : svs)
     {
         for (const P3CVertex& v : (*S)[sv].vertices)
         {
-            if (on_all_pos_sides(planes, v->point())) { seed = v; break; }
+            if (on_all_pos_sides(planes, v->point())) { seeds.push_back(v); }
         }
-        if (seed != P->vertices_end()) { break; }
     }
-    if (seed == P->vertices_end())
+    if (seeds.size() == 0)
     {
-        // TODO: this is occuring somewhat frequently (even going on to the error) - why?
-        std::cerr << "Warning: no seed found using shortcut, using fallback..." << std::endl;
-        for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
-        {
-            if (on_all_pos_sides(planes, v->point())) { seed = v; break; }
-        }
-        if (seed == P->vertices_end())
-        {
-            std::cerr << "ERROR: no seed found to start building mesh from" << std::endl;
-            if (_mesh) { delete _mesh; _mesh = nullptr; }
-            _mesh = new Polyhedron3();
-            if (uncapped) { delete uncapped; uncapped = nullptr; }
-            uncapped = new Polyhedron3();
-            return;
-        }
+        // TODO: this is occurring somewhat frequently (sometimes there are no points in the entire mesh that match) - why?
+        std::cerr << "ERROR: no seed found to start building mesh from" << std::endl;
+        if (_mesh) { delete _mesh; _mesh = nullptr; }
+        _mesh = new Polyhedron3();
+        if (uncapped) { delete uncapped; uncapped = nullptr; }
+        uncapped = new Polyhedron3();
+        return;
     }
 
-    // Cut up the mesh into a new mesh
+    // Get ready to cut up the mesh
     Polyhedron3* mesh = new Polyhedron3();
     bool first = true;
+
+    // Quickly cut up with all planes simultaneously so that the whole process is much faster.
+    // This step is completely optional but does cut the computation time in half.
+    {
+        QuickCutAtPlanes cut(P, planes, seeds);
+        mesh->delegate(cut);
+        assert(mesh->is_valid());
+
+        // Quick-Cut doesn't seem amenable to closing the mesh itself so we do it here
+        CGAL::set_halfedgeds_items_id(*mesh);
+        for (auto he = mesh->halfedges_begin(), end = mesh->halfedges_end(); he != end; ++he)
+        {
+            if (he->is_border())
+            {
+                PMP::triangulate_hole(*mesh, he, null_output_iterator());
+            }
+        }
+        assert(mesh->is_closed());
+
+        // If a single connected component is formed than we can continue with the results of the
+        // quick cut, otherwise we need to start over from the beginning. At the moment this never
+        // seems to be triggered, but is a very fast check so we will leave it in.
+        CGAL::set_halfedgeds_items_id(*mesh);
+        if (PMP::connected_components(*mesh, P3_facet_int_map(get(boost::face_index, *mesh))) == 1)
+        {
+            first = false;
+        }
+        else { mesh->clear(); }
+    }
+
+    CGAL::set_halfedgeds_items_id(*mesh);
+
+    // Cut up the mesh into a new mesh
+    P3CVertex seed = pop(seeds);
     const Point3& p = seed->point();
     for (auto& h : planes)
     {
@@ -470,16 +616,22 @@ void Slice::build_mesh(const Polyhedron3* P)
             delete mesh;
             mesh = temp;
         }
+        assert(mesh->is_valid());
+        assert(mesh->is_closed());
+        CGAL::set_halfedgeds_items_id(*mesh);
     }
-    CGAL::set_halfedgeds_items_id(*mesh);
 
     // Check mesh
+    #ifdef _DEBUG // these checks are incredibly unlikely to fail and/or expensive to compute so usually don't do them
     if (!mesh->is_valid())         { std::cerr << "Warning: slice is not valid" << std::endl; }
     if (!mesh->is_closed())        { std::cerr << "Warning: slice is not closed" << std::endl; }
     if (!is_not_degenerate(mesh))  { std::cerr << "Warning: slice is degenerate" << std::endl; }
-    if (PMP::does_self_intersect(*mesh)) { std::cerr << "Warning: slice is self-intersecting" << std::endl; }
-    else if (!PMP::does_bound_a_volume(*mesh)) { std::cerr << "Warning: slice does not bound a volume" << std::endl; } // crashes in many cases...
     if (!mesh->is_pure_triangle()) { std::cerr << "Warning: slice is not pure triangle" << std::endl; }
+    #endif
+    if (PMP::does_self_intersect(*mesh)) { std::cerr << "Warning: slice is self-intersecting" << std::endl; } // this one is expensive but necessary
+    #ifdef _DEBUG
+    else if (!PMP::does_bound_a_volume(*mesh)) { std::cerr << "Warning: slice does not bound a volume" << std::endl; }
+    #endif
 
     // Set the class's mesh
     if (_mesh) { delete _mesh; }
