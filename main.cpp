@@ -252,13 +252,13 @@ int main(int argc, char **argv)
         std::cout << "Constructing skeleton..." << std::endl;
         boost::timer::auto_cpu_timer t;
         S = construct_skeleton(P, 0.5); // TODO: delete S; somewhere...
+        if (is_cyclic(*S)) { std::cerr << "ERROR: Skeleton is cyclic!" << std::endl; return -1; }
     }
     std::cout << std::endl;
     // Save the skeleton in an easy-to-use format
     // NOTE: This loses the surface mesh vertices associated with every point
     write_skeleton(S, output_skel, 10);
     // read with: S = read_cg(output_skel);
-    if (is_cyclic(*S)) { std::cerr << "ERROR: Skeleton is cyclic!" << std::endl; return -1; }
 
 
     ///////////////////////////////////////////////////////////////////////////
@@ -268,7 +268,7 @@ int main(int argc, char **argv)
     {
         std::cout << "Slicing..." << std::endl;
         boost::timer::auto_cpu_timer t;
-        slices = slice(slice_sz, bp_slice_sz, P, S);
+        slices = slice(slice_sz, bp_slice_sz, P, S); // TODO: for (Slice* slc : slices) { delete slc; } somewhere...
     }
     std::cout << std::endl;
 
@@ -284,6 +284,7 @@ int main(int argc, char **argv)
         std::cout << "Calculating skeleton vertex information..." << std::endl;
         boost::timer::auto_cpu_timer t;
         soma_slc = find_largest_endpoint_slice(slices, soma_sv);
+        (void)soma_slc; // suppress unused variable warning
         dists = calc_distances(S, soma_sv);
         next_bps = calc_next_bps(S, dists);
     }
@@ -336,8 +337,8 @@ int main(int argc, char **argv)
         else { val -= dists[next_bps[*slc->skeleton_vertices().begin()]]; }
 
         values.push_back(val);
-        //segs.push_back(slc->mesh());
-        segs.push_back(slc->uncapped_mesh());
+        segs.push_back(slc->mesh());
+        //segs.push_back(slc->uncapped_mesh());
     }
     write_obj_cmap_segments(f, segs, values, off);
 
