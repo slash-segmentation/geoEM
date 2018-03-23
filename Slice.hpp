@@ -16,7 +16,7 @@ class Slice
 
 private:
     // TODO: the ends of a slice can only have one outgoing edge each for the moment (i.e. branch
-    // points cannot be at the ends and unless the vertex is degree 1 it cannot have a single
+    // points cannot be at the ends and unless the slice is degree 1 it cannot have a single
     // vertex).
     const Skeleton3* S;
     std::unordered_set<S3VertexDesc> svs;
@@ -28,6 +28,7 @@ private:
     // Branch points cause additional planes for each end to be passed on along the branches
     // Same order as end_* if available (i.e a branch point)
     std::vector<std::vector<Plane3>> aux_planes;
+    std::vector<Plane3> _all_planes; // planes plus aux_planes passed along branches
     Polyhedron3* _mesh = nullptr;
     Polyhedron3* uncapped = nullptr;
 
@@ -35,6 +36,13 @@ private:
 
     // Used by copy constructor to either take a, copy b, or just give nullptr.
     inline static Polyhedron3* get_mesh(Polyhedron3* a, Polyhedron3* b) { return a ? a : b ? new Polyhedron3(*b) : nullptr; }
+
+    // Used by set_neighbors, gets a neighbor that is not the given neighbor
+    inline Slice* other_neighbor(Slice* nghbr)
+    {
+        for (Slice* slc : this->end_neighbors) { if (slc != nghbr) { return slc; } }
+        return nullptr;
+    }
 
 public:
     // Create a slice from the skeleton vertices given by the iterators. If a mesh or uncapped mesh
@@ -69,7 +77,7 @@ public:
     inline const std::vector<S3VertexDesc>& ends() const { return this->end_verts; }
     inline const std::vector<Plane3>& planes() const { return this->end_planes; }
     inline const std::vector<std::vector<Plane3>>& bp_aux_planes() const { return this->aux_planes; }
-    std::vector<Plane3> all_planes() const; // planes for this slice and some of the aux planes from neighboring branch points
+    inline const std::vector<Plane3>& all_planes() const { return this->_all_planes; }; // planes() plus planes for neighboring branch points if they make sense
 
     // Access to the meshes which are returned as mutable objects
     inline Polyhedron3* mesh() { return this->_mesh; }

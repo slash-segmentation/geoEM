@@ -40,6 +40,37 @@ typename Container::value_type pop(Container& c)
     return val;
 }
 
+// Utilities
+inline static bool has_all_on_pos_side(const Plane3& h, const std::unordered_set<S3VertexDesc>& svs, const Skeleton3* S)
+{
+    for (S3VertexDesc sv : svs)
+    {
+        for (const P3CVertex& v : (*S)[sv].vertices)
+        {
+            if (!h.has_on_positive_side(v->point())) { return false; }
+        }
+    }
+    return true;
+}
+inline static bool has_all_on_pos_sides(const std::vector<Plane3>& planes, const Point3& p)
+{
+    for (auto& h : planes) { if (!h.has_on_positive_side(p)) { return false; } }
+    return true;
+}
+inline static std::vector<P3CVertex> get_all_on_pos_sides(const std::vector<Plane3>& planes, const std::unordered_set<S3VertexDesc>& svs, const Skeleton3* S)
+{
+    std::vector<P3CVertex> verts;
+    for (S3VertexDesc sv : svs)
+    {
+        for (const P3CVertex& v : (*S)[sv].vertices)
+        {
+            if (has_all_on_pos_sides(planes, v->point())) { verts.push_back(v); }
+        }
+    }
+    return verts;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Slice class basic functions and methods
 ///////////////////////////////////////////////////////////////////////////////
@@ -64,6 +95,7 @@ void Slice::init()
             }
         }
     }
+    _all_planes.insert(_all_planes.end(), end_planes.begin(), end_planes.end());
     if (deg > 2)
     {
         // Setup aux planes at branch points
@@ -86,41 +118,6 @@ void Slice::init()
             aux_planes.push_back(aux);
         }
     }
-}
-std::vector<Plane3> Slice::all_planes() const
-{
-    // This includes this->end_planes along with auxilary planes from branch points
-    if (deg > 2) { return this->end_planes; } // branch points don't try to grab any other planes
-    std::vector<Plane3> planes = this->end_planes;
-
-    // Look for branch points by hopping along neighbors
-    // TODO: there should likely be a limit on how many jumps to look so that hair-pin branches
-    // don't get destroyed. However the limit needs to be more than 1, just not sure how much more.
-    std::unordered_set<const Slice*> processed, stack;
-    stack.insert(this);
-    while (!stack.empty())
-    {
-        const Slice* slc = pop(stack);
-        processed.insert(slc);
-        for (Slice* neighbor : slc->end_neighbors)
-        {
-            if (processed.count(neighbor) || stack.count(neighbor) || neighbor->deg == 1) { continue; }
-            if (neighbor->deg == 2) { stack.insert(neighbor); continue; }
-
-            // Found a branch point
-            // Look for which of its neighbor slc is
-            size_t i;
-            for (i = 0; i < neighbor->end_neighbors.size(); ++i)
-            {
-                if (slc == neighbor->end_neighbors[i]) { break; }
-            }
-            assert(i != neighbor->end_neighbors.size());
-
-            // Add the BP's respective auxilary planes
-            planes.insert(planes.end(), neighbor->aux_planes[i].begin(), neighbor->aux_planes[i].end());
-        }
-    }
-    return planes;
 }
 double Slice::length() const
 {
@@ -148,7 +145,7 @@ double Slice::length() const
 void Slice::set_neighbors(std::vector<Slice*> slices)
 {
     // Set all of the neighbors of all of the slices. This uses information from each slice to
-    // determine which other slices are neighbors.
+    // determine which other slices are neighbors. This also calculates the extra planes.
 
     // Create quick lookup of skeleton vertex to slice
     std::unordered_map<S3VertexDesc, Slice*> sv2slc;
@@ -166,7 +163,37 @@ void Slice::set_neighbors(std::vector<Slice*> slices)
             }
         }
     }
+    // Calculate the extra planes
+    for (Slice* slc : slices)
+    {
+        // For each branch point
+        if (slc->deg > 2)
+        {
+            // Work down the branches copying the relevant auxilary planes
+            for (size_t i = 0; i < slc->end_neighbors.size(); ++i)
+            {
+                std::vector<Plane3> planes = slc->aux_planes[i];
+                Slice *last = slc, *nghbr = slc->end_neighbors[i];
+                while (!planes.empty() && nghbr && nghbr->deg <= 2)
+                {
+                    // TODO: Remove any planes that are no longer relevant
+                    /*for (auto itr = planes.begin(); itr != planes.end(); )
+                    {
+                        if (has_all_on_pos_side(*itr, nghbr->svs, nghbr->S)) { itr = planes.erase(itr); }
+                        else { ++itr; }
+                    }*/
+                    std::cout << planes.size() << std::endl;
+                    // Add the planes
+                    nghbr->_all_planes.insert(nghbr->_all_planes.end(), planes.begin(), planes.end());
+                    // Move down to the next slice
+                    Slice* next = nghbr->other_neighbor(last);
+                    last = nghbr; nghbr = next;
+                }
+            }
+        }
+    }
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Slice class meshing methods
@@ -539,29 +566,15 @@ inline static std::vector<P3CVertex> find_vertices(const Polyhedron3* P, std::ve
     for (P3CVertex v : old) { vs.push_back(map.at(v->point())); }
     return vs;
 }
-inline static bool on_all_pos_sides(const std::vector<Plane3>& planes, const Point3& p)
-{
-    for (auto& h : planes) { if (!h.has_on_positive_side(p)) { return false; } }
-    return true;
-}
 
 void Slice::build_mesh(const Polyhedron3* P)
 {
+    std::cout << _all_planes.size() << std::endl;
+
     assert(_mesh == nullptr || _mesh->empty());
 
-    // Get all planes that will restrict the mesh
-    std::vector<Plane3> planes = all_planes();
-
     // Find all of the polyhedron vertices mapped to skeletal vertices that should be in the final result
-    std::vector<P3CVertex> seeds;
-    seeds.reserve(512);
-    for (S3VertexDesc sv : svs)
-    {
-        for (const P3CVertex& v : (*S)[sv].vertices)
-        {
-            if (on_all_pos_sides(planes, v->point())) { seeds.push_back(v); }
-        }
-    }
+    std::vector<P3CVertex> seeds = get_all_on_pos_sides(_all_planes, this->svs, this->S);
     if (seeds.size() == 0)
     {
         // TODO: this is occurring somewhat frequently (sometimes there are no points in the entire mesh that match) - why?
@@ -580,7 +593,7 @@ void Slice::build_mesh(const Polyhedron3* P)
     // Quickly cut up with all planes simultaneously so that the whole process is much faster.
     // This step is completely optional but does cut the computation time in half.
     {
-        QuickCutAtPlanes cut(P, planes, seeds);
+        QuickCutAtPlanes cut(P, _all_planes, seeds);
         mesh->delegate(cut);
         assert(mesh->is_valid());
 
@@ -609,7 +622,7 @@ void Slice::build_mesh(const Polyhedron3* P)
     CGAL::set_halfedgeds_items_id(*mesh);
 
     // Cut up the mesh into a new mesh
-    for (auto& h : planes)
+    for (auto& h : _all_planes)
     {
         if (first)
         {
@@ -654,10 +667,10 @@ void Slice::build_mesh(const Polyhedron3* P)
     for (auto f = mesh->facets_begin(), end = mesh->facets_end(); f != end; ++f)
     {
         // This would add capping-only facets (which is an interesting view)
-        //for (auto& h : planes) { if (f->plane() == h) { facets.insert(f); break; } }
+        //for (auto& h : _all_planes) { if (f->plane() == h) { facets.insert(f); break; } }
         // This adds original facets only
         bool any_match = false;
-        for (auto& h : planes) { if (f->plane() == h) { any_match = true; break; } }
+        for (auto& h : _all_planes) { if (f->plane() == h) { any_match = true; break; } }
         if (!any_match) { facets.insert(f); }
     }
     CGAL::Face_filtered_graph<Polyhedron3> uncapped_graph(*mesh, facets);
