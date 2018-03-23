@@ -61,7 +61,7 @@ public:
     static void set_neighbors(std::vector<Slice*> slices);
 
     // Access to basic properties (a few of these are calculated, but most just return a field)
-    Kernel::FT length() const;
+    double length() const;
     inline size_t degree() const { return this->deg; }
     inline const Skeleton3* skeleton() const { return this->S; }
     inline const std::unordered_set<S3VertexDesc>& skeleton_vertices() const { return this->svs; }

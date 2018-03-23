@@ -122,11 +122,11 @@ std::vector<Plane3> Slice::all_planes() const
     }
     return planes;
 }
-Kernel::FT Slice::length() const
+double Slice::length() const
 {
     // Calculates the skeletal length of the slice, including to the midpoints towards neighboring
     // groups.
-    Kernel::FT len = 0;
+    double len = 0;
     std::unordered_set<S3VertexDesc> processed;
     for (auto sv : svs)
     {
@@ -136,7 +136,7 @@ Kernel::FT Slice::length() const
             auto sv2 = opposite(*S, e, sv);
             if (!processed.count(sv2))
             {
-                Kernel::FT dist = distance(p, (*S)[sv2].point);
+                double dist = distance(p, (*S)[sv2].point);
                 if (!svs.count(sv2)) { dist /= 2; }  // part of other group, half distance (to midpoint)
                 len += dist;
             }
