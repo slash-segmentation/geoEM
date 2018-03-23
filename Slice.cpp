@@ -171,19 +171,6 @@ void Slice::set_neighbors(std::vector<Slice*> slices)
 ///////////////////////////////////////////////////////////////////////////////
 // Slice class meshing methods
 ///////////////////////////////////////////////////////////////////////////////
-inline static P3CVertex find_vertex_with_pt(const Polyhedron3* P, const Point3& p)
-{
-    for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
-    {
-        if (p == v->point()) { return v; }
-    }
-    throw std::invalid_argument("point not found in polyhedron");
-}
-inline static bool on_all_pos_sides(const std::vector<Plane3>& planes, const Point3& p)
-{
-    for (auto& h : planes) { if (!h.has_on_positive_side(p)) { return false; } }
-    return true;
-}
 
 // These are for triangulating holes during building
 struct triangle_output
@@ -541,6 +528,23 @@ public:
         B.end_surface();
     }
 };
+
+inline static std::vector<P3CVertex> find_vertices(const Polyhedron3* P, std::vector<P3CVertex>& old)
+{
+    std::unordered_map<Point3, P3CVertex, boost::hash<Point3>> map;
+    map.reserve(P->size_of_vertices());
+    for (P3CVertex v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v) { map.insert({{v->point(), v}}); }
+    std::vector<P3CVertex> vs;
+    vs.reserve(old.size());
+    for (P3CVertex v : old) { vs.push_back(map.at(v->point())); }
+    return vs;
+}
+inline static bool on_all_pos_sides(const std::vector<Plane3>& planes, const Point3& p)
+{
+    for (auto& h : planes) { if (!h.has_on_positive_side(p)) { return false; } }
+    return true;
+}
+
 void Slice::build_mesh(const Polyhedron3* P)
 {
     assert(_mesh == nullptr || _mesh->empty());
@@ -609,7 +613,7 @@ void Slice::build_mesh(const Polyhedron3* P)
     {
         if (first)
         {
-            // First cut - uses original mesh
+            // First cut - uses original mesh (this is only used when quick-cut wasn't used)
             CutAtPlane cut(P, h, seeds);
             mesh->delegate(cut);
             first = false;
@@ -617,9 +621,7 @@ void Slice::build_mesh(const Polyhedron3* P)
         else
         {
             // All other cuts - use previous result
-            std::vector<P3CVertex> seeds2;
-            seeds2.reserve(seeds.size());
-            for (P3CVertex v : seeds) { seeds2.push_back(find_vertex_with_pt(mesh, v->point())); } // TODO: more efficient
+            std::vector<P3CVertex> seeds2 = find_vertices(mesh, seeds);
             Polyhedron3* temp = new Polyhedron3();
             CutAtPlane cut(mesh, h, seeds2);
             temp->delegate(cut);
