@@ -176,6 +176,9 @@ int main(int argc, char **argv)
     std::string filename = "example-data/big-nn.off"; // no nucleus
     //std::string filename = "example-data/big_simplified.off";
 
+    bool process_organelles = false;
+    std::string filename_organelles = "...";
+
 
     ///////////////////////////////////////////////////////////////////////////
     // Settings
@@ -184,6 +187,7 @@ int main(int argc, char **argv)
     int loop_subdivisions = 1; // add extra vertices to the input mesh
     int slice_sz = 4, bp_slice_sz = 7; // number of skeleton vertices to group together to form a slice
     const char* output_obj = "output.obj"; // the output OBJ file
+    const char* output_obj_int = "intersections.obj"; // the output OBJ file for the intersections
     const char* output_skel = "skel.cgal"; // the output CGAL file for the skeleton points
 
 
@@ -292,6 +296,46 @@ int main(int argc, char **argv)
 
 
     ///////////////////////////////////////////////////////////////////////////
+    // Calculate slice metrics
+    ///////////////////////////////////////////////////////////////////////////
+    std::vector<double> vols, vols_norm, surf_areas, surf_areas_norm, svrs, dist_avgs, dist_to_bps;
+    {
+        std::cout << "Calculating slice metrics..." << std::endl;
+        boost::timer::auto_cpu_timer t;
+
+        // Pre-allocate space
+        vols.reserve(slices.size()); vols_norm.reserve(slices.size());
+        surf_areas.reserve(slices.size()); surf_areas_norm.reserve(slices.size());
+        svrs.reserve(slices.size());
+        dist_avgs.reserve(slices.size()); dist_to_bps.reserve(slices.size());
+
+        for (auto& slc : slices)
+        {
+            // Mesh metrics
+            Kernel::FT vol = volume(slc->mesh());
+            Kernel::FT sa = surface_area(slc->uncapped_mesh());
+            double len = slc->length();
+
+            vols.push_back(CGAL::to_double(vol));
+            vols_norm.push_back(CGAL::to_double(vol/len));
+            surf_areas.push_back(CGAL::to_double(sa));
+            surf_areas_norm.push_back(CGAL::to_double(sa/len));
+            svrs.push_back(CGAL::to_double(sa/vol));
+
+            // Distance metrics
+            double dist = 0.0;
+            for (auto sv : slc->skeleton_vertices()) { dist += dists[sv]; }
+            dist /= slc->skeleton_vertices().size();
+            dist_avgs.push_back(dist);
+
+            if (slc->degree() > 2) { dist = 0; } // branch point
+            else { dist -= dists[next_bps[*slc->skeleton_vertices().begin()]]; }
+            dist_to_bps.push_back(dist);
+        }
+    }
+    std::cout << std::endl;
+
+    ///////////////////////////////////////////////////////////////////////////
     // Save the model as an OBJ file
     ///////////////////////////////////////////////////////////////////////////
     std::ofstream f(output_obj);
@@ -318,27 +362,11 @@ int main(int argc, char **argv)
 
     // The mesh as a series of colored segments based on their "value"
     std::vector<Polyhedron3*> segs;
-    std::vector<double> values;
+    std::vector<double> values = dist_to_bps;
     for (auto& slc : slices)
     {
-        // Volume:
-        //double val = CGAL::to_double(volume(slc->mesh()));
-
-        // Normalized volume:
-        //double val = CGAL::to_double(volume(slc->mesh())/slc->length());
-
-        // Distance to soma:
-        double val = 0.0;
-        for (auto sv : slc->skeleton_vertices()) { val += dists[sv]; }
-        val /= slc->skeleton_vertices().size();
-
-        // Distance to branch point:    (modifies distance to soma)
-        if (slc->degree() > 2) { val = 0; } // branch point
-        else { val -= dists[next_bps[*slc->skeleton_vertices().begin()]]; }
-
-        values.push_back(val);
-        segs.push_back(slc->mesh());
-        //segs.push_back(slc->uncapped_mesh());
+        //segs.push_back(slc->mesh());
+        segs.push_back(slc->uncapped_mesh());
     }
     write_obj_cmap_segments(f, segs, values, off);
 
@@ -349,43 +377,141 @@ int main(int argc, char **argv)
     ///////////////////////////////////////////////////////////////////////////
     // Show statistics
     ///////////////////////////////////////////////////////////////////////////
-    std::cout << "There are " << slices.size() << " slices" << std::endl;
-    std::cout << "The original mesh contains:" << std::endl;
-    std::cout << "    " << P->size_of_facets() << " facets" << std::endl;
-    std::cout << "    " << P->size_of_halfedges() << " halfedges" << std::endl;
-    std::cout << "    " << P->size_of_vertices() << " vertices" << std::endl;
-    size_t total_facets = 0;
-    size_t total_halfedges = 0;
-    size_t total_vertices = 0;
+    size_t total_facets = 0, total_halfedges = 0, total_vertices = 0;
+    Kernel::FT total_volume = 0, total_sa = 0;
     for (auto& slc : slices)
     {
         total_facets += slc->mesh()->size_of_facets();
         total_halfedges += slc->mesh()->size_of_halfedges();
         total_vertices += slc->mesh()->size_of_vertices();
+        total_volume += volume(slc->mesh());
+        total_sa += surface_area(slc->uncapped_mesh());
     }
+    std::cout << "There are " << slices.size() << " slices" << std::endl;
+    std::cout << "The original mesh contains:" << std::endl;
+    std::cout << "    " << P->size_of_facets() << " facets" << std::endl;
+    std::cout << "    " << P->size_of_halfedges() << " halfedges" << std::endl;
+    std::cout << "    " << P->size_of_vertices() << " vertices" << std::endl;
     std::cout << "The slices contain:" << std::endl;
     std::cout << "    " << total_facets << " facets" << std::endl;
     std::cout << "    " << total_halfedges << " halfedges" << std::endl;
     std::cout << "    " << total_vertices << " vertices" << std::endl;
     std::cout << "The volume of the entire mesh is: " << volume(P) << std::endl;
-    Kernel::FT total_volume = 0;
-    for (auto& slc : slices) { total_volume += volume(slc->mesh()); }
     std::cout << "The volume of the sum of the slices is: " << total_volume << std::endl;
     std::cout << "The surface area of the entire mesh is: " << surface_area(P) << std::endl;
-    Kernel::FT total_sa = 0;
-    for (auto& slc : slices) { total_sa += surface_area(slc->uncapped_mesh()); }
     std::cout << "The surface area of the sum of the slices is: " << total_sa << std::endl;
 
+    if (process_organelles)
+    {
+        ///////////////////////////////////////////////////////////////////////////
+        // Read in the 3D polyhedral mesh for the organelles
+        ///////////////////////////////////////////////////////////////////////////
+        Polyhedron3 *Po;
+        {
+            std::cout << "Reading organelle mesh..." << std::endl;
+            boost::timer::auto_cpu_timer t;
+            try
+            {
+                Po = read_mesh(filename_organelles, assume_good); // TODO: delete Po; somewhere...
+            }
+            catch (std::invalid_argument& err) { std::cerr << err.what() << std::endl; return -1; }
+            CGAL::set_halfedgeds_items_id(*Po);
+            calculate_facet_planes(Po);
+            if (!assume_good && PMP::connected_components(*Po, P3_facet_int_map(get(boost::face_index, *Po))) != 1)
+            {
+                std::cerr << "ERROR: model is not a single connected component" << std::endl;
+                return -1;
+            }
+        }
+        std::cout << std::endl;
 
-    ///////////////////////////////////////////////////////////////////////////
-    // Intersection of meshes
-    ///////////////////////////////////////////////////////////////////////////
-    // Both meshes must be non-self-intersecting and must bound a volume
-    // Both input meshes will end up "refined" I believe
-    //Polyhedron3* intersection = new Polyhedron();
-    //bool result = PMP::corefine_and_compute_intersection(
-    //    Polyhedron3(*slc->mesh()), Polyhedron3(*component->mesh()), intersection);
 
+        ///////////////////////////////////////////////////////////////////////////
+        // Refine the organelles mesh
+        ///////////////////////////////////////////////////////////////////////////
+        if (remesh_size || loop_subdivisions > 0)
+        {
+            std::cout << "Refining organelle mesh..." << std::endl;
+            boost::timer::auto_cpu_timer t;
+            Kernel::FT avg_edge_len = avg_edge_length(Po);
+            std::cout << "    Original: " << num_faces(*Po) << " faces and an average edge length of " << avg_edge_len << std::endl;
+            if (remesh_size)
+            {
+                PMP::isotropic_remeshing(faces(*Po), CGAL::to_double(avg_edge_len*remesh_size), *Po, PMP::parameters::number_of_iterations(3));
+                std::cout << "    After remeshing: " << num_faces(*Po) << " faces and an average edge length of " << avg_edge_length(Po) << std::endl;
+            }
+            if (loop_subdivisions > 0)
+            {
+                CGAL::Subdivision_method_3::Loop_subdivision(*Po, loop_subdivisions);
+                std::cout << "    After subdivision: " << num_faces(*Po) << " faces and an average edge length of " << avg_edge_length(Po) << std::endl;
+            }
+            CGAL::set_halfedgeds_items_id(*Po); // must be performed again after refinement
+            calculate_facet_planes(Po);
+            #ifdef _DEBUG // these checks are incredibly unlikely to fail after using the built-in refining method so usually don't do them
+            if (!Po->is_valid())         { std::cerr << "WARNING: mesh is not valid after refining" << std::endl; }
+            if (!Po->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
+            if (!is_not_degenerate(Po))  { std::cerr << "WARNING: mesh is degenerate after refining" << std::endl; }
+            if (!Po->is_pure_triangle()) { std::cerr << "WARNING: mesh is not pure triangle after refining" << std::endl; }
+            #endif
+            // This last check, while expensive, is important as changing meshing settings can cause
+            // it to be triggered.
+            if (PMP::does_self_intersect(*Po))  { std::cerr << "WARNING: mesh is self-intersecting after refining" << std::endl; }
+        }
+        std::cout << std::endl;
+
+
+        ///////////////////////////////////////////////////////////////////////////
+        // Intersection of meshes
+        ///////////////////////////////////////////////////////////////////////////
+        // Both meshes must be non-self-intersecting and must bound a volume.
+        // The output parameter can be one of the inputs for in-place operation.
+        // TODO: Both input meshes will end up "refined" I believe.
+        std::vector<Polyhedron3*> intrsctns;
+        {
+            std::cout << "Computing intersections..." << std::endl;
+            boost::timer::auto_cpu_timer t;
+            intrsctns.reserve(slices.size());
+            for (auto& slc : slices)
+            {
+                Polyhedron3* intrsctn = new Polyhedron3(*Po);
+                Polyhedron3 input(*slc->mesh());
+                bool result = PMP::corefine_and_compute_intersection(input, *intrsctn, *intrsctn);
+                if (!result)
+                {
+                    std::cerr << "ERROR: Failed to compute intersection" << std::endl;
+                    delete intrsctn;
+                    intrsctn = new Polyhedron3();
+                }
+                intrsctns.push_back(intrsctn); // TODO: for (Polyhedron3* intrsctn : intrsctns) { delete intrsctn; } somewhere...
+            }
+        }
+        std::cout << std::endl;
+
+
+        ///////////////////////////////////////////////////////////////////////////
+        // Calculate the intersection metrics
+        ///////////////////////////////////////////////////////////////////////////
+        std::vector<double> volume_percs, organelle_svrs;
+        {
+            std::cout << "Calculating intersection metrics..." << std::endl;
+            boost::timer::auto_cpu_timer t;
+            volume_percs.reserve(intrsctns.size()); organelle_svrs.reserve(intrsctns.size());
+            for (size_t i = 0; i < slices.size(); ++i)
+            {
+                Slice* slice = slices[i];
+                Polyhedron3* intrsctn = intrsctns[i];
+
+                Kernel::FT slc_vol = volume(slice->mesh());
+                Kernel::FT vol = volume(intrsctn);
+                Kernel::FT sa = surface_area(intrsctn); // TODO: needs to be uncapped!
+
+                volume_percs.push_back(CGAL::to_double(vol/slc_vol));
+                organelle_svrs.push_back(CGAL::to_double(sa/vol));
+            }
+        }
+        std::cout << std::endl;
+
+    }
 
 #ifdef CREATE_GUI
     ///////////////////////////////////////////////////////////////////////////
