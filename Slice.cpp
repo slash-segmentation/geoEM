@@ -236,7 +236,7 @@ class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
 {
     const Polyhedron3* P;
     const Plane3 h;
-    const P3CVertex v;
+    const std::vector<P3CVertex>& seeds;
     Builder* B;
     size_t lookup_count = 0;
     std::vector<size_t> lookup, edge_lookup; // (size_t)-1 indicates a point/edge that hasn't been added to the mesh yet
@@ -320,11 +320,13 @@ public:
     // Keep positive side of plane
     // The vertex must be on positive side of plane
     // The resulting mesh will be pure triangle and closed
-    CutAtPlane(const Polyhedron3* P, Plane3 h, P3CVertex v) : P(P), h(h), v(v)
+    CutAtPlane(const Polyhedron3* P, Plane3 h, const std::vector<P3CVertex>& seeds) : P(P), h(h), seeds(seeds)
     {
         assert(P->is_closed());
         assert(P->is_pure_triangle());
-        assert(h.has_on_positive_side(v->point()));
+        #ifdef _DEBUG
+        for (const P3CVertex& v : seeds) { assert(h.has_on_positive_side(v->point())); }
+        #endif
         this->side_cache.resize(this->P->size_of_vertices());
         for (auto v = P->vertices_begin(), end = P->vertices_end(); v != end; ++v)
         {
@@ -338,16 +340,24 @@ public:
         this->B = &B;
         B.begin_surface(P->size_of_vertices(), P->size_of_facets()*2); // *2 for the caps
 
-        // Start processing based on the given sees, pre-adding it as vertex
+        // Start processing based on the given seeds, pre-adding them as vertices
         this->lookup.resize(P->size_of_vertices(), (size_t)-1);
         this->edge_lookup.resize(P->size_of_halfedges(), (size_t)-1);
         this->reached.resize(P->size_of_facets(), false);
-        B.add_vertex(this->v->point());
-        this->lookup[this->v->id()] = this->lookup_count++;
-        FOR_FACETS_AROUND_VERTEX(this->v, f)
+        this->stack.reserve(seeds.size()*2);
+        for (P3CVertex v : this->seeds)
         {
-            this->reached[f->id()] = true;
-            this->stack.push_back(f);
+            B.add_vertex(v->point());
+            this->lookup[v->id()] = this->lookup_count++;
+            FOR_FACETS_AROUND_VERTEX(v, f)
+            {
+                size_t id = f->id();
+                if (!this->reached[id])
+                {
+                    this->reached[id] = true;
+                    this->stack.push_back(f);
+                }
+            }
         }
 
         // Process the stack until empty
@@ -538,7 +548,7 @@ void Slice::build_mesh(const Polyhedron3* P)
     // Get all planes that will restrict the mesh
     std::vector<Plane3> planes = all_planes();
 
-    // Find all of the polyhedron vertices that should be in the final result
+    // Find all of the polyhedron vertices mapped to skeletal vertices that should be in the final result
     std::vector<P3CVertex> seeds;
     seeds.reserve(512);
     for (S3VertexDesc sv : svs)
@@ -595,23 +605,23 @@ void Slice::build_mesh(const Polyhedron3* P)
     CGAL::set_halfedgeds_items_id(*mesh);
 
     // Cut up the mesh into a new mesh
-    P3CVertex seed = pop(seeds);
-    const Point3& p = seed->point();
     for (auto& h : planes)
     {
         if (first)
         {
             // First cut - uses original mesh
-            CutAtPlane cut(P, h, seed);
+            CutAtPlane cut(P, h, seeds);
             mesh->delegate(cut);
             first = false;
         }
         else
         {
             // All other cuts - use previous result
-            P3CVertex v = find_vertex_with_pt(mesh, p);
+            std::vector<P3CVertex> seeds2;
+            seeds2.reserve(seeds.size());
+            for (P3CVertex v : seeds) { seeds2.push_back(find_vertex_with_pt(mesh, v->point())); } // TODO: more efficient
             Polyhedron3* temp = new Polyhedron3();
-            CutAtPlane cut(mesh, h, v);
+            CutAtPlane cut(mesh, h, seeds2);
             temp->delegate(cut);
             delete mesh;
             mesh = temp;
