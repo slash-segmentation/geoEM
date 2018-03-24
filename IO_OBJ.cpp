@@ -208,7 +208,7 @@ private:
             else { throw std::invalid_argument("Error: OBJ file contains unimplemented commands"); }
             break;
         case 'f':
-            if (cmd[1] == '\0' || streq_case_insensitive(cmd+1, "o")) // TODO: validation
+            if (cmd[1] == '\0' || strieq(cmd+1, "o")) // TODO: validation
             {
                 facet f = this->f(params);
                 size_t fi = this->facets.size();
@@ -220,9 +220,9 @@ private:
             else { throw std::invalid_argument("Error: OBJ file contains unimplemented commands"); }
             break;
         default:
-            if (!streq_case_insensitive(cmd, "vt") && !streq_case_insensitive(cmd, "s") && !streq_case_insensitive(cmd, "p") && !streq_case_insensitive(cmd, "l") &&
-                !streq_case_insensitive(cmd, "mtllib") && !streq_case_insensitive(cmd, "usemtl") && !streq_case_insensitive(cmd, "maplib") && !streq_case_insensitive(cmd, "usemap") && 
-                !streq_case_insensitive(cmd, "bevel") && !streq_case_insensitive(cmd, "c_interp") && !streq_case_insensitive(cmd, "d_interp") && !streq_case_insensitive(cmd, "log") && !streq_case_insensitive(cmd, "shadow_obj") && !streq_case_insensitive(cmd, "trace_obj"))
+            if (!strieq(cmd, "vt") && !strieq(cmd, "s") && !strieq(cmd, "p") && !strieq(cmd, "l") &&
+                !strieq(cmd, "mtllib") && !strieq(cmd, "usemtl") && !strieq(cmd, "maplib") && !strieq(cmd, "usemap") && 
+                !strieq(cmd, "bevel") && !strieq(cmd, "c_interp") && !strieq(cmd, "d_interp") && !strieq(cmd, "log") && !strieq(cmd, "shadow_obj") && !strieq(cmd, "trace_obj"))
             {
                 throw std::invalid_argument("Error: OBJ file contains unimplemented commands");
             }

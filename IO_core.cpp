@@ -51,7 +51,7 @@ void VertexReader::init(std::istream &in, void* extra)
     while ((cmd = read_command(in, buf, &params)) != nullptr)
     {
         if (cmd[0] == 0) { continue; }
-        else if (streq_case_insensitive(cmd, "v")) { this->v(params); }
+        else if (strieq(cmd, "v")) { this->v(params); }
         else { this->parse_cmd(cmd, params, extra); }
     }
 

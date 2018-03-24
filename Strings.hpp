@@ -48,7 +48,7 @@ inline const char *ltrim(const char *s) { while (std::isspace(*s)) { ++s; } retu
 inline char *strchr(char *s, const char *cs) { while (*s) { const char *c = cs; while (*c) { if (*s == *c) { return s; } ++c; } ++s; } return nullptr; }
 inline const char *strchr(const char *s, const char *cs) { while (*s) { const char *c = cs; while (*c) { if (*s == *c) { return s; } ++c; } ++s; } return nullptr; }
 inline bool streq(const char *a, const char *b) { return std::strcmp(a, b) == 0; }
-inline bool streq_case_insensitive(const char *a, const char *b)
+inline bool strieq(const char *a, const char *b)
 {
     while (*a && *b && std::tolower(*a) == std::tolower(*b)) { ++a; ++b; }
     return *a == 0 && *b == 0;
