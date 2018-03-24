@@ -5,6 +5,11 @@
 
 #include <algorithm>
 
+#include <CGAL/boost/graph/Face_filtered_graph.h>
+
+typedef CGAL::Face_filtered_graph<Polyhedron3> FilteredPolyhedron3;
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // These are utilities for Polyhedron3 objects.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -15,23 +20,6 @@ inline Plane3 facet_to_plane3(Polyhedron3::Facet_const_handle f) { const Polyhed
 inline Triangle3 facet_to_triangle3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return Triangle3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
 inline Bbox3 facet_to_bbox3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return bbox3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
 inline Segment3 halfedge_to_segment3(Polyhedron3::Halfedge_const_handle he) { return Segment3(he->prev()->vertex()->point(), he->vertex()->point()); }
-
-
-// Polyhedron part normals
-inline Direction3 normal(const Polyhedron3::Facet_const_handle &f)
-{
-    // assumes triangle face
-    Polyhedron3::Halfedge_around_facet_const_circulator he = f->facet_begin();
-    Vector3 n = CGAL::normal(he->prev()->vertex()->point(), he->vertex()->point(), he->next()->vertex()->point());
-    return Direction3(normalized(n));
-}
-inline Direction3 normal(const Polyhedron3::Vertex_const_handle &v)
-{
-    Vector3 n = CGAL::NULL_VECTOR;
-    Polyhedron3::Halfedge_around_vertex_const_circulator he = v->vertex_begin(), end(he);
-    CGAL_For_all(he, end) { if (!he->is_border()) { n = n + to_vector(normal(he->facet())); } }
-    return Direction3(normalized(n));
-}
 
 
 // Calculate polyhedron facet planes
@@ -84,6 +72,7 @@ inline Kernel::FT avg_edge_length(const Polyhedron3 *P)
     }
     return length / Kernel::FT(P->size_of_halfedges() / 2);
 }
-Kernel::FT surface_area_covered(const Polyhedron3* P, P3CVertexSet verts);
+FilteredPolyhedron3* filter_faces(Polyhedron3* P, const P3FacetSet& facets);
+FilteredPolyhedron3* filter_vertices(Polyhedron3* P, const P3VertexSet& verts);
 bool is_not_degenerate(const Polyhedron3* P);
 void triangulate_holes(Polyhedron3* P);

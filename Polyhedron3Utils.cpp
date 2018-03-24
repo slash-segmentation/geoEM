@@ -21,42 +21,31 @@ Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f)
     return Polygon2(pts.begin(), pts.end());
 }
 
-// Calculate the surface area of a single facet
-inline Kernel::FT surface_area(P3CFacet f)
+FilteredPolyhedron3* filter_faces(Polyhedron3* P, const P3FacetSet& facets)
 {
-    const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
-    if (c->next() == a) // f->is_triangle()
-    {
-        return ft_sqrt(CGAL::squared_area(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()));
-    }
-    else
-    {
-        return CGAL::abs(facet_to_polygon2(f).area());
-    }
+    return new FilteredPolyhedron3(*P, facets);
 }
-
-// Calculate the surface area of a polyhedron covered by the given vertices (where every facet that
-// has all vertices in verts in counted).
-Kernel::FT surface_area_covered(const Polyhedron3* P, P3CVertexSet verts)
+FilteredPolyhedron3* filter_vertices(Polyhedron3* P, const P3VertexSet& verts)
 {
-    Kernel::FT sa = 0;
-    P3CFacetSet processed;
-    for (P3CVertex v : verts)
+    P3FacetSet facets, processed;
+    facets.reserve(verts.size()*2);
+    processed.reserve(verts.size()*2);
+    for (P3Vertex v : verts)
     {
         FOR_FACETS_AROUND_VERTEX(v, f)
         {
             if (processed.count(f)) { continue; } // facet already processed
             processed.insert(f); // now mark it as processed
-            bool count = true;
+            bool include = true;
             FOR_VERTICES_AROUND_FACET(f, vf)
             {
-                if (!verts.count(vf)) { count = false; break; } // do not count facet - not all vertices are present
+                if (!verts.count(vf)) { include = false; break; } // do not include facet - not all vertices are present
             }
-            // Count it
-            if (count) { sa += surface_area(f); }
+            // Include it
+            if (include) { facets.insert(f); }
         }
     }
-    return sa;
+    return filter_faces(P, facets);
 }
 
 // Checks uniqueness of vertex points and if each face is a simple polygon

@@ -3,6 +3,9 @@
 #include "GeometryUtils.hpp"
 #include "PolygonSorter.hpp"
 
+#include <CGAL/Polygon_mesh_processing/compute_normal.h>
+namespace PMP = CGAL::Polygon_mesh_processing;
+
 ////////// Basics //////////
 #if defined(_WIN32)
 // Windows OpenGL
@@ -56,7 +59,7 @@ void gl_setup()
     glEnable(GL_POINT_SMOOTH);
 }
 inline void _gl_set_color(const QColor &c) { glColor4d(c.redF(), c.greenF(), c.blueF(), c.alphaF()); }
-//inline void _gl_set_normal(const Direction3 &n) { glNormal3d(CGAL::to_double(n.dx()), CGAL::to_double(n.dy()), CGAL::to_double(n.dz())); }
+//inline void _gl_set_normal(const Vector3 &n) { glNormal3d(CGAL::to_double(n.dx()), CGAL::to_double(n.dy()), CGAL::to_double(n.dz())); }
 inline void _gl_add_point(const Point3 &p) { glVertex3d(CGAL::to_double(p.x()), CGAL::to_double(p.y()), CGAL::to_double(p.z())); }
 
 ////////// GlPolyhedron //////////
@@ -74,7 +77,7 @@ GlPolyhedron::GlPolyhedron(const Polyhedron3* P) : nverts(0), nedges(0), nfaces(
     for (Polyhedron3::Vertex_const_iterator V = P->vertices_begin(), end = P->vertices_end(); V != end; ++V)
     {
         const Point3& v = V->point();
-        const Direction3& n = normal(V);
+        const Vector3 n = PMP::compute_vertex_normal(V, *P);
         verts[i  ] = CGAL::to_double(v.x());
         norms[i++] = CGAL::to_double(n.dx());
         verts[i  ] = CGAL::to_double(v.y());
@@ -189,7 +192,7 @@ void GlPolyhedron::render_faces(const Ray3& view, const QColor& color)
     //  VERTICES_AROUND_FACET(f, v)
     //  {
     //      // Gouraud (smooth) shading has 1 normal per vertex
-    //      _gl_set_normal(normal(v));
+    //      _gl_set_normal(PMP::compute_vertex_normal(v, *P));
     //      _gl_add_point(v->point());
     //  }
     //}

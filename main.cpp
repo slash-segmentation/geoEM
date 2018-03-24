@@ -34,6 +34,7 @@
 #include <CGAL/Polygon_mesh_processing/connected_components.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
 #include <CGAL/Polygon_mesh_processing/corefinement.h>
+#include <CGAL/Polygon_mesh_processing/measure.h>
 namespace PMP = CGAL::Polygon_mesh_processing;
 
 // Polyhedron Property Maps
@@ -59,7 +60,7 @@ Slice* find_largest_endpoint_slice(Slices slices, S3VertexDesc& sv)
             if (degree(_sv, *slc->skeleton()) == 1)
             {
                 // Calculate the normalized volume
-                Kernel::FT vol = volume(slc->mesh()) / slc->length();
+                Kernel::FT vol = PMP::volume(*slc->mesh()) / slc->length();
                 // Check if it is a new maximum
                 if (max_slc == nullptr || vol > max) { max_slc = slc; max = vol; sv = _sv; }
                 break;
@@ -312,8 +313,8 @@ int main(int argc, char **argv)
         for (auto& slc : slices)
         {
             // Mesh metrics
-            Kernel::FT vol = volume(slc->mesh());
-            Kernel::FT sa = surface_area(slc->uncapped_mesh());
+            Kernel::FT vol = PMP::volume(*slc->mesh());
+            Kernel::FT sa = PMP::area(*slc->uncapped_mesh());
             double len = slc->length();
 
             vols.push_back(CGAL::to_double(vol));
@@ -384,8 +385,8 @@ int main(int argc, char **argv)
         total_facets += slc->mesh()->size_of_facets();
         total_halfedges += slc->mesh()->size_of_halfedges();
         total_vertices += slc->mesh()->size_of_vertices();
-        total_volume += volume(slc->mesh());
-        total_sa += surface_area(slc->uncapped_mesh());
+        total_volume += PMP::volume(*slc->mesh());
+        total_sa += PMP::area(*slc->uncapped_mesh());
     }
     std::cout << "There are " << slices.size() << " slices" << std::endl;
     std::cout << "The original mesh contains:" << std::endl;
@@ -396,9 +397,9 @@ int main(int argc, char **argv)
     std::cout << "    " << total_facets << " facets" << std::endl;
     std::cout << "    " << total_halfedges << " halfedges" << std::endl;
     std::cout << "    " << total_vertices << " vertices" << std::endl;
-    std::cout << "The volume of the entire mesh is: " << volume(P) << std::endl;
+    std::cout << "The volume of the entire mesh is: " << PMP::volume(*P) << std::endl;
     std::cout << "The volume of the sum of the slices is: " << total_volume << std::endl;
-    std::cout << "The surface area of the entire mesh is: " << surface_area(P) << std::endl;
+    std::cout << "The surface area of the entire mesh is: " << PMP::area(*P) << std::endl;
     std::cout << "The surface area of the sum of the slices is: " << total_sa << std::endl;
 
     if (process_organelles)
@@ -501,9 +502,9 @@ int main(int argc, char **argv)
                 Slice* slice = slices[i];
                 Polyhedron3* intrsctn = intrsctns[i];
 
-                Kernel::FT slc_vol = volume(slice->mesh());
-                Kernel::FT vol = volume(intrsctn);
-                Kernel::FT sa = surface_area(intrsctn); // TODO: needs to be uncapped!
+                Kernel::FT slc_vol = PMP::volume(*slice->mesh());
+                Kernel::FT vol = PMP::volume(*intrsctn);
+                Kernel::FT sa = PMP::area(*intrsctn); // TODO: needs to be uncapped!
 
                 volume_percs.push_back(CGAL::to_double(vol/slc_vol));
                 organelle_svrs.push_back(CGAL::to_double(sa/vol));
