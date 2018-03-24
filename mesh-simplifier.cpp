@@ -47,7 +47,7 @@ static int simplify(Polyhedron3* P, char* param)
     }
 }
 
-static void usage(const char* err = NULL)
+static void usage(const char* err = nullptr)
 {
     if (err) { std::cerr << err << std::endl << std::endl; }
 
@@ -90,7 +90,7 @@ int main(int argc, char** argv)
     catch (std::exception& ex)
     {
         std::cerr << ex.what() << std::endl << std::endl;
-        usage("ERROR: unable to write mesh from output file");
+        usage("ERROR: unable to write mesh to output file");
         return 4;
     }
     if (argc == 3) { delete[] output; }
