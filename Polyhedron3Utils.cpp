@@ -2,6 +2,10 @@
 
 #include <vector>
 #include <unordered_set>
+#include <iterator>
+
+#include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
+namespace PMP = CGAL::Polygon_mesh_processing;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // These are utilities for Polyhedron3 objects. Many of the utilities are complex and take multiple
@@ -123,4 +127,28 @@ bool is_not_degenerate(const Polyhedron3* P)
     }
 
     return true;
+}
+
+
+// For triangulating holes (don't need the output)
+struct null_output_iterator : std::iterator<std::output_iterator_tag, null_output_iterator>
+{
+    template<typename T> void operator=(T const&) { }
+    null_output_iterator & operator++() { return *this; }
+    null_output_iterator operator++(int) { return *this; }
+    null_output_iterator & operator*() { return *this; }
+};
+
+// Triangulate all holes in the given polyhedron
+void triangulate_holes(Polyhedron3* P)
+{
+    for (auto he = P->halfedges_begin(), end = P->halfedges_end(); he != end; ++he)
+    {
+        if (he->is_border())
+        {
+            PMP::triangulate_hole(*P, he, null_output_iterator());
+        }
+    }
+    assert(P->is_closed());
+    CGAL::set_halfedgeds_items_id(*P);
 }

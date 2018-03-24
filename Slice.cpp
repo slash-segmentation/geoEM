@@ -236,15 +236,6 @@ void triangulate_hole(Builder& B, const Plane3& h, std::vector<size_t>& hole, Re
                                    triangle_output_iterator(B, h, hole));
 }
 
-// For triangulating holes outside of building (don't need the output)
-struct null_output_iterator : std::iterator<std::output_iterator_tag, null_output_iterator>
-{
-    template<typename T> void operator=(T const&) { }
-    null_output_iterator & operator++() { return *this; }
-    null_output_iterator operator++(int) { return *this; }
-    null_output_iterator & operator*() { return *this; }
-};
-
 
 class CutAtPlane : public CGAL::Modifier_base<Polyhedron3::HalfedgeDS>
 {
@@ -599,19 +590,11 @@ void Slice::build_mesh(const Polyhedron3* P)
 
         // Quick-Cut doesn't seem amenable to closing the mesh itself so we do it here
         CGAL::set_halfedgeds_items_id(*mesh);
-        for (auto he = mesh->halfedges_begin(), end = mesh->halfedges_end(); he != end; ++he)
-        {
-            if (he->is_border())
-            {
-                PMP::triangulate_hole(*mesh, he, null_output_iterator());
-            }
-        }
-        assert(mesh->is_closed());
+        triangulate_holes(mesh);
 
         // If a single connected component is formed than we can continue with the results of the
         // quick cut, otherwise we need to start over from the beginning. At the moment this never
         // seems to be triggered, but is a very fast check so we will leave it in.
-        CGAL::set_halfedgeds_items_id(*mesh);
         if (PMP::connected_components(*mesh, P3_facet_int_map(get(boost::face_index, *mesh))) == 1)
         {
             first = false;
