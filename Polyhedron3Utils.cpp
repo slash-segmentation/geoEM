@@ -21,30 +21,6 @@ Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f)
     return Polygon2(pts.begin(), pts.end());
 }
 
-// Calculate the volume of a polyhedron using Gauss's theorem / divergence theorem
-// Polyhedron must be pure triangular
-Kernel::FT volume(const Polyhedron3* P)
-{
-    // To increase numerical stability make the 4th point in every tetrahedron the centriod of the
-    // polyhedron instead of some random point like the origin.
-    Kernel::FT x = 0, y = 0, z = 0;
-    for (auto v = P->vertices_begin(), v_end = P->vertices_end(); v != v_end; ++v)
-    {
-        x += v->point().x(); y += v->point().y(); z += v->point().z();
-    }
-    Point3 center(x / Kernel::FT(P->size_of_vertices()),
-                  y / Kernel::FT(P->size_of_vertices()),
-                  z / Kernel::FT(P->size_of_vertices()));
-    Kernel::FT volume = 0;
-    for (auto f = P->facets_begin(), f_end = P->facets_end(); f != f_end; ++f)
-    {
-        const auto &a = f->halfedge(), &b = a->next(), &c = b->next();
-        volume += CGAL::volume(center, a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
-        assert(a == c->next()); // must be a triangular mesh
-    }
-    return volume;
-}
-
 // Calculate the surface area of a single facet
 inline Kernel::FT surface_area(P3CFacet f)
 {
@@ -57,17 +33,6 @@ inline Kernel::FT surface_area(P3CFacet f)
     {
         return CGAL::abs(facet_to_polygon2(f).area());
     }
-}
-
-// Calculate the surface area of a polyhedron by summing up the areas of each facet
-Kernel::FT surface_area(const Polyhedron3* P)
-{
-    Kernel::FT sa = 0;
-    for (auto f = P->facets_begin(), f_end = P->facets_end(); f != f_end; ++f)
-    {
-        sa += surface_area(f);
-    }
-    return sa;
 }
 
 // Calculate the surface area of a polyhedron covered by the given vertices (where every facet that

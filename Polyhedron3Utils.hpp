@@ -84,8 +84,6 @@ inline Kernel::FT avg_edge_length(const Polyhedron3 *P)
     }
     return length / Kernel::FT(P->size_of_halfedges() / 2);
 }
-Kernel::FT volume(const Polyhedron3* P);
-Kernel::FT surface_area(const Polyhedron3* P);
 Kernel::FT surface_area_covered(const Polyhedron3* P, P3CVertexSet verts);
 bool is_not_degenerate(const Polyhedron3* P);
 void triangulate_holes(Polyhedron3* P);
