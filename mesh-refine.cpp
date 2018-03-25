@@ -38,7 +38,7 @@ static void usage(const char* err = nullptr, int exit_code=0)
     std::cerr << "in_file  file to read mesh from" << std::endl;
     std::cerr << "out_file file to save to, defaults to the '${in_file}_refined.off'" << std::endl;
     std::cerr << "Specify one or more options on how to refine the mesh:" << std::endl;
-    std::cerr << "  -f     fill holes and fix self-intersections in the mesh" << std::endl;
+    std::cerr << "  -f     fix: remove self-intersections and fill holes in the mesh" << std::endl;
     std::cerr << "  -i f   isotropic remeshing, targeting f*(average edge length)" << std::endl;
     std::cerr << "  -I l   isotropic remeshing, targeting l" << std::endl;
     std::cerr << "  -l #   # loop subdivisions" << std::endl;
