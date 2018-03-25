@@ -5,6 +5,7 @@
 
 #include <algorithm>
 
+#include <CGAL/boost/graph/properties.h>
 #include <CGAL/boost/graph/Face_filtered_graph.h>
 
 typedef CGAL::Face_filtered_graph<Polyhedron3> FilteredPolyhedron3;
@@ -75,4 +76,5 @@ inline Kernel::FT avg_edge_length(const Polyhedron3 *P)
 FilteredPolyhedron3* filter_faces(Polyhedron3* P, const P3FacetSet& facets);
 FilteredPolyhedron3* filter_vertices(Polyhedron3* P, const P3VertexSet& verts);
 bool is_not_degenerate(const Polyhedron3* P);
+bool is_single_component(const Polyhedron3* P);
 void triangulate_holes(Polyhedron3* P);

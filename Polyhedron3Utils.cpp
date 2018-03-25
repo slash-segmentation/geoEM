@@ -5,7 +5,13 @@
 #include <iterator>
 
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
+#include <CGAL/Polygon_mesh_processing/connected_components.h>
 namespace PMP = CGAL::Polygon_mesh_processing;
+
+// Polyhedron Property Map for connected components
+typedef boost::property_map<Polyhedron3, boost::face_index_t>::const_type P3_facet_index_map_t;
+typedef boost::vector_property_map<size_t, P3_facet_index_map_t> P3_facet_int_map;
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // These are utilities for Polyhedron3 objects. Many of the utilities are complex and take multiple
@@ -81,6 +87,12 @@ bool is_not_degenerate(const Polyhedron3* P)
     }
 
     return true;
+}
+
+// Check if a mesh has a single connected component
+bool is_single_component(const Polyhedron3* P)
+{
+    return PMP::connected_components(*P, P3_facet_int_map(get(boost::face_index, *P))) == 1;
 }
 
 

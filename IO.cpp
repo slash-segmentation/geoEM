@@ -9,6 +9,7 @@
 #include "Strings.hpp"
 
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
+#include <CGAL/Polygon_mesh_processing/orientation.h>
 
 #ifndef POLYHEDRON_USE_VECTOR
 #include <CGAL/Polygon_mesh_processing/triangulate_faces.h>
@@ -56,8 +57,9 @@ void check_mesh(Polyhedron3* P)
     // expensive operations that won't be necessary, usually
     // TODO: add check for isolated vertices
     if (!P->is_valid())        { throw std::invalid_argument("Error: invalid polyhedron."); }
-    if (!P->is_closed())       { throw std::invalid_argument("Error: non-closed polyhedron."); }
     if (!is_not_degenerate(P)) { throw std::invalid_argument("Error: degenerate polyhedron."); }
+    if (!P->is_closed())       { throw std::invalid_argument("Error: non-closed polyhedron."); }
+    if (!PMP::is_outward_oriented(*P)) { throw std::invalid_argument("Error: not outward oriented polyhedron"); }
     if (PMP::does_self_intersect(*P)) { throw std::invalid_argument("Error: non-manifold polyhedron."); }
     if (!P->is_pure_triangle())
     {
@@ -256,7 +258,7 @@ public:
 };
 static P3Writer* get_obj_writer(const file_options& options)
 {
-    return NULL;
+    return NULL; // TODO
 }
 
 

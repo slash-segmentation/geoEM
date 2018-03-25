@@ -12,22 +12,17 @@
 #include <boost/foreach.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 
-#include <CGAL/boost/graph/properties.h>
 #include <CGAL/boost/graph/Face_filtered_graph.h>
 #include <CGAL/boost/graph/copy_face_graph.h>
 
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
-#include <CGAL/Polygon_mesh_processing/connected_components.h>
 #include <CGAL/Polygon_mesh_processing/corefinement.h>
+#include <CGAL/Polygon_mesh_processing/orientation.h>
 namespace PMP = CGAL::Polygon_mesh_processing;
 
 // Incremental builder
 typedef CGAL::Polyhedron_incremental_builder_3<Polyhedron3::HalfedgeDS> Builder;
-
-// Polyhedron Property Map for connected components
-typedef boost::property_map<Polyhedron3, boost::face_index_t>::const_type P3_facet_index_map_t;
-typedef boost::vector_property_map<size_t, P3_facet_index_map_t> P3_facet_int_map;
 
 // Groups
 typedef std::vector<std::vector<S3VertexDesc>> Groups;
@@ -595,11 +590,7 @@ void Slice::build_mesh(const Polyhedron3* P)
         // If a single connected component is formed than we can continue with the results of the
         // quick cut, otherwise we need to start over from the beginning. At the moment this never
         // seems to be triggered, but is a very fast check so we will leave it in.
-        if (PMP::connected_components(*mesh, P3_facet_int_map(get(boost::face_index, *mesh))) == 1)
-        {
-            first = false;
-        }
-        else { mesh->clear(); }
+        if (is_single_component(mesh)) { first = false; } else { mesh->clear(); }
     }
 
     CGAL::set_halfedgeds_items_id(*mesh);
@@ -632,13 +623,15 @@ void Slice::build_mesh(const Polyhedron3* P)
     // Check mesh
     #ifdef _DEBUG // these checks are incredibly unlikely to fail and/or expensive to compute so usually don't do them
     if (!mesh->is_valid())         { std::cerr << "Warning: slice is not valid" << std::endl; }
-    if (!mesh->is_closed())        { std::cerr << "Warning: slice is not closed" << std::endl; }
     if (!is_not_degenerate(mesh))  { std::cerr << "Warning: slice is degenerate" << std::endl; }
+    if (!mesh->is_closed())        { std::cerr << "Warning: slice is not closed" << std::endl; }
+    else if (!PMP::is_outward_oriented(*mesh)) { std::cerr << "Warning: slice is not outward oriented" << std::endl; }
     if (!mesh->is_pure_triangle()) { std::cerr << "Warning: slice is not pure triangle" << std::endl; }
     #endif
     if (PMP::does_self_intersect(*mesh)) { std::cerr << "Warning: slice is self-intersecting" << std::endl; } // this one is expensive but necessary
     #ifdef _DEBUG
     else if (!PMP::does_bound_a_volume(*mesh)) { std::cerr << "Warning: slice does not bound a volume" << std::endl; }
+    if (!is_single_component(*mesh)) { std::cerr << "Warning: slice is not single connected component" << std::endl; }
     #endif
 
     // Set the class's mesh

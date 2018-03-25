@@ -26,12 +26,9 @@
 #include <CGAL/auto_link/Qt.h>
 #endif
 
-#include <CGAL/boost/graph/properties.h>
-
 #include <CGAL/subdivision_method_3.h>
 
 #include <CGAL/Polygon_mesh_processing/remesh.h>
-#include <CGAL/Polygon_mesh_processing/connected_components.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
 #include <CGAL/Polygon_mesh_processing/corefinement.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
@@ -206,7 +203,7 @@ int main(int argc, char **argv)
         catch (std::invalid_argument& err) { std::cerr << err.what() << std::endl; return -1; }
         CGAL::set_halfedgeds_items_id(*P);
         calculate_facet_planes(P);
-        if (!assume_good && PMP::connected_components(*P, P3_facet_int_map(get(boost::face_index, *P))) != 1)
+        if (!assume_good && !is_single_component(*P))
         {
             std::cerr << "ERROR: model is not a single connected component" << std::endl;
             return -1;
@@ -238,13 +235,17 @@ int main(int argc, char **argv)
         calculate_facet_planes(P);
         #ifdef _DEBUG // these checks are incredibly unlikely to fail after using the built-in refining method so usually don't do them
         if (!P->is_valid())         { std::cerr << "WARNING: mesh is not valid after refining" << std::endl; }
-        if (!P->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
         if (!is_not_degenerate(P))  { std::cerr << "WARNING: mesh is degenerate after refining" << std::endl; }
+        if (!P->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
+        else if (!PMP::is_outward_oriented(*P)) { std::cerr << "Warning: mesh is not outward oriented" << std::endl; }
         if (!P->is_pure_triangle()) { std::cerr << "WARNING: mesh is not pure triangle after refining" << std::endl; }
         #endif
         // This last check, while expensive, is important as changing meshing settings can cause
         // it to be triggered.
         if (PMP::does_self_intersect(*P))  { std::cerr << "WARNING: mesh is self-intersecting after refining" << std::endl; }
+        #ifdef _DEBUG
+        if (!is_single_component(*mesh)) { std::cerr << "Warning: mesh is not single connected component" << std::endl; }
+        #endif
     }
     std::cout << std::endl;
 
@@ -418,7 +419,7 @@ int main(int argc, char **argv)
             catch (std::invalid_argument& err) { std::cerr << err.what() << std::endl; return -1; }
             CGAL::set_halfedgeds_items_id(*Po);
             calculate_facet_planes(Po);
-            if (!assume_good && PMP::connected_components(*Po, P3_facet_int_map(get(boost::face_index, *Po))) != 1)
+            if (!assume_good && !is_single_component(*Po))
             {
                 std::cerr << "ERROR: model is not a single connected component" << std::endl;
                 return -1;
@@ -450,8 +451,9 @@ int main(int argc, char **argv)
             calculate_facet_planes(Po);
             #ifdef _DEBUG // these checks are incredibly unlikely to fail after using the built-in refining method so usually don't do them
             if (!Po->is_valid())         { std::cerr << "WARNING: mesh is not valid after refining" << std::endl; }
-            if (!Po->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
             if (!is_not_degenerate(Po))  { std::cerr << "WARNING: mesh is degenerate after refining" << std::endl; }
+            if (!Po->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
+            else if (!PMP::is_outward_oriented(*Po)) { std::cerr << "Warning: mesh is not outward oriented" << std::endl; }
             if (!Po->is_pure_triangle()) { std::cerr << "WARNING: mesh is not pure triangle after refining" << std::endl; }
             #endif
             // This last check, while expensive, is important as changing meshing settings can cause
