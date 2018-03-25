@@ -214,14 +214,20 @@ endif (MSVC)
 
 add_executable(testing-app main.cpp)
 target_link_libraries(testing-app ${MY_LIBRARIES} ${LIBRARIES})
-#message("X: ${MY_LIBRARIES} ${LIBRARIES}")
 if (USE_PRECOMPILED_HEADERS)
     add_pch(testing-app)
 endif (USE_PRECOMPILED_HEADERS)
 
 
-add_executable(mesh-simplifier mesh-simplifier.cpp)
-target_link_libraries(mesh-simplifier ${MY_LIBRARIES} ${LIBRARIES})
+add_executable(mesh-refine mesh-refine.cpp)
+target_link_libraries(mesh-refine ${MY_LIBRARIES} ${LIBRARIES})
 if (USE_PRECOMPILED_HEADERS)
-    add_pch(mesh-simplifier)
+    add_pch(mesh-refine)
+endif (USE_PRECOMPILED_HEADERS)
+
+
+add_executable(mesh-repair mesh-repair.cpp)
+target_link_libraries(mesh-repair ${MY_LIBRARIES} ${LIBRARIES})
+if (USE_PRECOMPILED_HEADERS)
+    add_pch(mesh-repair)
 endif (USE_PRECOMPILED_HEADERS)

@@ -203,7 +203,7 @@ int main(int argc, char **argv)
         catch (std::invalid_argument& err) { std::cerr << err.what() << std::endl; return -1; }
         CGAL::set_halfedgeds_items_id(*P);
         calculate_facet_planes(P);
-        if (!assume_good && !is_single_component(*P))
+        if (!assume_good && !is_single_component(P))
         {
             std::cerr << "ERROR: model is not a single connected component" << std::endl;
             return -1;
@@ -244,7 +244,7 @@ int main(int argc, char **argv)
         // it to be triggered.
         if (PMP::does_self_intersect(*P))  { std::cerr << "WARNING: mesh is self-intersecting after refining" << std::endl; }
         #ifdef _DEBUG
-        if (!is_single_component(*mesh)) { std::cerr << "Warning: mesh is not single connected component" << std::endl; }
+        if (!is_single_component(P)) { std::cerr << "Warning: mesh is not single connected component" << std::endl; }
         #endif
     }
     std::cout << std::endl;
@@ -419,11 +419,6 @@ int main(int argc, char **argv)
             catch (std::invalid_argument& err) { std::cerr << err.what() << std::endl; return -1; }
             CGAL::set_halfedgeds_items_id(*Po);
             calculate_facet_planes(Po);
-            if (!assume_good && !is_single_component(*Po))
-            {
-                std::cerr << "ERROR: model is not a single connected component" << std::endl;
-                return -1;
-            }
         }
         std::cout << std::endl;
 
