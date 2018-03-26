@@ -25,6 +25,11 @@ find_package(Boost COMPONENTS timer chrono system thread)
 set(LIBRARIES ${Boost_LIBRARIES})
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
+# Load libpng
+find_package(PNG REQUIRED)
+include_directories(${PNG_INCLUDE_DIR})
+set(LIBRARIES ${LIBRARIES} ${PNG_LIBRARY})
+
 if (CREATE_GUI)
     # Load CGAL (with Qt)
     find_package(CGAL REQUIRED COMPONENTS Qt5 Eigen3 MPFR GMP)
@@ -183,12 +188,13 @@ endif (USE_PRECOMPILED_HEADERS)
 ###############################################################################
 
 add_library(GeometryTypes STATIC GeometryTypes.hpp GeometryTypes.cpp)
-add_library(Utilities STATIC GeometryUtils.hpp GeometryUtils.cpp Polyhedron3Utils.hpp Polyhedron3Utils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Strings.hpp)
+add_library(Utilities STATIC GeometryUtils.hpp GeometryUtils.cpp Polyhedron3Utils.hpp Polyhedron3Utils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Strings.hpp Destructor.hpp)
 add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp)
+add_library(Image STATIC Image3.hpp ImageConvert.hpp PNGRead.hpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp PolyBuilder.hpp)
 add_library(Skeleton STATIC Skeleton.hpp Skeleton.cpp)
 add_library(Slice STATIC Slice.hpp Slice.cpp)
-set(MY_LIBRARIES IO Intersection Skeleton Slice GeometryTypes Utilities)
+set(MY_LIBRARIES IO Image Intersection Skeleton Slice GeometryTypes Utilities)
 if (CREATE_GUI)
     add_library(Viewer STATIC Viewer.hpp Viewer.cpp GLRender.hpp GLRender.cpp glext.h PolygonSorter.hpp PolygonSorter.cpp)
     list(APPEND MY_LIBRARIES Viewer)
@@ -218,13 +224,11 @@ if (USE_PRECOMPILED_HEADERS)
     add_pch(testing-app)
 endif (USE_PRECOMPILED_HEADERS)
 
-
 add_executable(mesh-refine mesh-refine.cpp)
 target_link_libraries(mesh-refine ${MY_LIBRARIES} ${LIBRARIES})
 if (USE_PRECOMPILED_HEADERS)
     add_pch(mesh-refine)
 endif (USE_PRECOMPILED_HEADERS)
-
 
 add_executable(mesh-repair mesh-repair.cpp)
 target_link_libraries(mesh-repair ${MY_LIBRARIES} ${LIBRARIES})
