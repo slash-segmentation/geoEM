@@ -139,6 +139,42 @@ double Slice::length() const
     }
     return len;
 }
+inline static bool is_relevant(const Plane3& h, const std::vector<Plane3>& planes, const std::unordered_set<S3VertexDesc>& svs, const Skeleton3* S)
+{
+    // Get the maximum distance of any mesh vertex to its corresponding skeleton vertex
+    Kernel::FT v_dist_max = 0;
+    for (S3VertexDesc sv : svs)
+    {
+        for (const P3CVertex& v : (*S)[sv].vertices)
+        {
+            Kernel::FT dist = CGAL::squared_distance((*S)[sv].point, v->point());
+            if (dist > v_dist_max) { v_dist_max = dist; }
+        }
+    }
+
+    // Get the minimum distance from the segments formed by the intersection of the planes with the
+    // candidate plane and the skeleton vertices
+    for (const Plane3& plane : planes)
+    {
+        auto result = CGAL::intersection(h, plane);
+        if (!result) { continue; } // plane is parallel to the current plane, no information
+        const Line3* l = boost::get<Line3>(&*result);
+        if (!l) { return false; } // identical plane, not relevant
+        for (S3VertexDesc sv : svs)
+        {
+            Kernel::FT dist = CGAL::squared_distance((*S)[sv].point, *l);
+            if (dist < v_dist_max)
+            {
+                // Plane is relevant if the minimum plane-intersection distance is closer than the
+                // maximum mesh vertex distance
+                return true;
+            }
+        }
+    }
+
+    // Not relevant
+    return false;
+}
 void Slice::set_neighbors(std::vector<Slice*> slices)
 {
     // Set all of the neighbors of all of the slices. This uses information from each slice to
@@ -173,13 +209,12 @@ void Slice::set_neighbors(std::vector<Slice*> slices)
                 Slice *last = slc, *nghbr = slc->end_neighbors[i];
                 while (!planes.empty() && nghbr && nghbr->deg <= 2)
                 {
-                    // TODO: Remove any planes that are no longer relevant
-                    /*for (auto itr = planes.begin(); itr != planes.end(); )
+                    // Remove any planes that are no longer relevant
+                    for (auto itr = planes.begin(); itr != planes.end(); )
                     {
-                        if (has_all_on_pos_side(*itr, nghbr->svs, nghbr->S)) { itr = planes.erase(itr); }
-                        else { ++itr; }
-                    }*/
-                    std::cout << planes.size() << std::endl;
+                        if (is_relevant(*itr, nghbr->planes(), nghbr->svs, nghbr->S)) { ++itr; }
+                        else { itr = planes.erase(itr); }
+                    }
                     // Add the planes
                     nghbr->_all_planes.insert(nghbr->_all_planes.end(), planes.begin(), planes.end());
                     // Move down to the next slice
@@ -557,8 +592,6 @@ inline static std::vector<P3CVertex> find_vertices(const Polyhedron3* P, std::ve
 
 void Slice::build_mesh(const Polyhedron3* P)
 {
-    std::cout << _all_planes.size() << std::endl;
-
     assert(_mesh == nullptr || _mesh->empty());
 
     // Find all of the polyhedron vertices mapped to skeletal vertices that should be in the final result
