@@ -7,6 +7,9 @@
 #include <vector>
 #include <unordered_set>
 
+#include <CGAL/Side_of_triangle_mesh.h>
+typedef CGAL::Side_of_triangle_mesh<Polyhedron3, Kernel> P3Side;
+
 class Slice
 {
     // Represents a slice of the mesh corresponding to several skeleton vertices. The slice()
@@ -44,6 +47,20 @@ private:
         return nullptr;
     }
 
+    // Used to calculate _all_planes
+    bool is_relevant(const Plane3& h, const P3Side& side) const;
+
+    // Gets the skeletal vertex that is adjacent to sv but in one of the neighbors
+    inline S3VertexDesc neighbor_sv(S3VertexDesc sv) const
+    {
+        BOOST_FOREACH (auto e, out_edges(sv, *S))
+        {
+            S3VertexDesc sv2 = opposite(*S, e, sv);
+            if (!this->svs.count(sv2)) { return sv2; }
+        }
+        throw std::invalid_argument("no neighbor sv");
+    }
+
 public:
     // Create a slice from the skeleton vertices given by the iterators. If a mesh or uncapped mesh
     // is provided then it will become owned by this object (i.e. will be tied to the lifetime of
@@ -65,8 +82,8 @@ public:
     inline ~Slice() { if (_mesh) { delete _mesh; } if (uncapped) { delete uncapped; } }
 
     // Setup functions
+    static void set_neighbors(std::vector<Slice*> slices, const Polyhedron3* P);
     void build_mesh(const Polyhedron3* P);
-    static void set_neighbors(std::vector<Slice*> slices);
 
     // Access to basic properties (a few of these are calculated, but most just return a field)
     double length() const;

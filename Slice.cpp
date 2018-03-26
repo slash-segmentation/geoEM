@@ -139,43 +139,26 @@ double Slice::length() const
     }
     return len;
 }
-inline static bool is_relevant(const Plane3& h, const std::vector<Plane3>& planes, const std::unordered_set<S3VertexDesc>& svs, const Skeleton3* S)
+bool Slice::is_relevant(const Plane3& h, const P3Side& side) const
 {
-    // Get the maximum distance of any mesh vertex to its corresponding skeleton vertex
-    Kernel::FT v_dist_max = 0;
-    for (S3VertexDesc sv : svs)
+    for (size_t i = 0; i < this->end_planes.size(); ++i)
     {
-        for (const P3CVertex& v : (*S)[sv].vertices)
-        {
-            Kernel::FT dist = CGAL::squared_distance((*S)[sv].point, v->point());
-            if (dist > v_dist_max) { v_dist_max = dist; }
-        }
-    }
+        S3VertexDesc sv = neighbor_sv(this->end_verts[i]);
+        Point3 p = CGAL::midpoint((*S)[sv].point, (*S)[this->end_verts[i]].point);
 
-    // Get the minimum distance from the segments formed by the intersection of the planes with the
-    // candidate plane and the skeleton vertices
-    for (const Plane3& plane : planes)
-    {
-        auto result = CGAL::intersection(h, plane);
-        if (!result) { continue; } // plane is parallel to the current plane, no information
+        // Find the line formed by the intersection of h and g
+        auto result = CGAL::intersection(h, this->end_planes[i]);
+        //if (!result) { continue; } // plane is parallel to the current plane, ???? TODO
         const Line3* l = boost::get<Line3>(&*result);
-        if (!l) { return false; } // identical plane, not relevant
-        for (S3VertexDesc sv : svs)
-        {
-            Kernel::FT dist = CGAL::squared_distance((*S)[sv].point, *l);
-            if (dist < v_dist_max)
-            {
-                // Plane is relevant if the minimum plane-intersection distance is closer than the
-                // maximum mesh vertex distance
-                return true;
-            }
-        }
-    }
+        if (!l) { continue; } // identical plane, not relevant
 
-    // Not relevant
+        // If the given point projected onto the line is inside the mesh then it is relevant
+        if (side(l->projection(p)) != CGAL::ON_UNBOUNDED_SIDE) { return true; }
+    }
     return false;
 }
-void Slice::set_neighbors(std::vector<Slice*> slices)
+
+void Slice::set_neighbors(std::vector<Slice*> slices, const Polyhedron3* P)
 {
     // Set all of the neighbors of all of the slices. This uses information from each slice to
     // determine which other slices are neighbors. This also calculates the extra planes.
@@ -196,7 +179,9 @@ void Slice::set_neighbors(std::vector<Slice*> slices)
             }
         }
     }
+
     // Calculate the extra planes
+    P3Side side(*P);
     for (Slice* slc : slices)
     {
         // For each branch point
@@ -212,7 +197,7 @@ void Slice::set_neighbors(std::vector<Slice*> slices)
                     // Remove any planes that are no longer relevant
                     for (auto itr = planes.begin(); itr != planes.end(); )
                     {
-                        if (is_relevant(*itr, nghbr->planes(), nghbr->svs, nghbr->S)) { ++itr; }
+                        if (nghbr->is_relevant(*itr, side)) { ++itr; }
                         else { itr = planes.erase(itr); }
                     }
                     // Add the planes
@@ -599,6 +584,8 @@ void Slice::build_mesh(const Polyhedron3* P)
     if (seeds.size() == 0)
     {
         // TODO: this is occurring somewhat frequently (sometimes there are no points in the entire mesh that match) - why?
+        // Additionally sometimes not all facets are acquired if they are not connected
+        // In general a more robust seeding method is needed
         std::cerr << "ERROR: no seed found to start building mesh from" << std::endl;
         if (_mesh) { delete _mesh; _mesh = nullptr; }
         _mesh = new Polyhedron3();
@@ -812,7 +799,7 @@ Slices slice(const int group_sz, const int bp_group_sz, const Polyhedron3* P, co
     for (auto& group : groups) { slices.push_back(new Slice(S, group.begin(), group.end())); }
 
     // Once all slices are created setup neighbors
-    Slice::set_neighbors(slices);
+    Slice::set_neighbors(slices, P);
 
     // Finally the meshes for each of the slices can be built
     size_t i = 0;
