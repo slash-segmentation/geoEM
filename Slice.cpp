@@ -6,8 +6,10 @@
 
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
 #include <iostream>
 #include <iterator>
+#include <algorithm>
 
 #include <boost/foreach.hpp>
 #include <boost/range/adaptor/transformed.hpp>
@@ -25,7 +27,7 @@ namespace PMP = CGAL::Polygon_mesh_processing;
 typedef CGAL::Polyhedron_incremental_builder_3<Polyhedron3::HalfedgeDS> Builder;
 
 // Groups
-typedef std::vector<std::vector<S3VertexDesc>> Groups;
+typedef std::vector<std::unordered_set<S3VertexDesc>> Groups;
 
 template <class Container>
 typename Container::value_type pop(Container& c)
@@ -673,7 +675,9 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
     const int bp_size = bp_group_sz / 2;
 
     groups.reserve(num_vertices(*S) / group_sz);
+
     // First add all of the branch points with their neighbors
+    std::unordered_map<S3VertexDesc, size_t> bps;
     BOOST_FOREACH(auto sv, vertices(*S))
     {
         if (degree(sv, *S) > 2)
@@ -692,7 +696,7 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
                     BOOST_FOREACH(auto e, out_edges(sv, *S))
                     {
                         auto sv_n = opposite(*S, e, sv);
-                        // TODO: how to deal with BPs close together?
+                        // For the moment overlaps are simply all added, they are cleaned up below
                         if (!svs.count(sv_n) && degree(sv_n, *S) <= 2)
                         {
                             next.insert(sv_n);
@@ -701,7 +705,8 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
                 }
             }
             svs.insert(next.begin(), next.end());
-            groups.push_back(std::vector<S3VertexDesc>(svs.begin(), svs.end()));
+            bps.insert({{sv, groups.size()}});
+            groups.push_back(svs);
         }
     }
     // Then add all others
@@ -710,7 +715,30 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
         int start = (degree(verts.front(), *S) != 1)*(bp_size+1);
         int end = (degree(verts.back(), *S) != 1)*(bp_size+1);
         ssize_t total = (ssize_t)verts.size()-end-start;
-        if (total <= 0) { return; }
+        if (total <= 0)
+        {
+            if (total < 0 && start && end)
+            {
+                // We have a branch that is so short that the branch points overlap
+                std::unordered_set<S3VertexDesc>& g1 = groups[bps[verts.front()]];
+                std::unordered_set<S3VertexDesc>& g2 = groups[bps[verts.back()]];
+                std::vector<S3VertexDesc> overlap;
+                overlap.reserve(-2*total);
+                for (S3VertexDesc sv : verts)
+                {
+                    if (g1.count(sv) && g2.count(sv)) { overlap.push_back(sv); }
+                }
+                size_t n = overlap.size();
+                for (size_t i = 0; i < n/2; ++i) { g2.erase(overlap[i]); }
+                for (size_t i = (n+1)/2; i < overlap.size(); ++i) { g1.erase(overlap[i]); }
+                if (n % 2 == 1)
+                {
+                    // Give middle point to smaller one (or first if equal)
+                    (g2.size() < g1.size() ? g2 : g1).insert(overlap[n/2]);
+                }
+             }
+            return;
+        }
         std::vector<int> sizes(total/group_sz, group_sz);
         // Distribute the remainder
         int rem = total%group_sz;
@@ -729,7 +757,7 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
         auto itr = verts.begin() + start;
         for (size_t sz : sizes)
         {
-            groups.push_back(std::vector<S3VertexDesc>(itr, itr + sz));
+            groups.push_back(std::unordered_set<S3VertexDesc>(itr, itr + sz));
             itr += sz;
         }
         assert(itr + end == verts.end());
