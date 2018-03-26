@@ -579,13 +579,16 @@ void Slice::build_mesh(const Polyhedron3* P)
 {
     assert(_mesh == nullptr || _mesh->empty());
 
-    // Find all of the polyhedron vertices mapped to skeletal vertices that should be in the final result
-    std::vector<P3CVertex> seeds = get_all_on_pos_sides(_all_planes, this->svs, this->S);
+    // Find all of the vertices mapped to skeletal vertices that should be in the final result
+    // We also include skeletal vertices in neighboring slices since there may be many "exchanges"
+    // especially near branch points.
+    std::unordered_set<S3VertexDesc> all_svs(this->svs);
+    // less aggressive: for (S3VertexDesc sv : this->end_verts) { all_svs.insert(this->neighbor_sv(sv)); }
+    for (Slice* neighbor : this->end_neighbors) { all_svs.insert(neighbor->svs.begin(), neighbor->svs.end()); }
+    std::vector<P3CVertex> seeds = get_all_on_pos_sides(_all_planes, all_svs, this->S);
     if (seeds.size() == 0)
     {
-        // TODO: this is occurring somewhat frequently (sometimes there are no points in the entire mesh that match) - why?
-        // Additionally sometimes not all facets are acquired if they are not connected
-        // In general a more robust seeding method is needed
+        // TODO: this is can still occur (sometimes there are no points in the entire mesh that match)
         std::cerr << "ERROR: no seed found to start building mesh from" << std::endl;
         if (_mesh) { delete _mesh; _mesh = nullptr; }
         _mesh = new Polyhedron3();
@@ -614,8 +617,6 @@ void Slice::build_mesh(const Polyhedron3* P)
         // seems to be triggered, but is a very fast check so we will leave it in.
         if (is_single_component(mesh)) { first = false; } else { mesh->clear(); }
     }
-
-    CGAL::set_halfedgeds_items_id(*mesh);
 
     // Cut up the mesh into a new mesh
     for (auto& h : _all_planes)
