@@ -26,9 +26,6 @@
 #include <CGAL/auto_link/Qt.h>
 #endif
 
-#include <CGAL/subdivision_method_3.h>
-
-#include <CGAL/Polygon_mesh_processing/remesh.h>
 #include <CGAL/Polygon_mesh_processing/self_intersections.h>
 #include <CGAL/Polygon_mesh_processing/corefinement.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
@@ -165,13 +162,11 @@ int main(int argc, char **argv)
     // Set the file to read
     ///////////////////////////////////////////////////////////////////////////
     bool assume_good = false;
-    //std::string filename = "example-data/other/cube-triangles.off";
-    //std::string filename = "example-data/other/cube-quads.off";
     //std::string filename = "example-data/other/elephant.off";
     //std::string filename = "example-data/trunc_cone.off";
     //std::string filename = "example-data/small.off";
     //std::string filename = "example-data/big.off";
-    std::string filename = "example-data/big-nn.off"; // no nucleus
+    std::string filename = "example-data/big-nn-refined.off"; // no nucleus
     //std::string filename = "example-data/big_simplified.off";
 
     bool process_organelles = false;
@@ -181,8 +176,6 @@ int main(int argc, char **argv)
     ///////////////////////////////////////////////////////////////////////////
     // Settings
     ///////////////////////////////////////////////////////////////////////////
-    double remesh_size = 0.75; // perform isotropic remeshing to make the size of triangles more equal
-    int loop_subdivisions = 1; // add extra vertices to the input mesh
     int slice_sz = 4, bp_slice_sz = 7; // number of skeleton vertices to group together to form a slice
     const char* output_obj = "output.obj"; // the output OBJ file
     const char* output_obj_int = "intersections.obj"; // the output OBJ file for the intersections
@@ -208,44 +201,6 @@ int main(int argc, char **argv)
             std::cerr << "ERROR: model is not a single connected component" << std::endl;
             return -1;
         }
-    }
-    std::cout << std::endl;
-
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Refine the mesh
-    ///////////////////////////////////////////////////////////////////////////
-    if (remesh_size || loop_subdivisions > 0)
-    {
-        std::cout << "Refining mesh..." << std::endl;
-        boost::timer::auto_cpu_timer t;
-        Kernel::FT avg_edge_len = avg_edge_length(P);
-        std::cout << "    Original: " << num_faces(*P) << " faces and an average edge length of " << avg_edge_len << std::endl;
-        if (remesh_size)
-        {
-            PMP::isotropic_remeshing(faces(*P), CGAL::to_double(avg_edge_len*remesh_size), *P, PMP::parameters::number_of_iterations(3));
-            std::cout << "    After remeshing: " << num_faces(*P) << " faces and an average edge length of " << avg_edge_length(P) << std::endl;
-        }
-        if (loop_subdivisions > 0)
-        {
-            CGAL::Subdivision_method_3::Loop_subdivision(*P, loop_subdivisions);
-            std::cout << "    After subdivision: " << num_faces(*P) << " faces and an average edge length of " << avg_edge_length(P) << std::endl;
-        }
-        CGAL::set_halfedgeds_items_id(*P); // must be performed again after refinement
-        calculate_facet_planes(P);
-        #ifdef _DEBUG // these checks are incredibly unlikely to fail after using the built-in refining method so usually don't do them
-        if (!P->is_valid())         { std::cerr << "WARNING: mesh is not valid after refining" << std::endl; }
-        if (!is_not_degenerate(P))  { std::cerr << "WARNING: mesh is degenerate after refining" << std::endl; }
-        if (!P->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
-        else if (!PMP::is_outward_oriented(*P)) { std::cerr << "Warning: mesh is not outward oriented" << std::endl; }
-        if (!P->is_pure_triangle()) { std::cerr << "WARNING: mesh is not pure triangle after refining" << std::endl; }
-        #endif
-        // This last check, while expensive, is important as changing meshing settings can cause
-        // it to be triggered.
-        if (PMP::does_self_intersect(*P))  { std::cerr << "WARNING: mesh is self-intersecting after refining" << std::endl; }
-        #ifdef _DEBUG
-        if (!is_single_component(P)) { std::cerr << "Warning: mesh is not single connected component" << std::endl; }
-        #endif
     }
     std::cout << std::endl;
 
@@ -419,41 +374,6 @@ int main(int argc, char **argv)
             catch (std::invalid_argument& err) { std::cerr << err.what() << std::endl; return -1; }
             CGAL::set_halfedgeds_items_id(*Po);
             calculate_facet_planes(Po);
-        }
-        std::cout << std::endl;
-
-
-        ///////////////////////////////////////////////////////////////////////////
-        // Refine the organelles mesh
-        ///////////////////////////////////////////////////////////////////////////
-        if (remesh_size || loop_subdivisions > 0)
-        {
-            std::cout << "Refining organelle mesh..." << std::endl;
-            boost::timer::auto_cpu_timer t;
-            Kernel::FT avg_edge_len = avg_edge_length(Po);
-            std::cout << "    Original: " << num_faces(*Po) << " faces and an average edge length of " << avg_edge_len << std::endl;
-            if (remesh_size)
-            {
-                PMP::isotropic_remeshing(faces(*Po), CGAL::to_double(avg_edge_len*remesh_size), *Po, PMP::parameters::number_of_iterations(3));
-                std::cout << "    After remeshing: " << num_faces(*Po) << " faces and an average edge length of " << avg_edge_length(Po) << std::endl;
-            }
-            if (loop_subdivisions > 0)
-            {
-                CGAL::Subdivision_method_3::Loop_subdivision(*Po, loop_subdivisions);
-                std::cout << "    After subdivision: " << num_faces(*Po) << " faces and an average edge length of " << avg_edge_length(Po) << std::endl;
-            }
-            CGAL::set_halfedgeds_items_id(*Po); // must be performed again after refinement
-            calculate_facet_planes(Po);
-            #ifdef _DEBUG // these checks are incredibly unlikely to fail after using the built-in refining method so usually don't do them
-            if (!Po->is_valid())         { std::cerr << "WARNING: mesh is not valid after refining" << std::endl; }
-            if (!is_not_degenerate(Po))  { std::cerr << "WARNING: mesh is degenerate after refining" << std::endl; }
-            if (!Po->is_closed())        { std::cerr << "WARNING: mesh is not closed after refining" << std::endl; }
-            else if (!PMP::is_outward_oriented(*Po)) { std::cerr << "Warning: mesh is not outward oriented" << std::endl; }
-            if (!Po->is_pure_triangle()) { std::cerr << "WARNING: mesh is not pure triangle after refining" << std::endl; }
-            #endif
-            // This last check, while expensive, is important as changing meshing settings can cause
-            // it to be triggered.
-            if (PMP::does_self_intersect(*Po))  { std::cerr << "WARNING: mesh is self-intersecting after refining" << std::endl; }
         }
         std::cout << std::endl;
 
