@@ -176,7 +176,7 @@ int main(int argc, char **argv)
     ///////////////////////////////////////////////////////////////////////////
     // Settings
     ///////////////////////////////////////////////////////////////////////////
-    int slice_sz = 4, bp_slice_sz = 7; // number of skeleton vertices to group together to form a slice
+    int slice_sz = 3; // number of skeleton vertices to group together to form a slice
     const char* output_obj = "output.obj"; // the output OBJ file
     const char* output_obj_int = "intersections.obj"; // the output OBJ file for the intersections
     const char* output_skel = "skel.cgal"; // the output CGAL file for the skeleton points
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
     ///////////////////////////////////////////////////////////////////////////
     // Read in the 3D polyhedral mesh
     ///////////////////////////////////////////////////////////////////////////
-    Polyhedron3 *P;
+    Polyhedron3* P;
     {
         std::cout << "Reading mesh..." << std::endl;
         boost::timer::auto_cpu_timer t;
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
     {
         std::cout << "Slicing..." << std::endl;
         boost::timer::auto_cpu_timer t;
-        slices = slice(slice_sz, bp_slice_sz, P, S); // TODO: for (Slice* slc : slices) { delete slc; } somewhere...
+        slices = slice(slice_sz, P, S); // TODO: for (Slice* slc : slices) { delete slc; } somewhere...
     }
     std::cout << std::endl;
 

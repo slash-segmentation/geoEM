@@ -680,84 +680,89 @@ void Slice::build_mesh(const Polyhedron3* P)
 ///////////////////////////////////////////////////////////////////////////////
 // Group creation
 ///////////////////////////////////////////////////////////////////////////////
-static void create_groups(const int group_sz, const int bp_group_sz, const Skeleton3* S, Groups& groups)
+// Info about the group formed around a branch point
+struct BPInfo
+{
+    size_t index;
+    S3VertexDesc sv;
+    std::unordered_map<S3VertexDesc, std::vector<S3VertexDesc>> branches;
+};
+static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups)
 {
     // Creates groups of skeleton vertices. The branch points in the skeleton will always be in put
-    // into groups so that the distance from one endpoint to another is bp_group_sz (or
-    // bp_group_sz+1 is bp_group_sz is even). This means that the branch part groups will contain
-    // 1 + (bp_group_sz/2*deg) skeleton vertices where deg is the degree of the branch point.
-    //
-    // Other groups will contain at most group_sz consecutive skeleton vertices. In the case
-    // branches cannot be evenly divided by group_sz the groups will be made smaller while trying to
-    // keep all of the groups roughly the same size (at most different by 1).
-
-    // TODO: instead of a fixed size this should be a bit dynamic so that large branch points can
-    // get completely covered without forcing smaller ones to get overwhelmed.
-    const int bp_size = bp_group_sz / 2;
+    // into groups based on how large the mesh is within their region. Other groups will contain at
+    // most group_sz consecutive skeleton vertices. In the case branches cannot be evenly divided
+    // by group_sz the groups will be made smaller while trying to keep all of the groups roughly
+    // the same size (at most different by 1).
 
     groups.reserve(num_vertices(*S) / group_sz);
 
     // First add all of the branch points with their neighbors
-    std::unordered_map<S3VertexDesc, size_t> bps;
+    std::unordered_map<S3VertexDesc, BPInfo> bps;
     BOOST_FOREACH(auto sv, vertices(*S))
     {
         if (degree(sv, *S) > 2)
         {
-            std::unordered_set<S3VertexDesc> svs;
-            svs.reserve(degree(sv, *S)*bp_size + 1);
-            std::unordered_set<S3VertexDesc> next;
-            next.insert(sv);
-            for (int distance = 1; distance <= bp_size; ++distance)
+            Kernel::FT min_dist2 = -1;
+            const Point3& p = (*S)[sv].point;
+            BOOST_FOREACH (P3CVertex v, (*S)[sv].vertices)
             {
-                std::unordered_set<S3VertexDesc> now(next);
-                svs.insert(next.begin(), next.end());
-                next.clear();
-                for (auto sv : now)
-                {
-                    BOOST_FOREACH(auto e, out_edges(sv, *S))
-                    {
-                        auto sv_n = opposite(*S, e, sv);
-                        // For the moment overlaps are simply all added, they are cleaned up below
-                        if (!svs.count(sv_n) && degree(sv_n, *S) <= 2)
-                        {
-                            next.insert(sv_n);
-                        }
-                    }
-                }
+                Kernel::FT dist2 = CGAL::squared_distance(v->point(), p);
+                if (min_dist2 == -1 || dist2 < min_dist2) { min_dist2 = dist2; }
             }
-            svs.insert(next.begin(), next.end());
-            bps.insert({{sv, groups.size()}});
+            std::cout << min_dist2 << "   ";
+            BPInfo bp;
+            bp.index = groups.size();
+            bp.sv = sv;
+
+            std::unordered_set<S3VertexDesc> svs;
+            svs.insert(sv);
+            BOOST_FOREACH(auto e, out_edges(sv, *S))
+            {
+                std::vector<S3VertexDesc> branch;
+                S3VertexDesc prev = sv, cur = opposite(*S, e, prev);
+                do
+                {
+                    branch.push_back(cur);
+                    svs.insert(cur);
+                    S3VertexDesc temp = cur; cur = next_vertex(*S, prev, cur); prev = temp;
+                }
+                while (degree(cur, *S) <= 2 && CGAL::squared_distance((*S)[cur].point, p) <= min_dist2);
+                std::cout << branch.size() << "   ";
+                bp.branches.insert({{branch[0], branch}});
+            }
+            std::cout << std::endl;
+
+            bps.insert({{sv, bp}});
             groups.push_back(svs);
         }
     }
     // Then add all others
-    skeleton_enum_branches(S, [&, S, group_sz, bp_group_sz] (const std::vector<S3VertexDesc>& verts) mutable
+    skeleton_enum_branches(S, [&, S, group_sz] (const std::vector<S3VertexDesc>& verts) mutable
     {
-        int start = (degree(verts.front(), *S) != 1)*(bp_size+1);
-        int end = (degree(verts.back(), *S) != 1)*(bp_size+1);
+        BPInfo* bp1 = degree(verts.front(), *S) > 1 ? &bps[verts.front()] : nullptr;
+        BPInfo* bp2 = degree(verts.back(), *S) > 1 ? &bps[verts.back()] : nullptr;
+        int start = bp1 ? (bp1->branches.at(verts[1]).size() + 1) : 0;
+        int end = bp2 ? (bp2->branches.at(verts[verts.size()-2]).size() + 1) : 0;
         ssize_t total = (ssize_t)verts.size()-end-start;
         if (total <= 0)
         {
-            if (total < 0 && start && end)
+            if (total < 0 && bp1 && bp2)
             {
                 // We have a branch that is so short that the branch points overlap
-                std::unordered_set<S3VertexDesc>& g1 = groups[bps[verts.front()]];
-                std::unordered_set<S3VertexDesc>& g2 = groups[bps[verts.back()]];
+                std::unordered_set<S3VertexDesc>& g1 = groups[bp1->index];
+                std::unordered_set<S3VertexDesc>& g2 = groups[bp2->index];
                 std::vector<S3VertexDesc> overlap;
                 overlap.reserve(-2*total);
                 for (S3VertexDesc sv : verts)
                 {
                     if (g1.count(sv) && g2.count(sv)) { overlap.push_back(sv); }
                 }
-                size_t n = overlap.size();
-                for (size_t i = 0; i < n/2; ++i) { g2.erase(overlap[i]); }
-                for (size_t i = (n+1)/2; i < overlap.size(); ++i) { g1.erase(overlap[i]); }
-                if (n % 2 == 1)
-                {
-                    // Give middle point to smaller one (or first if equal)
-                    (g2.size() < g1.size() ? g2 : g1).insert(overlap[n/2]);
-                }
-             }
+                // Half to each (middle point to smaller or first if equal)
+                size_t n = overlap.size() / 2 + (n % 2 == 1 && g2.size() > g1.size());
+                for (size_t i = 0; i < n; ++i) { g2.erase(overlap[i]); }
+                for (size_t i = n; i < overlap.size(); ++i) { g1.erase(overlap[i]); }
+            }
             return;
         }
         std::vector<int> sizes(total/group_sz, group_sz);
@@ -788,11 +793,11 @@ static void create_groups(const int group_sz, const int bp_group_sz, const Skele
 ///////////////////////////////////////////////////////////////////////////////
 // Function that takes a mesh and skeleton and creates the slices
 ///////////////////////////////////////////////////////////////////////////////
-Slices slice(const int group_sz, const int bp_group_sz, const Polyhedron3* P, const Skeleton3* S)
+Slices slice(const int group_sz, const Polyhedron3* P, const Skeleton3* S)
 {
     // Create the groups
     Groups groups;
-    create_groups(group_sz, bp_group_sz, S, groups);
+    create_groups(group_sz, S, groups);
 
     // Create each slice
     Slices slices;

@@ -105,4 +105,4 @@ public:
 
 typedef std::vector<Slice*> Slices;
 
-Slices slice(const int group_sz, const int bp_group_sz, const Polyhedron3* P, const Skeleton3* S);
+Slices slice(const int group_sz, const Polyhedron3* P, const Skeleton3* S);
