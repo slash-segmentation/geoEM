@@ -48,17 +48,13 @@ Slice* find_largest_endpoint_slice(Slices slices, S3VertexDesc& sv)
     Slice* max_slc = nullptr;
     for (Slice* slc : slices)
     {
-        if (slc->degree() > 2) { continue; }
-        for (S3VertexDesc _sv : slc->skeleton_vertices())
+        if (slc->is_endpoint())
         {
-            if (degree(_sv, *slc->skeleton()) == 1)
-            {
-                // Calculate the normalized volume
-                Kernel::FT vol = PMP::volume(*slc->mesh()) / slc->length();
-                // Check if it is a new maximum
-                if (max_slc == nullptr || vol > max) { max_slc = slc; max = vol; sv = _sv; }
-                break;
-            }
+            // Calculate the normalized volume
+            Kernel::FT vol = PMP::volume(*slc->mesh()) / slc->length();
+            // Check if it is a new maximum
+            if (max_slc == nullptr || vol > max) { max_slc = slc; max = vol; sv = slc->endpoint(); }
+            break;
         }
     }
     return max_slc;

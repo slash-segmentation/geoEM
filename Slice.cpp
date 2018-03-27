@@ -139,6 +139,23 @@ double Slice::length() const
     }
     return len;
 }
+S3VertexDesc Slice::endpoint() const
+{
+    for (S3VertexDesc sv : this->svs)
+    {
+        if (boost::degree(sv, *this->S) == 1) { return sv; }
+    }
+    return Skeleton3::null_vertex();
+}
+size_t Slice::is_endpoint() const
+{
+    for (S3VertexDesc sv : this->svs)
+    {
+        if (boost::degree(sv, *this->S) == 1) { return true; }
+    }
+    return false;
+}
+
 bool Slice::is_relevant(const Plane3& h, const P3Side& side) const
 {
     for (size_t i = 0; i < this->end_planes.size(); ++i)
@@ -759,7 +776,7 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
                     if (g1.count(sv) && g2.count(sv)) { overlap.push_back(sv); }
                 }
                 // Half to each (middle point to smaller or first if equal)
-                size_t n = overlap.size() / 2 + (n % 2 == 1 && g2.size() > g1.size());
+                size_t n = overlap.size() / 2 + (overlap.size() % 2 == 1 && g2.size() > g1.size());
                 for (size_t i = 0; i < n; ++i) { g2.erase(overlap[i]); }
                 for (size_t i = n; i < overlap.size(); ++i) { g1.erase(overlap[i]); }
             }
