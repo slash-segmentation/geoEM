@@ -206,3 +206,16 @@ inline vd next_vertex(const Graph& g, const vd v)
     auto e = *out_edges(v, g).first; // the first outgoing edge
     return opposite(g, e, v);
 }
+
+template <class Graph, class vd = typename Graph::vertex_descriptor>
+inline vd next_vertex(const Graph& g, const vd u, const vd v)
+{
+    // Gets the vertex after v coming from u
+    // Assumes that the degree of v is 2
+    BOOST_FOREACH(auto e, out_edges(v, g))
+    {
+        auto w = opposite(g, e, v);
+        if (w != u) { return w; }
+    }
+    return u; // fallback...
+}
