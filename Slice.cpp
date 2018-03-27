@@ -704,13 +704,25 @@ struct BPInfo
     S3VertexDesc sv;
     std::unordered_map<S3VertexDesc, std::vector<S3VertexDesc>> branches;
 };
+inline static Kernel::FT min_dist2_to_skel(const S3VertexDesc sv, const Skeleton3* S)
+{
+    Kernel::FT min_dist2 = -1;
+    const Point3& p = (*S)[sv].point;
+    BOOST_FOREACH (P3CVertex v, (*S)[sv].vertices)
+    {
+        Kernel::FT dist2 = CGAL::squared_distance(v->point(), p);
+        if (min_dist2 == -1 || dist2 < min_dist2) { min_dist2 = dist2; }
+    }
+    return min_dist2;
+}
 static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups)
 {
     // Creates groups of skeleton vertices. The branch points in the skeleton will always be in put
-    // into groups based on how large the mesh is within their region. Other groups will contain at
-    // most group_sz consecutive skeleton vertices. In the case branches cannot be evenly divided
-    // by group_sz the groups will be made smaller while trying to keep all of the groups roughly
-    // the same size (at most different by 1).
+    // into groups based on how large the mesh is within their region, with at least degree + 1
+    // skeleton vertices but possibly many more. Other groups will contain at most group_sz
+    // consecutive skeleton vertices. In the case branches cannot be evenly divided by group_sz the
+    // groups will be made smaller while trying to keep all of the groups roughly the same size (at
+    // most different by 1).
 
     groups.reserve(num_vertices(*S) / group_sz);
 
@@ -720,24 +732,17 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
     {
         if (degree(sv, *S) > 2)
         {
-            Kernel::FT min_dist2 = -1;
-            const Point3& p = (*S)[sv].point;
-            BOOST_FOREACH (P3CVertex v, (*S)[sv].vertices)
-            {
-                Kernel::FT dist2 = CGAL::squared_distance(v->point(), p);
-                if (min_dist2 == -1 || dist2 < min_dist2) { min_dist2 = dist2; }
-            }
-            std::cout << min_dist2 << "   ";
             BPInfo bp;
             bp.index = groups.size();
             bp.sv = sv;
-
             std::unordered_set<S3VertexDesc> svs;
             svs.insert(sv);
             BOOST_FOREACH(auto e, out_edges(sv, *S))
             {
                 std::vector<S3VertexDesc> branch;
                 S3VertexDesc prev = sv, cur = opposite(*S, e, prev);
+                const Point3& p = (*S)[sv].point;
+                Kernel::FT min_dist2 = min_dist2_to_skel(cur, S);
                 do
                 {
                     branch.push_back(cur);
@@ -745,11 +750,8 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
                     S3VertexDesc temp = cur; cur = next_vertex(*S, prev, cur); prev = temp;
                 }
                 while (degree(cur, *S) <= 2 && CGAL::squared_distance((*S)[cur].point, p) <= min_dist2);
-                std::cout << branch.size() << "   ";
                 bp.branches.insert({{branch[0], branch}});
             }
-            std::cout << std::endl;
-
             bps.insert({{sv, bp}});
             groups.push_back(svs);
         }
