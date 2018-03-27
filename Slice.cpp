@@ -209,13 +209,17 @@ void Slice::set_neighbors(std::vector<Slice*> slices, const Polyhedron3* P)
             {
                 std::vector<Plane3> planes = slc->aux_planes[i];
                 Slice *last = slc, *nghbr = slc->end_neighbors[i];
+                size_t dist = 0;
                 while (!planes.empty() && nghbr && nghbr->deg <= 2)
                 {
-                    // Remove any planes that are no longer relevant
-                    for (auto itr = planes.begin(); itr != planes.end(); )
+                    if (++dist > 2)
                     {
-                        if (nghbr->is_relevant(*itr, side)) { ++itr; }
-                        else { itr = planes.erase(itr); }
+                        // Remove any planes that are no longer relevant
+                        for (auto itr = planes.begin(); itr != planes.end(); )
+                        {
+                            if (nghbr->is_relevant(*itr, side)) { ++itr; }
+                            else { itr = planes.erase(itr); }
+                        }
                     }
                     // Add the planes
                     nghbr->_all_planes.insert(nghbr->_all_planes.end(), planes.begin(), planes.end());
