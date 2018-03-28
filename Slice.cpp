@@ -10,6 +10,9 @@
 #include <iostream>
 #include <iterator>
 #include <algorithm>
+#include <numeric>
+
+#include <math.h>
 
 #include <boost/foreach.hpp>
 #include <boost/range/adaptor/transformed.hpp>
@@ -710,6 +713,8 @@ struct BPInfo
 };
 inline static Kernel::FT min_dist2_to_skel(const S3VertexDesc sv, const Skeleton3* S)
 {
+    // Calculate the minimum squared distance of every mesh vertex associated with the skeleton
+    // vertex to the skeleton vertex.
     Kernel::FT min_dist2 = -1;
     const Point3& p = (*S)[sv].point;
     BOOST_FOREACH (P3CVertex v, (*S)[sv].vertices)
@@ -718,6 +723,68 @@ inline static Kernel::FT min_dist2_to_skel(const S3VertexDesc sv, const Skeleton
         if (min_dist2 == -1 || dist2 < min_dist2) { min_dist2 = dist2; }
     }
     return min_dist2;
+}
+inline static double sv_length(const S3VertexDesc sv, const Skeleton3* S)
+{
+    // Calculates the skeletal "length" of a vertex by going to the midpoints of the neighboring
+    // vertices.
+    double len = 0;
+    const Point3& p = (*S)[sv].point;
+    BOOST_FOREACH (auto e, out_edges(sv, *S))
+    {
+        len += distance(p, (*S)[opposite(*S, e, sv)].point);
+    }
+    return len / 2; // only go to midpoints
+}
+template <class Callback>
+inline static void for_each_perm(size_t n1, size_t n2, int val1, int val2, Callback cb)
+{
+    // Iterates through each permutation that has n1 or val1 and n2 or val2 in it. For each
+    // permutation the callback is called with a vector containing the permutation.
+    std::vector<int> cur;
+    cur.reserve(n1 + n2);
+    std::function<void(size_t,size_t)> recurse = [&, val1, val2] (size_t n1, size_t n2)
+    {
+        if (n1 == 0)
+        {
+            // All remaining n2 values are val2
+            cur.insert(cur.end(), n2, val2);
+            cb(cur);
+            cur.erase(cur.end()-n2, cur.end());
+        }
+        else if (n2 == 0)
+        {
+            // All remaining n1 values are val1
+            cur.insert(cur.end(), n1, val1);
+            cb(cur);
+            cur.erase(cur.end()-n1, cur.end());
+        }
+        else
+        {
+            // Need to recurse with both a val1 and val2 at the front
+            cur.push_back(val1);
+            recurse(n1 - 1, n2);
+            cur.back() = val2;
+            recurse(n1, n2 - 1);
+            cur.pop_back();
+        }
+    };
+
+}
+inline static double ptp_of_groups(const std::vector<double>& values, const std::vector<int>& sizes)
+{
+    // Calculate the peak-to-peak distance (max-min) for each of the groups of values given by
+    // sizes. E.g. if the first values in sizes is 4, then the first 4 values are grouped into one.
+    double min = INFINITY, max = -INFINITY;
+    size_t i = 0;
+    for (int size : sizes)
+    {
+        double val = std::accumulate(values.begin()+i, values.begin()+i+size, 0.0);
+        if (val < min) { min = val; }
+        if (val > max) { max = val; }
+        i += size;
+    }
+    return max - min;
 }
 static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups)
 {
@@ -761,14 +828,16 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
         }
     }
     // Then add all others
-    skeleton_enum_branches(S, [&, S, group_sz] (const std::vector<S3VertexDesc>& verts) mutable
+    skeleton_enum_branches(S, [&, S, group_sz] (const std::vector<S3VertexDesc>& verts)
     {
+        // Is the start/end a branch point and how many skeleton vertices does that BP claim?
         BPInfo* bp1 = degree(verts.front(), *S) > 1 ? &bps[verts.front()] : nullptr;
         BPInfo* bp2 = degree(verts.back(), *S) > 1 ? &bps[verts.back()] : nullptr;
         int start = bp1 ? (bp1->branches.at(verts[1]).size() + 1) : 0;
         int end = bp2 ? (bp2->branches.at(verts[verts.size()-2]).size() + 1) : 0;
+        // Total number of skeleton vertices on this branch
         ssize_t total = (ssize_t)verts.size()-end-start;
-        if (total <= 0)
+        if (total <= 0) // no groups to add since branch is too short
         {
             if (total < 0 && bp1 && bp2)
             {
@@ -788,18 +857,45 @@ static void create_groups(const int group_sz, const Skeleton3* S, Groups& groups
             }
             return;
         }
+        // The number of skeleton vertices in each group
         std::vector<int> sizes(total/group_sz, group_sz);
         // Distribute the remainder
         int rem = total%group_sz;
         if (rem != 0)
         {
-            // TODO: redistribute smaller groups to be where point distance is greater?
+            // Need one more group for the remainder
+            // We also need to distribute the remainder losses around
             sizes.push_back(group_sz);
-            for (size_t to_remove = group_sz - rem, i = sizes.size() - 1; to_remove > 0; to_remove -= 1)
+            size_t n = sizes.size(), i = n - 1;
+            for (size_t to_remove = group_sz - rem; to_remove > 0; to_remove -= 1)
             {
                 sizes[i] -= 1;
-                if (i == 0) { i = sizes.size(); }
+                if (i == 0) { i = n; }
                 i -= 1;
+            }
+            // Redistribute smaller groups to be where length is greater
+            if (i != n-1)
+            {
+                // There are two different group sizes, attempt to reduce dispersion of data
+                int sz1 = sizes[i+1], sz2 = sizes[i]; // sz1 = sz2 - 1, 2 <= sz2 <= group_sz
+                size_t n1 = n-i-1, n2 = i+1; // n1 + n2 = n
+                // Calculate the metric we will be minimizing
+                std::vector<double> values;
+                values.reserve(total);
+                for (size_t i = start; i < verts.size()-end; ++i)
+                {
+                    //double val = sv_length(verts[i], S)); // "length" of each sv
+                    double val = (*S)[verts[i]].vertices.size(); // number of mapped mesh vertices
+                    values.push_back(val);
+                }
+                // Go through each permutation for the sizes and find the one that reduces the
+                // peak-to-peak distance of the metric across the branch.
+                double min_val = INFINITY;
+                for_each_perm(n1, n2, sz1, sz2, [&] (const std::vector<int>& szs)
+                {
+                    double val = ptp_of_groups(values, szs);
+                    if (val < min_val) { min_val = val; sizes = szs; }
+                });
             }
         }
         // Add the groups of the correct sizes
