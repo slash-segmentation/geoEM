@@ -297,7 +297,7 @@ int main(int argc, char **argv)
 
     // The skeleton as a series of black cylinders
     std::vector<Polyhedron3*> skeleton_cyl;
-    skeleton_enum_branches_as_pts(S, [&skeleton_cyl] (const std::vector<Point3>& pts) mutable
+    skeleton_enum_branches_as_pts(S, [&skeleton_cyl] (const std::vector<Point3>& pts)
     {
         std::vector<Segment3> branch;
         branch.reserve(pts.size());
