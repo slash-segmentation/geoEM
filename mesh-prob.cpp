@@ -147,15 +147,15 @@ int main(int argc, char** argv)
     facets_in_complex_3_to_triangle_mesh(c3t3, *P);
     
     
-    // TODO: Write polyhedron
-    /*std::cout << "Saving mesh..." << std::endl;
+    // Write polyhedron
+    std::cout << "Saving mesh..." << std::endl;
     char* output = argv[argc-1];
     try { write_mesh(P, output); }
     catch (std::exception& ex)
     {
         std::cerr << ex.what() << std::endl << std::endl;
         usage("ERROR: unable to write mesh to output file", 5);
-    }*/
+    }
 
     return 0;
 }
