@@ -21,6 +21,12 @@
 // Convert single pixels between types                                       //
 ///////////////////////////////////////////////////////////////////////////////
 
+template<class Type> constexpr Type uint_factor() { return std::numeric_limits<Type>::max(); }
+template<class Type> constexpr Type int_factor() { return -std::numeric_limits<Type>::min(); }
+template<class T1, class T2> constexpr T2 uint_uint_factor() { return uint_factor<T2>() / (T2)uint_factor<T1>(); }
+template<class T1, class T2> constexpr T2 uint_uint_round() { return (T1)(uint_factor<T1>() >> 1) + (uint_factor<T2>() >> 1); }
+
+
 // Same to same
 template <class Src, class Dest>
 typename std::enable_if<std::is_same<Src, Dest>::value, Dest>::type
@@ -34,22 +40,22 @@ inline convert_px(const Src x) { return (Dest)x; }
 // Unsigned integer to floating-point (divide by max, result is 0.0 to 1.0)
 template<class Src, class Dest>
 typename std::enable_if<UINT(Src) && FP(Dest), Dest>::type
-inline convert_px(const Src x) { return x / (Dest)std::numeric_limits<Src>::max(); }
+inline convert_px(const Src x) { return x / (Dest)uint_factor<Src>(); }
 
 // Signed integer to floating-point (divide by -min, result is -1.0 to ~1.0)
 template<class Src, class Dest>
 typename std::enable_if<INT(Src) && FP(Dest), Dest>::type
-inline convert_px(const Src x) { return x / (Dest)-std::numeric_limits<Src>::min(); }
+inline convert_px(const Src x) { return x / (Dest)int_factor<Src>(); }
 
 // Floating-point to unsigned integer (multiply by max)
 template<class Src, class Dest>
 typename std::enable_if<FP(Src) && UINT(Dest), Dest>::type
-inline convert_px(const Src x) { return (Dest)(x * std::numeric_limits<Src>::max()); }
+inline convert_px(const Src x) { return (Dest)(x * uint_factor<Src>()); }
 
 // Floating-point to signed integer (multiply by -min)
 template<class Src, class Dest>
 typename std::enable_if<FP(Src) && INT(Dest), Dest>::type
-inline convert_px(const Src x) { return (Dest)(x * -std::numeric_limits<Src>::min()); }
+inline convert_px(const Src x) { return (Dest)(x * int_factor<Src>()); }
 
 // Unsigned integer to unsigned integer (uses shift)
 template<class Src, class Dest>
@@ -58,15 +64,32 @@ inline convert_px(const Src x)
 {
     if (sizeof(Src) > sizeof(Dest))
     {
-        // TODO: rounding? (below code is not right though)
-        //Dest round = (Dest)(x >> (8*(sizeof(Src) - sizeof(Dest)) - 1) & 0x1);
-        return (Dest)(x >> (8*(sizeof(Src) - sizeof(Dest)))); // + round;
+        // First check if we can do it the fast way with a larger integer intermediate
+        if ((sizeof(Src) + sizeof(Dest)) <= sizeof(uint32_t))
+        {
+            return (Dest)((((uint32_t)x) * uint_factor<Dest>() + uint_uint_round<Src, Dest>()) >> (8*sizeof(Src)));
+        }
+        else if ((sizeof(Src) + sizeof(Dest)) <= sizeof(uint64_t))
+        {
+            return (Dest)((((uint64_t)x) * uint_factor<Dest>() + uint_uint_round<Src, Dest>()) >> (8*sizeof(Src)));
+        }
+        // We can't - we have to do it the slow way that doesn't require a larger integer type
+        else
+        {
+            // The high bits - most important, frequently these will be correct already
+            Dest hi = (Dest)(x >> (sizeof(Src) - sizeof(Dest)));
+            Dest hi_max = uint_factor<Dest>(); // max hi value
+            Dest hi_half = ((Dest)1) << (sizeof(Dest) - 1); // half-way hi value
+            // The low bits - used to determine rounding
+            Src lo_max = (((Src)1) << (sizeof(Src) - sizeof(Dest))) - 1; // max lo value
+            Src lo = x & lo_max;
+            // The cutoff for rounding (takes advantage of integer overflow)
+            Src cutoff = ((Src)(hi + hi_half)) * (lo_max / (Src)hi_max);
+            // Return the hi plus any adjustments for rounding
+            return hi + ((hi > hi_half) ? ((lo < cutoff) ? -1 : 0) : ((lo > cutoff) ? 1 : 0));
+       }
     }
-    else
-    {
-        // TODO: fill in zero bits?
-        return (Dest)(x << (8*(sizeof(Dest) - sizeof(Src))));
-    }
+    else { return (Dest)(x * uint_uint_factor<Src, Dest>()); }
 }
 
 // TODO: Signed integer to signed integer
