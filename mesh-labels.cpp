@@ -122,7 +122,7 @@ int main(int argc, char** argv)
             im_uint.image()->vx = vx; im_uint.image()->vy = vy; im_uint.image()->vz = vz;
         }
 #ifdef MULTITHREADED
-       // Number of threads
+        // Number of threads
         else if (streq(argv[argi], "-n"))
         {
             if (++argi == argc) { usage("ERROR: -n requires argument", 3); }

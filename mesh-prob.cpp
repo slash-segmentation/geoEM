@@ -140,7 +140,7 @@ int main(int argc, char** argv)
             if (value_outside <= 0 || value_outside > 1.0) { usage("ERROR: -o has invalid argument ", 3); }
         }
 #ifdef MULTITHREADED
-       // Number of threads
+        // Number of threads
         else if (streq(argv[argi], "-n"))
         {
             if (++argi == argc) { usage("ERROR: -n requires argument", 3); }
