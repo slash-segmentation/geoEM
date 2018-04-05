@@ -18,8 +18,8 @@
 #include <string.h>
 
 // Domain
-#include <CGAL/Gray_image_mesh_domain_3.h>
-typedef CGAL::Gray_image_mesh_domain_3<Image3, Kernel, double> Mesh_domain;
+#include <CGAL/Labeled_image_mesh_domain_3.h>
+typedef CGAL::Labeled_image_mesh_domain_3<Image3, Kernel> Mesh_domain;
 
 // Triangulation
 #include <CGAL/Mesh_triangulation_3.h>
@@ -54,8 +54,6 @@ static void usage(const char* err = nullptr, int exit_code=0)
     std::cerr << "The available options are:" << std::endl;
     std::cerr << "  -s x,y,z  the size of the voxels of the image data, some formats like MRC have" << std::endl;
     std::cerr << "            this information embedded but other will likely need this set" << std::endl;
-    std::cerr << "  -t thresh the threshold to use (from 0.0 to 1.0), default is 0.5" << std::endl;
-    std::cerr << "  -o value  the value outside the image to assume, default is 0.0" << std::endl;
 #ifdef MULTITHREADED
     std::cerr << "  -n treads the number of threads to use, default is all available (" << tbb::task_scheduler_init::default_num_threads() << ")" << std::endl;
 #endif
@@ -98,18 +96,16 @@ int main(int argc, char** argv)
 
     // Convert image stack to doubles
     std::cout << "Converting image stack..." << std::endl;
-    Image3 im_dbl;
-    try { convert_image<double>(im, im_dbl); }
+    Image3 im_uint;
+    try { convert_image<uint64_t>(im, im_uint); }
     catch (std::exception& ex)
     {
         std::cerr << ex.what() << std::endl << std::endl;
-        usage("ERROR: unable to convert image stack to doubles", 2);
+        usage("ERROR: unable to convert image stack to unsigned ints", 2);
     }
     
     
     // Handle arguments
-    double threshold = 0.5;
-    double value_outside = 0;
 #ifdef MULTITHREADED
     int nthreads = tbb::task_scheduler_init::default_num_threads();
 #endif
@@ -122,22 +118,8 @@ int main(int argc, char** argv)
             double vx, vy, vz;
             size_t n;
             if (sscanf(argv[argi], "%lf,%lf,%lf%zn", &vx, &vy, &vz, &n) != 3 || argv[argi][n] ||
-                vx == 0 || vy == 0 || vz == 0) { usage("ERROR: -s has invalid argument ", 3); }
-            im_dbl.image()->vx = vx; im_dbl.image()->vy = vy; im_dbl.image()->vz = vz;
-        }
-        // Threshold
-        else if (streq(argv[argi], "-t"))
-        {
-            if (++argi == argc) { usage("ERROR: -t requires argument", 3); }
-            threshold = atof(argv[argi]);
-            if (threshold <= 0.0 || threshold > 1.0) { usage("ERROR: -t has invalid argument ", 3); }
-        }
-        // Value Outside
-        else if (streq(argv[argi], "-o"))
-        {
-            if (++argi == argc) { usage("ERROR: -o requires argument", 3); }
-            value_outside = atof(argv[argi]);
-            if (value_outside <= 0 || value_outside > 1.0) { usage("ERROR: -o has invalid argument ", 3); }
+                vx == 0 || vy == 0 || vz == 0) { usage("ERROR: -s has invalid argument", 3); }
+            im_uint.image()->vx = vx; im_uint.image()->vy = vy; im_uint.image()->vz = vz;
         }
 #ifdef MULTITHREADED
        // Number of threads
@@ -160,7 +142,7 @@ int main(int argc, char** argv)
     tbb::task_scheduler_init init(nthreads);
 #endif
     std::cout << "Performing meshing..." << std::endl;
-    Mesh_domain domain(im_dbl, threshold, value_outside);
+    Mesh_domain domain(im_uint);
     Mesh_criteria criteria(facet_angle=30, facet_size=6, facet_distance=2,
                            cell_radius_edge_ratio=3, cell_size=8);
     C3T3 c3t3 = CGAL::make_mesh_3<C3T3>(domain, criteria);

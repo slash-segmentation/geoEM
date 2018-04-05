@@ -4,9 +4,10 @@ project(geoEM CXX C)
 ###############################################################################
 # End-user options
 ###############################################################################
-option(CREATE_GUI "Create the GUI programs and options" ON)
+option(CREATE_GUI "Create the GUI programs and options" OFF)
 option(KERNEL_INEXACT "Use the inexact geometric kernel" ON)
 option(USE_PRECOMPILED_HEADERS "Use precompiled headers" ON)
+option(MULTITHREADED "Use multithreading when possible" ON)
 
 if (${CREATE_GUI})
     add_definitions(-DCREATE_GUI)
@@ -14,6 +15,9 @@ endif (${CREATE_GUI})
 if (${KERNEL_INEXACT})
     add_definitions(-DKERNEL_INEXACT)
 endif (${KERNEL_INEXACT})
+if (${MULTITHREADED})
+    add_definitions(-DMULTITHREADED)
+endif (${MULTITHREADED})
 
 
 ###############################################################################
@@ -29,6 +33,16 @@ find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})
 set(LIBRARIES ${LIBRARIES} ${PNG_LIBRARY})
+
+# Load Intel TBB if multithreading
+if (${MULTITHREADED})
+    #find_package(TBB REQUIRED)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(TBB REQUIRED tbb)
+    set(LIBRARIES ${LIBRARIES} ${TBB_LIBRARIES})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CFLAGS_OTHER}")
+endif (${MULTITHREADED})
+
 
 if (CREATE_GUI)
     # Load CGAL (with Qt)
@@ -72,6 +86,9 @@ endif (CREATE_GUI)
 
 add_definitions(-DCGAL_EIGEN3_ENABLED)
 add_definitions(-DBOOST_PARAMETER_MAX_ARITY=12)
+if (${MULTITHREADED})
+    add_definitions(-DCGAL_CONCURRENT_MESH_3)
+endif (${MULTITHREADED})
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
 set(STATIC_LIBRARY_FLAGS_DEBUG "${STATIC_LIBRARY_FLAGS_DEBUG} -D_DEBUG")
 if (CMAKE_COMPILER_IS_GNUCXX)
@@ -189,7 +206,7 @@ endif (USE_PRECOMPILED_HEADERS)
 ###############################################################################
 
 add_library(GeometryTypes STATIC GeometryTypes.hpp GeometryTypes.cpp)
-add_library(Utilities STATIC GeometryUtils.hpp GeometryUtils.cpp Polyhedron3Utils.hpp Polyhedron3Utils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Strings.hpp Destructor.hpp)
+add_library(Utilities STATIC GeometryUtils.hpp GeometryUtils.cpp Polyhedron3Utils.hpp Polyhedron3Utils.cpp Segments2Cylinders.hpp Segments2Cylinders.cpp Points2Spheres.hpp Points2Spheres.cpp Strings.hpp)
 add_library(IO STATIC IO.hpp IO.cpp IO_core.hpp IO_core.cpp IO_OBJ.hpp IO_OBJ.cpp)
 add_library(Image STATIC Image3.hpp Image3.cpp MRC.cpp PNG.cpp)
 add_library(Intersection STATIC Intersection.hpp Intersection.cpp PolyBuilder.hpp)
@@ -241,4 +258,10 @@ add_executable(mesh-prob mesh-prob.cpp)
 target_link_libraries(mesh-prob ${MY_LIBRARIES} ${LIBRARIES})
 if (USE_PRECOMPILED_HEADERS)
     add_pch(mesh-prob)
+endif (USE_PRECOMPILED_HEADERS)
+
+add_executable(mesh-labels mesh-labels.cpp)
+target_link_libraries(mesh-labels ${MY_LIBRARIES} ${LIBRARIES})
+if (USE_PRECOMPILED_HEADERS)
+    add_pch(mesh-labels)
 endif (USE_PRECOMPILED_HEADERS)
