@@ -57,7 +57,7 @@ static void usage(const char* err = nullptr, int exit_code=0)
     std::cerr << "  -t thresh the threshold to use (from 0.0 to 1.0), default is 0.5" << std::endl;
     std::cerr << "  -o value  the value outside the image to assume, default is 0.0" << std::endl;
 #ifdef MULTITHREADED
-    std::cerr << "  -n treads the number of threads to use, default is all available (" << tbb::task_scheduler_init::default_num_threads() << ")" << std::endl;
+    std::cerr << "  -n nt     the number of threads to use, default is all available (" << tbb::task_scheduler_init::default_num_threads() << ")" << std::endl;
 #endif
     std::cerr << "" << std::endl;
     std::cerr << mesh_file_usage << std::endl;
@@ -124,6 +124,7 @@ int main(int argc, char** argv)
             if (sscanf(argv[argi], "%lf,%lf,%lf%zn", &vx, &vy, &vz, &n) != 3 || argv[argi][n] ||
                 vx == 0 || vy == 0 || vz == 0) { usage("ERROR: -s has invalid argument ", 3); }
             im_dbl.image()->vx = vx; im_dbl.image()->vy = vy; im_dbl.image()->vz = vz;
+            ++argi;
         }
         // Threshold
         else if (streq(argv[argi], "-t"))
@@ -131,6 +132,7 @@ int main(int argc, char** argv)
             if (++argi == argc) { usage("ERROR: -t requires argument", 3); }
             threshold = atof(argv[argi]);
             if (threshold <= 0.0 || threshold > 1.0) { usage("ERROR: -t has invalid argument ", 3); }
+            ++argi;
         }
         // Value Outside
         else if (streq(argv[argi], "-o"))
@@ -138,6 +140,7 @@ int main(int argc, char** argv)
             if (++argi == argc) { usage("ERROR: -o requires argument", 3); }
             value_outside = atof(argv[argi]);
             if (value_outside <= 0 || value_outside > 1.0) { usage("ERROR: -o has invalid argument ", 3); }
+            ++argi;
         }
 #ifdef MULTITHREADED
         // Number of threads
@@ -146,6 +149,7 @@ int main(int argc, char** argv)
             if (++argi == argc) { usage("ERROR: -n requires argument", 3); }
             nthreads = atoi(argv[argi]);
             if (nthreads <= 0 || nthreads > tbb::task_scheduler_init::default_num_threads()) { usage("ERROR: -n has invalid argument", 3); }
+            ++argi;
         }
 #endif
         // No more options

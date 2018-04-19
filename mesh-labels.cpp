@@ -55,7 +55,7 @@ static void usage(const char* err = nullptr, int exit_code=0)
     std::cerr << "  -s x,y,z  the size of the voxels of the image data, some formats like MRC have" << std::endl;
     std::cerr << "            this information embedded but other will likely need this set" << std::endl;
 #ifdef MULTITHREADED
-    std::cerr << "  -n treads the number of threads to use, default is all available (" << tbb::task_scheduler_init::default_num_threads() << ")" << std::endl;
+    std::cerr << "  -n nt     the number of threads to use, default is all available (" << tbb::task_scheduler_init::default_num_threads() << ")" << std::endl;
 #endif
     std::cerr << "" << std::endl;
     std::cerr << mesh_file_usage << std::endl;
@@ -120,6 +120,7 @@ int main(int argc, char** argv)
             if (sscanf(argv[argi], "%lf,%lf,%lf%zn", &vx, &vy, &vz, &n) != 3 || argv[argi][n] ||
                 vx == 0 || vy == 0 || vz == 0) { usage("ERROR: -s has invalid argument", 3); }
             im_uint.image()->vx = vx; im_uint.image()->vy = vy; im_uint.image()->vz = vz;
+            ++argi;
         }
 #ifdef MULTITHREADED
         // Number of threads
@@ -128,6 +129,7 @@ int main(int argc, char** argv)
             if (++argi == argc) { usage("ERROR: -n requires argument", 3); }
             nthreads = atoi(argv[argi]);
             if (nthreads <= 0 || nthreads > tbb::task_scheduler_init::default_num_threads()) { usage("ERROR: -n has invalid argument", 3); }
+            ++argi;
         }
 #endif
         // No more options
