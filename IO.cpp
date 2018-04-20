@@ -241,24 +241,30 @@ private:
 
 class P3Writer_OBJ : public P3Writer
 {
+    size_t off = 0;
 public:
     virtual void operator()(const Polyhedron3* P, std::ostream &out)
     {
-        IteratorReverseLookup<Polyhedron3::Vertex_const_handle> vertex_lookup(P->vertices_begin(), P->size_of_vertices());
         CGAL::set_ascii_mode(out);
-        for (Polyhedron3::Point_const_iterator i = P->points_begin(), end = P->points_end(); i != end; ++i) { out << "v " << *i << std::endl; }
-        for (Polyhedron3::Facet_const_iterator i = P->facets_begin(), end = P->facets_end(); i != end; ++i)
-        {
-            out << 'f';
-            FOR_VERTICES_AROUND_FACET(i, v) { out << ' ' << (vertex_lookup[v] + 1 /*+ off*/); }
-            out << std::endl;
-        }
-        //off += P->size_of_vertices();
+        write_obj(out, P, this->off);
     }
 };
 static P3Writer* get_obj_writer(const file_options& options)
 {
-    return NULL; // TODO
+    if (options.find("append") != options.end() ||
+        options.find("objectname") != options.end() ||
+        options.find("groupname") != options.end() ||
+        options.find("objectindex") != options.end() ||
+        options.find("groupindex") != options.end())
+    {
+        // TODO: implement
+        throw std::invalid_argument("Currently no options are actually support for OBJ files");
+    }
+    if (options.size() != 0)
+    {
+        throw std::invalid_argument("Error: invalid file options given for writing mesh");
+    }
+    return new P3Writer_OBJ();
 }
 
 
@@ -313,6 +319,7 @@ void write_mesh(const Polyhedron3* P, std::ostream &out, file_type type, const f
     case file_type::OFF: writer.reset(get_off_writer(options)); break;
     default: throw std::invalid_argument("Error: invalid file type given the writing mesh");
     }
+    // TODO: use writers across multiple Polyhedron3 to the same file
     writer->operator()(P, out);
 }
 
