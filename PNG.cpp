@@ -98,7 +98,7 @@ static int _readPngImage(const char *name, _image *im, FILE* f)
     im->endianness = ::_getEndianness();
     im->vectMode = channels == 1 ? VM_SCALAR : VM_INTERLACED;
     im->wordKind = WK_FIXED; im->sign = SGN_UNSIGNED;
-    im->wdim = bit_depth / 2; // 1 or 2
+    im->wdim = bit_depth / 8; // 1 or 2
     im->xdim = w; im->ydim = h; im->zdim = 1; im->vdim = channels;
     im->rx = im->ry = im->rz = 0;
     im->cx = im->cy = im->cz = 0;
