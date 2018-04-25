@@ -4,15 +4,6 @@
 // These are the few basic geometry utility functions that were not one-liners.
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CGAL::Random Rand;
-
-//CGAL::Cartesian_converter<Kernel, EPEC_Kernel> main_to_exact;
-//CGAL::Cartesian_converter<Kernel, EPIC_Kernel> main_to_inexact;
-//CGAL::Cartesian_converter<EPEC_Kernel, Kernel> exact_to_main;
-//CGAL::Cartesian_converter<EPIC_Kernel, Kernel> inexact_to_main;
-//CGAL::Cartesian_converter<EPEC_Kernel, EPIC_Kernel> exact_to_inexact;
-//CGAL::Cartesian_converter<EPIC_Kernel, EPEC_Kernel> inexact_to_exact;
-
 void remove_collinear_points(std::list<Point2>* pts, bool cyclic)
 {
     typedef std::list<Point2>::iterator iter;
@@ -49,7 +40,7 @@ void remove_nearly_collinear_points(std::list<Point2>* pts, Kernel::FT threshold
     // If the list is cyclic (e.g. making a closed polygon) then we need to make sure to also consider the triplets that cross the ends (at least two to check - more if one of those is collinear)
     iter r = pts->begin(), p = cyclic ? std::prev(pts->end()) : r++, q = r++; // <p,q,r> starts out with the first three items of the list (if acyclic) or with the last item and the first two items of the list (if cyclic)
     for (; r != pts->end(); ++r) { Kernel::FT a = CGAL::area(*p,*q,*r); if (a*a < threshold) { q = r = pts->erase(q); } else { p = q; q = r; } }
-    if (cyclic && pts->size() >= 3) { Kernel::FT a = CGAL::area(*p,*q,pts->front()); if (a*a < threshold) { pts->erase(q); } }
+    if (cyclic && pts->size() >= 3) { Kernel::FT a = CGAL::area(*p,*q, pts->front()); if (a*a < threshold) { pts->erase(q); } }
 }
 
 void remove_nearly_collinear_points(std::list<Point3>* pts, Kernel::FT threshold, bool cyclic)

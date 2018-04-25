@@ -37,7 +37,7 @@ static void _gl_init()
         glBindBuffer = (PFNGLBINDBUFFERPROC)GL_GET_PROC_ADDR("glBindBuffer");
         glBufferData = (PFNGLBUFFERDATAPROC)GL_GET_PROC_ADDR("glBufferData");
         glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)GL_GET_PROC_ADDR("glDeleteBuffers");
-        
+
         glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)GL_GET_PROC_ADDR("glEnableVertexAttribArray");
         glDisableVertexAttribArray = (PFNGLDISABLEVERTEXATTRIBARRAYPROC)GL_GET_PROC_ADDR("glDisableVertexAttribArray");
         glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)GL_GET_PROC_ADDR("glVertexAttribPointer");
@@ -86,16 +86,14 @@ GlPolyhedron::GlPolyhedron(const Polyhedron3* P) : nverts(0), nedges(0), nfaces(
         norms[i++] = CGAL::to_double(n.dz());
     }
 
-    IteratorReverseLookup<Polyhedron3::Vertex_const_handle> vertex_lookup(P->vertices_begin(), P->size_of_vertices());
-
     // Get all edges
     this->nedges = P->size_of_halfedges();
     this->edges = new unsigned int[this->nedges];
     i = 0;
     for (Polyhedron3::Edge_const_iterator HE = P->edges_begin(), end = P->edges_end(); HE != end; ++HE)
     {
-        this->edges[i++] = (unsigned int)vertex_lookup[HE->vertex()];
-        this->edges[i++] = (unsigned int)vertex_lookup[HE->opposite()->vertex()];
+        this->edges[i++] = (unsigned int)HE->vertex()->id();
+        this->edges[i++] = (unsigned int)HE->opposite()->vertex()->id();
     }
 
     // Get all faces
@@ -107,9 +105,9 @@ GlPolyhedron::GlPolyhedron(const Polyhedron3* P) : nverts(0), nedges(0), nfaces(
     {
         const Polyhedron3::Halfedge_const_handle &a = F->halfedge(), &b = a->next(), &c = b->next();
         faces[i] = new unsigned int[3];
-        faces[i][0] = (unsigned int)vertex_lookup[a->vertex()];
-        faces[i][1] = (unsigned int)vertex_lookup[b->vertex()];
-        faces[i][2] = (unsigned int)vertex_lookup[c->vertex()];
+        faces[i][0] = (unsigned int)a->vertex()->id();
+        faces[i][1] = (unsigned int)b->vertex()->id();
+        faces[i][2] = (unsigned int)c->vertex()->id();
         ++i;
     }
 
@@ -171,7 +169,7 @@ void GlPolyhedron::render_faces(const Ray3& view, const QColor& color)
     //glEnable(GL_LIGHTING); // TODO: alpha and lighting
     glDisable(GL_DEPTH_TEST);
     _gl_set_color(color);
-    
+
     // Draw all faces
     glBindBuffer(GL_ARRAY_BUFFER, this->bufs[0]);
     glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 0, 0);
@@ -183,7 +181,7 @@ void GlPolyhedron::render_faces(const Ray3& view, const QColor& color)
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
+
     //// Indirect/slow/easy way
     //glBegin(GL_TRIANGLES);
     //for (; f != end; ++f)
@@ -205,7 +203,7 @@ GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(boost::num_vertices(*S)), ne
 {
     size_t i;
     this->bufs[0] = 0;
-    
+
     // Get all vertices
     GLdouble* verts = new GLdouble[this->nverts*3];
     i = 0;
@@ -220,7 +218,7 @@ GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(boost::num_vertices(*S)), ne
         verts[3*i+2] = CGAL::to_double(v.z());
         ++i;
     }
-    
+
     // Get all edges
     this->edges = new unsigned int[2*this->nedges];
     i = 0;
@@ -230,13 +228,13 @@ GlSkeleton::GlSkeleton(const Skeleton3* S) : nverts(boost::num_vertices(*S)), ne
         this->edges[i++] = (unsigned int)vertex_lookup[boost::source(*E, *S)];
         this->edges[i++] = (unsigned int)vertex_lookup[boost::target(*E, *S)];
     }
-    
+
     // Save vertex data to the graphics card
     glGenBuffers(1, this->bufs);
     glBindBuffer(GL_ARRAY_BUFFER, this->bufs[0]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLdouble)*nverts*3, verts, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
+
     // Cleanup temporary data
     delete[] verts;
 }
@@ -308,7 +306,7 @@ GlIntersection::GlIntersection(const Intersection& I) : nintersections(0), npoin
         for (size_t x = start_p + 1; x < end_p; ++x) { this->polys[i][j++] = (unsigned int)x; this->polys[i][j++] = (unsigned int)x; }
         i++;
     }
-    
+
     // Save points data to the graphics card
     glGenBuffers(1, bufs);
     glBindBuffer(GL_ARRAY_BUFFER, this->bufs[0]);
@@ -346,7 +344,7 @@ void GlIntersection::render_polygons(const QColor& color)
     glDisable(GL_DEPTH_TEST);
     glLineWidth(5.0f);
     _gl_set_color(color);
-    
+
     // Draw all edges
     glBindBuffer(GL_ARRAY_BUFFER, this->bufs[0]);
     glEnableVertexAttribArray(0);

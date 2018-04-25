@@ -19,7 +19,6 @@ typedef CGAL::Face_filtered_graph<Polyhedron3> FilteredPolyhedron3;
 Polygon2 facet_to_polygon2(Polyhedron3::Facet_const_handle f);
 inline Plane3 facet_to_plane3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return Plane3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
 inline Triangle3 facet_to_triangle3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return Triangle3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
-inline Bbox3 facet_to_bbox3(Polyhedron3::Facet_const_handle f) { const Polyhedron3::Halfedge_const_handle &a = f->facet_begin(), &b = a->next(), &c = b->next(); return bbox3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point()); }
 inline Segment3 halfedge_to_segment3(Polyhedron3::Halfedge_const_handle he) { return Segment3(he->prev()->vertex()->point(), he->vertex()->point()); }
 
 
@@ -27,7 +26,7 @@ inline Segment3 halfedge_to_segment3(Polyhedron3::Halfedge_const_handle he) { re
 template <class Facet>
 inline typename Facet::Plane_3 __facet_to_plane3(Facet& f)
 {
-    const Polyhedron3::Halfedge_const_handle &a = f.facet_begin(), &b = a->next(), &c = b->next(); 
+    const Polyhedron3::Halfedge_const_handle &a = f.facet_begin(), &b = a->next(), &c = b->next();
     return typename Facet::Plane_3(a->vertex()->point(), b->vertex()->point(), c->vertex()->point());
 }
 inline void calculate_facet_planes(Polyhedron3* P)

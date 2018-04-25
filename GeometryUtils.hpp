@@ -7,7 +7,6 @@
 
 #include "GeometryTypes.hpp"
 
-#include <CGAL/Random.h>
 #include <CGAL/Handle_hash_function.h>
 
 #include <list>
@@ -31,25 +30,9 @@ template <class FT> inline FT _ft_sqrt(const FT x, CGAL::Field_with_sqrt_tag) { 
 template <class FT> inline FT ft_sqrt(const FT x) { return _ft_sqrt(x, typename CGAL::Algebraic_structure_traits<FT>::Algebraic_category()); }
 
 
-// Fast min and max of 2 or 3 numbers
-template <class FT> inline FT min2(const FT x, const FT y) { return x < y ? x : y; }
-template <class FT> inline FT max2(const FT x, const FT y) { return x > y ? x : y; }
-template <class FT> inline FT min3(const FT x, const FT y, const FT z) { return x < y ? (x < z ? x : z) : (y < z ? y : z); }
-template <class FT> inline FT max3(const FT x, const FT y, const FT z) { return x > y ? (x > z ? x : z) : (y > z ? y : z); }
-
-
-// Inter-convert vectors and directions (vector->direction is easy [just constructor] but provided for completion)
-template <class Kernel> inline CGAL::Direction_2<Kernel> to_direction(const CGAL::Vector_2<Kernel> &v) { return CGAL::Direction_2<Kernel>(v); }
-template <class Kernel> inline CGAL::Direction_3<Kernel> to_direction(const CGAL::Vector_3<Kernel> &v) { return CGAL::Direction_3<Kernel>(v); }
-template <class Kernel> inline CGAL::Vector_2<Kernel> to_vector(const CGAL::Direction_2<Kernel> &d) { return CGAL::Vector_2<Kernel>(d.dx(),d.dy(),d.dz()); }
-template <class Kernel> inline CGAL::Vector_3<Kernel> to_vector(const CGAL::Direction_3<Kernel> &d) { return CGAL::Vector_3<Kernel>(d.dx(),d.dy(),d.dz()); }
-
-
 // Normalize vectors and directions
 template <class Kernel> inline CGAL::Vector_2<Kernel> normalized(const CGAL::Vector_2<Kernel> &v) { typename Kernel::FT m = v.squared_length(); return m == 0 ? v : v / ft_sqrt(m); }
 template <class Kernel> inline CGAL::Vector_3<Kernel> normalized(const CGAL::Vector_3<Kernel> &v) { typename Kernel::FT m = v.squared_length(); return m == 0 ? v : v / ft_sqrt(m); }
-template <class Kernel> inline CGAL::Direction_2<Kernel> normalized(const CGAL::Direction_2<Kernel> &d) { return CGAL::Direction_2<Kernel>(normalized(to_vector(d))); }
-template <class Kernel> inline CGAL::Direction_3<Kernel> normalized(const CGAL::Direction_3<Kernel> &d) { return CGAL::Direction_3<Kernel>(normalized(to_vector(d))); }
 
 
 // Get the distance (not-squared) between two points (approximating to double always)
@@ -105,91 +88,11 @@ typedef handle_set<P3CFacet>    P3CFacetSet;
 typedef handle_set<P3Facet>     P3FacetSet;
 
 
-// Get vertex and facet indices from Polyhedron3 and Polygon3 data structures.
-// When marked DEPRECATED they should only be used in debugging since they are really, really slow (using list iterators).
-//template <class I> DEPRECATED(inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::input_iterator_tag)) { return std::distance(a, b); }
-template <class I> inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::input_iterator_tag) { return std::distance(a, b); }
-template <class I> inline typename std::iterator_traits<I>::difference_type _dist(I a, I b, std::random_access_iterator_tag) { return b - a; }
-template <class DS> inline size_t vertex_number  (const typename DS::Vertex_const_handle   v, const DS* ds) { return _dist(ds->vertices_begin(),  v, typename std::iterator_traits<typename DS::Vertex_const_handle>  ::iterator_category()); }
-template <class DS> inline size_t facet_number   (const typename DS::Facet_const_handle    f, const DS* ds) { return _dist(ds->facets_begin(),    f, typename std::iterator_traits<typename DS::Facet_const_handle>   ::iterator_category()); }
-template <class DS> inline size_t halfedge_number(const typename DS::Halfedge_const_handle e, const DS* ds) { return _dist(ds->halfedges_begin(), e, typename std::iterator_traits<typename DS::Halfedge_const_handle>::iterator_category()); }
-// If you need to use these functions for list iterators for all elements, the below class is much better.
-// It is constructed using the beginning iterator and the length and defines the [] operator to take an iterator and give an index.
-// For random-access iterators it is equivalent to the above functions (so does not do lookups).
-namespace irl_detail
-{
-    template <class I, class IT>
-    struct Internal
-    {
-        handle_map<I, size_t> x;
-        Internal(I begin, const size_t len) : x(size_t(len*1.2)) { this->x.reserve(len); for (size_t i = 0; i < len; ++begin, ++i) { this->x[begin] = i; } }
-        size_t get(const I iter) const { return this->x.at(iter); }
-    };
-    template <class I>
-    struct Internal<I, std::random_access_iterator_tag>
-    {
-        const I begin;
-        Internal(I begin, const size_t len) : begin(begin) { }
-        size_t get(const I iter) const { return iter - this->begin; }
-    };
-};
-template <class I>
-class IteratorReverseLookup
-{
-    irl_detail::Internal<I, typename std::iterator_traits<I>::iterator_category> x;
-public:
-    IteratorReverseLookup(I begin, const size_t len) : x(begin, len) { }
-    size_t operator[](const I iter) const { return this->x.get(iter); }
-};
-
-
-// Get a string version of a point / vector identical to how the original CurveSk program did it (for debugging)
-inline std::string tostr(const Point3& p)  { std::stringstream s; s << p; return "( " + s.str() + " )"; }
-inline std::string tostr(const Vector3& v) { std::stringstream s; s << v; return "( " + s.str() + " )"; }
-
-
-// Cartesian converters
-//extern CGAL::Cartesian_converter<Kernel, EPEC_Kernel> main_to_exact;
-//extern CGAL::Cartesian_converter<Kernel, EPIC_Kernel> main_to_inexact;
-//extern CGAL::Cartesian_converter<EPEC_Kernel, Kernel> exact_to_main;
-//extern CGAL::Cartesian_converter<EPIC_Kernel, Kernel> inexact_to_main;
-//extern CGAL::Cartesian_converter<EPEC_Kernel, EPIC_Kernel> exact_to_inexact;
-//extern CGAL::Cartesian_converter<EPIC_Kernel, EPEC_Kernel> inexact_to_exact;
-
-
-// Bbox3 creation from points (significantly faster than adding the bboxes of each point)
-// There are specializations for 1, 2, and 3 points, and a general function that takes an iterator of points
-inline Bbox3 bbox3(const Point3& p) { return p.bbox(); }
-#define RETURN_BBOX3 return Bbox3(min_x, min_y, min_z, max_x, max_y, max_z)
-#define PT3_TO_DBL(P) P##x = CGAL::to_double(P.x()), P##y = CGAL::to_double(P.y()), P##z = CGAL::to_double(P.z())
-#define MIN_MAX_2(d) if (p##d > q##d) { min_##d = q##d; max_##d = p##d; } else { min_##d = p##d; max_##d = q##d; }
-inline Bbox3 bbox3(const Point3& p, const Point3& q) { double PT3_TO_DBL(p), PT3_TO_DBL(q), min_x, max_x, min_y, max_y, min_z, max_z; MIN_MAX_2(x); MIN_MAX_2(y); MIN_MAX_2(z); RETURN_BBOX3; }
-#undef MIN_MAX_2
-#define MIN_MAX_3(d) if (p##d < q##d) { if (p##d < r##d) { min_##d = p##d; max_##d = q##d < r##d ? r##d : q##d; } else { min_##d = r##d; max_##d = q##d; } } else if (p##d < r##d) { min_##d = q##d; max_##d = r##d; } else { min_##d = q##d < r##d ? q##d : r##d; max_##d = p##d; }
-inline Bbox3 bbox3(const Point3& p, const Point3& q, const Point3& r) { double PT3_TO_DBL(p), PT3_TO_DBL(q), PT3_TO_DBL(r), min_x, max_x, min_y, max_y, min_z, max_z; MIN_MAX_3(x); MIN_MAX_3(y); MIN_MAX_3(z); RETURN_BBOX3; }
-#undef MIN_MAX_3
-#undef PT3_TO_DBL
-#define PT3_TO_DBL(d) min_##d = CGAL::to_double(i->d()), max_##d = min_##d
-#define MIN_MAX_2(d) double d = CGAL::to_double(i->d()); if (d < min_##d) { min_##d = d; } else if (d > max_##d) { max_##d = d; }
-template <class InputIterator> inline Bbox3 bbox3_from_points(InputIterator i, InputIterator end) { if (i == end) { return Bbox3(); } double PT3_TO_DBL(x), PT3_TO_DBL(y), PT3_TO_DBL(z); while (++i != end) { MIN_MAX_2(x); MIN_MAX_2(y); MIN_MAX_2(z); } RETURN_BBOX3; }
-#undef MIN_MAX_2
-#undef PT3_TO_DBL
-#undef RETURN_BBOX3
-
-
 // Bbox Utilities
 inline bool is_inside(const Bbox2& out, const Bbox2& in) { return out.xmin() <= in.xmin() && out.ymin() <= in.ymin() && out.xmax() >= in.xmax() && out.ymax() >= in.ymax(); }
 inline bool is_inside(const Bbox3& out, const Bbox3& in) { return out.xmin() <= in.xmin() && out.ymin() <= in.ymin() && out.zmin() <= in.zmin() && out.xmax() >= in.xmax() && out.ymax() >= in.ymax() && out.zmax() >= in.zmax(); }
 inline bool is_inside(const Bbox2& out, const Point2& p) { return p.x() >= out.xmin() && p.x() <= out.xmax() && p.y() >= out.ymin() && p.y() <= out.ymax(); }
 inline bool is_inside(const Bbox3& out, const Point3& p) { return p.x() >= out.xmin() && p.x() <= out.xmax() && p.y() >= out.ymin() && p.y() <= out.ymax() && p.z() >= out.zmin() && p.z() <= out.zmax(); }
-inline double bbox_max_length(const Bbox3& bb) { return max3(bb.max(0)-bb.min(0), bb.max(1)-bb.min(1), bb.max(2)-bb.min(2)); }
-
-
-// Random constructs
-extern CGAL::Random Rand;
-inline Point3 random_point(const Bbox3& bbox) { return Point3(Rand.uniform_real(bbox.xmin(),bbox.xmax()),Rand.uniform_real(bbox.ymin(),bbox.ymax()),Rand.uniform_real(bbox.zmin(),bbox.zmax())); }
-inline Vector3 random_vector() { return Vector3(Rand.uniform_real(0.0,1.0),Rand.uniform_real(0.0,1.0),Rand.uniform_real(0.0,1.0)); }
-inline Vector3 random_nonnull_vector() { Vector3 v = random_vector(); while (v == CGAL::NULL_VECTOR) { v = random_vector(); } return v; }
 
 
 // Graph utilities
