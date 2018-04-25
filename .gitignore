@@ -44,3 +44,4 @@ moc_*.cpp
 *.txt
 *.mtl
 *.off
+test/
